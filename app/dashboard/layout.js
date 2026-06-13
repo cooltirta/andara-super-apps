@@ -10,7 +10,7 @@ export default async function DashboardLayout({ children }) {
   if (!emailCookie) {
     redirect('/login');
   }
-
+  const email = emailCookie.value;
   const { rows } = await db.query("SELECT * FROM user_profiles WHERE email = $1;", [email]);
   const user = rows[0];
 
