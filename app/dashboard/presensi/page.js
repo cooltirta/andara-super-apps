@@ -18,6 +18,7 @@ export default function PresensiPage() {
   const [loadingInput, setLoadingInput] = useState(false);
   const [loadingSubmit, setLoadingSubmit] = useState(false);
   const [attendanceDraft, setAttendanceDraft] = useState({});
+  const [locations, setLocations] = useState([]);
   const [toasts, setToasts] = useState([]);
   
   // Input Filters
@@ -59,6 +60,11 @@ export default function PresensiPage() {
         showToast("Akses Ditolak: Anggota tidak memiliki wewenang presensi", "error");
         setTimeout(() => router.push('/dashboard'), 1500);
         return;
+      }
+
+      const lokasiRes = await fetch('/api/lokasi');
+      if (lokasiRes.ok) {
+        setLocations(await lokasiRes.json());
       }
 
       // Default filters berdasarkan role user
@@ -384,12 +390,15 @@ export default function PresensiPage() {
                 <select 
                   className="px-2.5 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 font-bold text-[10px] cursor-pointer outline-none focus:border-primary"
                   value={filterDesa}
-                  onChange={(e) => setFilterDesa(e.target.value)}
+                  onChange={(e) => {
+                    setFilterDesa(e.target.value);
+                    setFilterKelompok('');
+                  }}
                 >
                   <option value="">Semua Desa</option>
-                  <option value="Andara">Andara</option>
-                  <option value="Bojong">Bojong</option>
-                  <option value="Cisadane">Cisadane</option>
+                  {locations.map(d => (
+                    <option key={d.id} value={d.nama_desa}>{d.nama_desa}</option>
+                  ))}
                 </select>
               ) : (
                 <input 
@@ -415,12 +424,12 @@ export default function PresensiPage() {
                   onChange={(e) => setFilterKelompok(e.target.value)}
                 >
                   <option value="">Semua Kelompok</option>
-                  <option value="Andara 1">Andara 1</option>
-                  <option value="Andara 2">Andara 2</option>
-                  <option value="Andara 3">Andara 3</option>
-                  <option value="Andara 4">Andara 4</option>
-                  <option value="Andara 5">Andara 5</option>
-                  <option value="Lain-lain">Lain-lain</option>
+                  {(user.role === 'Super Admin'
+                    ? (filterDesa ? (locations.find(d => d.nama_desa === filterDesa)?.kelompoks || []) : locations.flatMap(d => d.kelompoks))
+                    : (locations.find(d => d.nama_desa === user.desa)?.kelompoks || [])
+                  ).map(k => (
+                    <option key={k.id} value={k.nama_kelompok}>{k.nama_kelompok}</option>
+                  ))}
                 </select>
               )}
 
@@ -655,12 +664,15 @@ export default function PresensiPage() {
               <select 
                 className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 font-bold text-xs cursor-pointer"
                 value={reportDesa}
-                onChange={(e) => setReportDesa(e.target.value)}
+                onChange={(e) => {
+                  setReportDesa(e.target.value);
+                  setReportKelompok('');
+                }}
               >
                 <option value="">Semua Desa</option>
-                <option value="Andara">Andara</option>
-                <option value="Bojong">Bojong</option>
-                <option value="Cisadane">Cisadane</option>
+                {locations.map(d => (
+                  <option key={d.id} value={d.nama_desa}>{d.nama_desa}</option>
+                ))}
               </select>
             ) : null}
 
@@ -672,12 +684,12 @@ export default function PresensiPage() {
                 onChange={(e) => setReportKelompok(e.target.value)}
               >
                 <option value="">Semua Kelompok</option>
-                <option value="Andara 1">Andara 1</option>
-                <option value="Andara 2">Andara 2</option>
-                <option value="Andara 3">Andara 3</option>
-                <option value="Andara 4">Andara 4</option>
-                <option value="Andara 5">Andara 5</option>
-                <option value="Lain-lain">Lain-lain</option>
+                {(user.role === 'Super Admin'
+                  ? (reportDesa ? (locations.find(d => d.nama_desa === reportDesa)?.kelompoks || []) : locations.flatMap(d => d.kelompoks))
+                  : (locations.find(d => d.nama_desa === user.desa)?.kelompoks || [])
+                ).map(k => (
+                  <option key={k.id} value={k.nama_kelompok}>{k.nama_kelompok}</option>
+                ))}
               </select>
             ) : null}
 

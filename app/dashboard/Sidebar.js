@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Users, ClipboardCheck, ShieldCheck, LogOut, Menu, X, Bell, History } from 'lucide-react';
+import { LayoutDashboard, Users, ClipboardCheck, ShieldCheck, LogOut, Menu, X, Bell, History, MapPin } from 'lucide-react';
 
 export default function Sidebar({ user }) {
   const pathname = usePathname();
@@ -154,6 +154,22 @@ export default function Sidebar({ user }) {
               >
                 <Users size={18} />
                 <span>Database Jamaah</span>
+              </Link>
+            )}
+
+            {/* Lokasi Link */}
+            {(role === 'Admin' || role === 'Super Admin') && (
+              <Link 
+                href="/dashboard/lokasi" 
+                onClick={() => setIsOpen(false)}
+                className={`flex items-center gap-3 px-4 py-2.5 rounded-3xl font-semibold text-sm transition-all duration-150 ${
+                  pathname === '/dashboard/lokasi' 
+                    ? 'bg-primary-light text-primary font-bold shadow-sm' 
+                    : 'text-slate-600 hover:text-primary hover:bg-slate-50'
+                }`}
+              >
+                <MapPin size={18} />
+                <span>Manajemen Lokasi</span>
               </Link>
             )}
 

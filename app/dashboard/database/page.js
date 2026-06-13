@@ -25,6 +25,7 @@ export default function DatabasePage() {
   const [formNama, setFormNama] = useState('');
   const [formGender, setFormGender] = useState('Laki-laki');
   const [formBirthplace, setFormBirthplace] = useState('');
+  const [locations, setLocations] = useState([]);
   const [formDesa, setFormDesa] = useState('Andara');
   const [formKelompok, setFormKelompok] = useState('Andara 1');
   const [formBlood, setFormBlood] = useState('O');
@@ -74,16 +75,18 @@ export default function DatabasePage() {
         return;
       }
 
-      const [jamaahRes, keluargaRes] = await Promise.all([
+      const [jamaahRes, keluargaRes, lokasiRes] = await Promise.all([
         fetch('/api/jamaah'),
-        fetch('/api/keluarga')
+        fetch('/api/keluarga'),
+        fetch('/api/lokasi')
       ]);
 
-      if (jamaahRes.ok && keluargaRes.ok) {
+      if (jamaahRes.ok && keluargaRes.ok && lokasiRes.ok) {
         setJamaahList(await jamaahRes.json());
         setKeluargaList(await keluargaRes.json());
+        setLocations(await lokasiRes.json());
       } else {
-        throw new Error("Gagal mengambil data jamaah dan keluarga");
+        throw new Error("Gagal mengambil data jamaah, keluarga, dan lokasi");
       }
     } catch (err) {
       console.error(err);
@@ -121,8 +124,15 @@ export default function DatabasePage() {
       setFormNama('');
       setFormGender('Laki-laki');
       setFormBirthplace('');
-      setFormDesa(user.role === 'Super Admin' ? 'Andara' : user.desa);
-      setFormKelompok('Andara 1');
+      const defaultDesa = user.role === 'Super Admin' 
+        ? (locations[0]?.nama_desa || 'Andara') 
+        : user.desa;
+      setFormDesa(defaultDesa);
+      const dObj = locations.find(d => d.nama_desa === defaultDesa);
+      const defaultKelompok = user.role === 'Moderator' 
+        ? user.kelompok 
+        : (dObj && dObj.kelompoks.length > 0 ? dObj.kelompoks[0].nama_kelompok : '');
+      setFormKelompok(defaultKelompok);
       setFormBlood('O');
       setFormStatus('Hidup');
       setFormEducation('Tidak Sekolah');
@@ -454,12 +464,12 @@ export default function DatabasePage() {
               onChange={(e) => setFilterKelompok(e.target.value)}
             >
               <option value="">Semua Kelompok</option>
-              <option value="Andara 1">Andara 1</option>
-              <option value="Andara 2">Andara 2</option>
-              <option value="Andara 3">Andara 3</option>
-              <option value="Andara 4">Andara 4</option>
-              <option value="Andara 5">Andara 5</option>
-              <option value="Lain-lain">Lain-lain</option>
+              {(user.role === 'Super Admin' 
+                ? locations.flatMap(d => d.kelompoks) 
+                : (locations.find(d => d.nama_desa === user.desa)?.kelompoks || [])
+              ).map(k => (
+                <option key={k.id} value={k.nama_kelompok}>{k.nama_kelompok}</option>
+              ))}
             </select>
             <select 
               id="filter-gender" 
@@ -482,6 +492,7 @@ export default function DatabasePage() {
               <option value="B">B</option>
               <option value="O">O</option>
               <option value="AB">AB</option>
+              <option value="Tidak Diketahui">Tidak Diketahui</option>
             </select>
             <select 
               id="filter-status" 
@@ -860,13 +871,13 @@ export default function DatabasePage() {
                   {/* Goldar Stats */}
                   <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-5 flex-1">
                     <h3 className="font-bold text-xs text-slate-500 uppercase tracking-wider mb-4 border-b border-slate-50 pb-2">Golongan Darah</h3>
-                    <div className="grid grid-cols-4 gap-4 text-center">
-                      {['A', 'B', 'AB', 'O'].map(type => {
+                    <div className="grid grid-cols-5 gap-2 text-center">
+                      {['A', 'B', 'AB', 'O', 'Tidak Diketahui'].map(type => {
                         const count = statsActiveJamaah.filter(j => j.golongan_darah === type).length;
                         const pct = totalActive > 0 ? Math.round((count / totalActive) * 100) : 0;
                         return (
                           <div key={type} className="border border-slate-100 rounded-xl p-3 bg-slate-50/30">
-                            <span className="text-xs font-black text-slate-500 block mb-1">{type}</span>
+                            <span className="text-[10px] font-black text-slate-500 block mb-1 truncate" title={type}>{type === 'Tidak Diketahui' ? 'N/A' : type}</span>
                             <span className="text-lg font-bold text-slate-800 block">{count}</span>
                             <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mt-1">({pct}%)</span>
                           </div>
@@ -940,18 +951,27 @@ export default function DatabasePage() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1.5">
-                    <label htmlFor="form-desa" className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Wilayah Desa</label>
+                    <label htmlFor="form-desa" className="text-[10px] font-bold uppercase tracking-wider text-slate-400">DESA</label>
                     {user.role === 'Super Admin' ? (
                       <select 
                         id="form-desa" 
                         className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-primary outline-none bg-white text-slate-700 text-xs font-semibold cursor-pointer"
                         value={formDesa}
-                        onChange={(e) => setFormDesa(e.target.value)}
+                        onChange={(e) => {
+                          const newDesa = e.target.value;
+                          setFormDesa(newDesa);
+                          const dObj = locations.find(d => d.nama_desa === newDesa);
+                          if (dObj && dObj.kelompoks.length > 0) {
+                            setFormKelompok(dObj.kelompoks[0].nama_kelompok);
+                          } else {
+                            setFormKelompok('');
+                          }
+                        }}
                         required
                       >
-                        <option value="Andara">Andara</option>
-                        <option value="Bojong">Bojong</option>
-                        <option value="Cisadane">Cisadane</option>
+                        {locations.map(d => (
+                          <option key={d.id} value={d.nama_desa}>{d.nama_desa}</option>
+                        ))}
                       </select>
                     ) : (
                       <input 
@@ -964,7 +984,7 @@ export default function DatabasePage() {
                     )}
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <label htmlFor="form-kelompok" className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Kelompok Pengajian</label>
+                    <label htmlFor="form-kelompok" className="text-[10px] font-bold uppercase tracking-wider text-slate-400">KELOMPOK</label>
                     <select 
                       id="form-kelompok" 
                       className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-primary outline-none bg-white text-slate-700 text-xs font-semibold cursor-pointer"
@@ -972,12 +992,9 @@ export default function DatabasePage() {
                       onChange={(e) => setFormKelompok(e.target.value)}
                       required
                     >
-                      <option value="Andara 1">Andara 1</option>
-                      <option value="Andara 2">Andara 2</option>
-                      <option value="Andara 3">Andara 3</option>
-                      <option value="Andara 4">Andara 4</option>
-                      <option value="Andara 5">Andara 5</option>
-                      <option value="Lain-lain">Lain-lain</option>
+                      {(locations.find(d => d.nama_desa === formDesa)?.kelompoks || []).map(k => (
+                        <option key={k.id} value={k.nama_kelompok}>{k.nama_kelompok}</option>
+                      ))}
                     </select>
                   </div>
                 </div>
@@ -996,6 +1013,7 @@ export default function DatabasePage() {
                       <option value="A">A</option>
                       <option value="B">B</option>
                       <option value="AB">AB</option>
+                      <option value="Tidak Diketahui">Tidak Diketahui</option>
                     </select>
                   </div>
                   <div className="flex flex-col gap-1.5">

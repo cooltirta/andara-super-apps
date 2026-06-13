@@ -14,6 +14,7 @@ export default function UserAccessPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState(null); // null means ADD, otherwise EDIT
   const [formEmail, setFormEmail] = useState('');
+  const [locations, setLocations] = useState([]);
   const [formDesa, setFormDesa] = useState('Andara');
   const [formRole, setFormRole] = useState('Member');
   const [formGroup, setFormGroup] = useState('');
@@ -81,6 +82,11 @@ export default function UserAccessPage() {
         showToast("Akses Ditolak: Anda tidak memiliki akses ke User Access Management", "error");
         setTimeout(() => router.push('/dashboard'), 1500);
         return;
+      }
+
+      const lokasiRes = await fetch('/api/lokasi');
+      if (lokasiRes.ok) {
+        setLocations(await lokasiRes.json());
       }
 
       await fetchUsers();
@@ -171,7 +177,7 @@ export default function UserAccessPage() {
       // ADD mode
       setSelectedUserId(null);
       setFormEmail('');
-      setFormDesa(user.role === 'Super Admin' ? 'Andara' : user.desa);
+      setFormDesa(user.role === 'Super Admin' ? (locations[0]?.nama_desa || 'Andara') : user.desa);
       
       // Default roles based on logged-in user role
       let initialRole = 'Moderator';
@@ -599,18 +605,22 @@ export default function UserAccessPage() {
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="flex flex-col gap-2">
-                    <label htmlFor="form-user-desa" className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Desa</label>
+                    <label htmlFor="form-user-desa" className="text-[10px] font-bold uppercase tracking-wider text-slate-400">DESA</label>
                     {user.role === 'Super Admin' ? (
                       <select 
                         id="form-user-desa" 
                         className="w-full px-3 py-2.5 rounded-lg border border-slate-200 focus:border-primary outline-none bg-white text-slate-700 cursor-pointer font-semibold text-sm"
                         value={formDesa}
-                        onChange={(e) => setFormDesa(e.target.value)}
+                        onChange={(e) => {
+                          const newDesa = e.target.value;
+                          setFormDesa(newDesa);
+                          setFormGroup(''); // Reset kelompok selection
+                        }}
                         required
                       >
-                        <option value="Andara">Andara</option>
-                        <option value="Bojong">Bojong</option>
-                        <option value="Cisadane">Cisadane</option>
+                        {locations.map(d => (
+                          <option key={d.id} value={d.nama_desa}>{d.nama_desa}</option>
+                        ))}
                       </select>
                     ) : (
                       <input 
@@ -720,7 +730,7 @@ export default function UserAccessPage() {
                 {/* Dynamic Kelompok select, only shown for Moderator and Admin */}
                 {(formRole === 'Moderator' || formRole === 'Admin') && (
                   <div className="flex flex-col gap-2" id="form-user-group-group">
-                    <label htmlFor="form-user-group" className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Kelompok yang Diawasi</label>
+                    <label htmlFor="form-user-group" className="text-[10px] font-bold uppercase tracking-wider text-slate-400">KELOMPOK YANG DIAWASI</label>
                     <select 
                       id="form-user-group" 
                       className="w-full px-3 py-2.5 rounded-lg border border-slate-200 focus:border-primary outline-none bg-white text-slate-700 cursor-pointer font-semibold text-sm"
@@ -728,12 +738,9 @@ export default function UserAccessPage() {
                       onChange={(e) => setFormGroup(e.target.value)}
                     >
                       <option value="">Semua Kelompok</option>
-                      <option value="Andara 1">Andara 1</option>
-                      <option value="Andara 2">Andara 2</option>
-                      <option value="Andara 3">Andara 3</option>
-                      <option value="Andara 4">Andara 4</option>
-                      <option value="Andara 5">Andara 5</option>
-                      <option value="Lain-lain">Lain-lain</option>
+                      {(locations.find(d => d.nama_desa === formDesa)?.kelompoks || []).map(k => (
+                        <option key={k.id} value={k.nama_kelompok}>{k.nama_kelompok}</option>
+                      ))}
                     </select>
                   </div>
                 )}
