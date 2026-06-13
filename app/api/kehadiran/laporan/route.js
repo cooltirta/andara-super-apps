@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
+import { logActivity } from '@/lib/activity';
 
 export async function GET(request) {
   const user = await getCurrentUser();
@@ -27,6 +28,8 @@ export async function GET(request) {
   }
 
   try {
+    await logActivity(user.email, 'VISIT', 'PAGE', 'PRESENSI_LAPORAN', `Mengakses Laporan Kehadiran (${startDate} s/d ${endDate})`);
+
     // 1. Dapatkan daftar tanggal unik pengajian yang memiliki catatan presensi dalam jangkauan filter
     let dateParamIdx = 1;
     let dateQuery = `

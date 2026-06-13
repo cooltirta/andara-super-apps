@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
+import { logActivity } from '@/lib/activity';
 
 export async function GET(request) {
   const user = await getCurrentUser();
@@ -14,6 +15,8 @@ export async function GET(request) {
   const is_date_filtered = !!(start_date && end_date);
 
   try {
+    await logActivity(user.email, 'VISIT', 'PAGE', 'BERANDA', 'Mengakses halaman Beranda');
+
     let total_jamaah = 0;
     let total_keluarga = 0;
     let groups_dist = [];

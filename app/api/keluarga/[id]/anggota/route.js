@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import crypto from 'crypto';
+import { logActivity } from '@/lib/activity';
 
 export async function POST(request, { params }) {
   const user = await getCurrentUser();
@@ -55,6 +56,8 @@ export async function POST(request, { params }) {
       INSERT INTO anggota_keluarga (id, keluarga_id, jamaah_id, jenis_anggota) 
       VALUES ($1, $2, $3, $4);
     `, [anggota_id, id, jamaah_id, jenis_anggota]);
+
+    await logActivity(user.email, 'ADD_MEMBER', 'KELUARGA', id, `Menambahkan anggota keluarga: ${j_target.nama_lengkap} sebagai ${jenis_anggota} ke unit keluarga ID ${id}`);
 
     return NextResponse.json({ success: true, message: "Anggota keluarga berhasil ditambahkan" });
   } catch (error) {

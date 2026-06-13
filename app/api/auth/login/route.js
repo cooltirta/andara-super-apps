@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import db from '@/lib/db';
 import crypto from 'crypto';
+import { logActivity } from '@/lib/activity';
 
 export async function POST(request) {
   try {
@@ -45,6 +46,8 @@ export async function POST(request) {
       httpOnly: false, // Accessible by client-side JS state
       sameSite: 'lax',
     });
+
+    await logActivity(user.email, 'LOGIN', 'AUTH', user.id, `Pengguna masuk (Role: ${user.role}, Desa: ${user.desa})`);
 
     return response;
   } catch (error) {

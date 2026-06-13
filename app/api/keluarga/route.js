@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import crypto from 'crypto';
+import { logActivity } from '@/lib/activity';
 
 export async function GET() {
   const user = await getCurrentUser();
@@ -104,6 +105,8 @@ export async function POST(request) {
       await db.query("ROLLBACK;");
       throw txErr;
     }
+
+    await logActivity(user.email, 'ADD', 'KELUARGA', keluarga_id, `Membuat keluarga baru: ${nama_keluarga} (Kepala Keluarga: ${jamaah.nama_lengkap})`);
 
     return NextResponse.json({
       success: true,

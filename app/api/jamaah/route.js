@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import crypto from 'crypto';
+import { logActivity } from '@/lib/activity';
 
 export async function GET() {
   const user = await getCurrentUser();
@@ -10,6 +11,7 @@ export async function GET() {
   }
 
   try {
+    await logActivity(user.email, 'VISIT', 'PAGE', 'DATABASE_JAMAAH', 'Mengakses halaman Database Jamaah');
     let jamaah_list = [];
     const baseQuery = `
       SELECT j.*, ak.jenis_anggota, ak.keluarga_id, k.nama_keluarga
@@ -108,6 +110,8 @@ export async function POST(request) {
       await db.query("ROLLBACK;");
       throw txErr;
     }
+
+    await logActivity(user.email, 'ADD', 'JAMAAH', jamaah_id, `Menambahkan jamaah: ${nama_lengkap} (${kelompok}, ${desa})`);
 
     return NextResponse.json({
       success: true,

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
+import { logActivity } from '@/lib/activity';
 
 export async function DELETE(request, { params }) {
   const user = await getCurrentUser();
@@ -31,6 +32,8 @@ export async function DELETE(request, { params }) {
     }
 
     await db.query("DELETE FROM keluarga WHERE id = $1;", [id]);
+
+    await logActivity(user.email, 'DELETE', 'KELUARGA', id, `Menghapus unit keluarga ID: ${id}`);
 
     return NextResponse.json({ success: true, message: "Keluarga berhasil dihapus" });
   } catch (error) {

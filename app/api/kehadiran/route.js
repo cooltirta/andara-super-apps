@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import db from '@/lib/db';
 import { getCurrentUser, canModifyAttendance } from '@/lib/auth';
 import crypto from 'crypto';
+import { logActivity } from '@/lib/activity';
 
 // GET: Memuat daftar kehadiran jamaah untuk tanggal tertentu
 export async function GET(request) {
@@ -146,6 +147,8 @@ export async function PUT(request) {
           throw txError;
         }
 
+        await logActivity(user.email, 'SAVE_ATTENDANCE', 'KEHADIRAN', tanggal, `Menyimpan rekap kehadiran tanggal ${tanggal} (Jumlah data: ${kehadiran.length})`);
+
         return NextResponse.json({
           success: true,
           message: "Kehadiran berhasil disimpan"
@@ -193,6 +196,8 @@ export async function PUT(request) {
           recorded_by = excluded.recorded_by;
       `, [presenceId, jamaah_id, tanggal, rowWaktu || null, status, user.email]);
 
+      await logActivity(user.email, 'SAVE_ATTENDANCE', 'KEHADIRAN', tanggal, `Mencatat kehadiran jamaah ID ${jamaah_id} tanggal ${tanggal} (Status: ${status})`);
+
       return NextResponse.json({ 
         success: true, 
         message: "Kehadiran berhasil dicatat",
@@ -237,6 +242,8 @@ export async function DELETE(request) {
         );
       `, [date, user.desa, user.kelompok]);
     }
+
+    await logActivity(user.email, 'RESET_ATTENDANCE', 'KEHADIRAN', date, `Mereset/menghapus rekap kehadiran tanggal ${date}`);
 
     return NextResponse.json({ success: true, message: `Kehadiran pada tanggal ${date} berhasil dihapus` });
   } catch (error) {

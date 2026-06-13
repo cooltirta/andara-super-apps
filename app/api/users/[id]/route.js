@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
+import { logActivity } from '@/lib/activity';
 
 export async function PUT(request, { params }) {
   const user = await getCurrentUser();
@@ -57,6 +58,8 @@ export async function PUT(request, { params }) {
       id
     ]);
 
+    await logActivity(user.email, 'EDIT', 'USER', id, `Mengubah akses user: ${target.email} menjadi Role=${role}, Desa=${desa}, Kelompok=${kelompok}`);
+
     return NextResponse.json({ success: true, message: "User access berhasil diperbarui" });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -97,6 +100,8 @@ export async function DELETE(request, { params }) {
     }
 
     await db.query("DELETE FROM user_profiles WHERE id = $1;", [id]);
+
+    await logActivity(user.email, 'DELETE', 'USER', id, `Menghapus user: ${target.email} (Role: ${target.role}, Desa: ${target.desa})`);
 
     return NextResponse.json({ success: true, message: "User berhasil dihapus" });
   } catch (error) {

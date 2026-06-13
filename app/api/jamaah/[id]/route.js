@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
+import { logActivity } from '@/lib/activity';
 
 export async function PUT(request, { params }) {
   const user = await getCurrentUser();
@@ -69,6 +70,8 @@ export async function PUT(request, { params }) {
       WHERE id = $11;
     `, [nama_lengkap, jenis_kelamin, tempat_lahir, status_kehidupan, golongan_darah, kelompok, pendidikan_terakhir, tanggal_lulus, desa, kategori, id]);
 
+    await logActivity(user.email, 'EDIT', 'JAMAAH', id, `Mengubah data jamaah: ${nama_lengkap} (Sebelumnya: ${orig.nama_lengkap})`);
+
     return NextResponse.json({ success: true, message: "Data jamaah berhasil diperbarui" });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -101,6 +104,8 @@ export async function DELETE(request, { params }) {
     }
 
     await db.query("DELETE FROM jamaah WHERE id = $1;", [id]);
+
+    await logActivity(user.email, 'DELETE', 'JAMAAH', id, `Menghapus jamaah: ${orig.nama_lengkap} (Desa: ${orig.desa}, Kelompok: ${orig.kelompok})`);
 
     return NextResponse.json({ success: true, message: "Data jamaah berhasil dihapus" });
   } catch (error) {

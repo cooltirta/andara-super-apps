@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import crypto from 'crypto';
+import { logActivity } from '@/lib/activity';
 
 export async function GET() {
   const user = await getCurrentUser();
@@ -14,6 +15,7 @@ export async function GET() {
   }
 
   try {
+    await logActivity(user.email, 'VISIT', 'PAGE', 'USER_ACCESS', 'Mengakses halaman User Management');
     let users_list = [];
     if (user.role === 'Super Admin') {
       const { rows } = await db.query("SELECT * FROM user_profiles ORDER BY email ASC;");
@@ -80,6 +82,8 @@ export async function POST(request) {
       ['Moderator', 'Admin', 'Member'].includes(role) ? kelompok : null,
       desa
     ]);
+
+    await logActivity(user.email, 'ADD', 'USER', user_id, `Menambahkan user: ${email} (Role: ${role}, Desa: ${desa})`);
 
     return NextResponse.json({ success: true, id: user_id, message: "User berhasil ditambahkan" });
   } catch (error) {

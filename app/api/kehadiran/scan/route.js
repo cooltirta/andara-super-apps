@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import crypto from 'crypto';
+import { logActivity } from '@/lib/activity';
 
 export async function POST(request) {
   const user = await getCurrentUser();
@@ -60,6 +61,8 @@ export async function POST(request) {
         waktu_presensi = excluded.waktu_presensi,
         recorded_by = excluded.recorded_by;
     `, [presenceId, jamaahId, today, localTimeStr, user.email]);
+
+    await logActivity(user.email, 'SCAN_QR', 'KEHADIRAN', jamaahId, `Scan QR presensi berhasil: ${jamaah.nama_lengkap} (Desa: ${jamaah.desa}, Kelompok: ${jamaah.kelompok})`);
 
     return NextResponse.json({
       success: true,

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Users, ClipboardCheck, ShieldCheck, LogOut, Menu, X, Bell } from 'lucide-react';
+import { LayoutDashboard, Users, ClipboardCheck, ShieldCheck, LogOut, Menu, X, Bell, History } from 'lucide-react';
 
 export default function Sidebar({ user }) {
   const pathname = usePathname();
@@ -186,6 +186,22 @@ export default function Sidebar({ user }) {
               >
                 <ShieldCheck size={18} />
                 <span>User Access</span>
+              </Link>
+            )}
+
+            {/* Logs Link */}
+            {role === 'Super Admin' && (
+              <Link 
+                href="/dashboard/activity-logs" 
+                onClick={() => setIsOpen(false)}
+                className={`flex items-center gap-3 px-4 py-2.5 rounded-3xl font-semibold text-sm transition-all duration-150 ${
+                  pathname === '/dashboard/activity-logs' 
+                    ? 'bg-primary-light text-primary font-bold shadow-sm' 
+                    : 'text-slate-600 hover:text-primary hover:bg-slate-50'
+                }`}
+              >
+                <History size={18} />
+                <span>Rekam Jejak</span>
               </Link>
             )}
           </nav>
