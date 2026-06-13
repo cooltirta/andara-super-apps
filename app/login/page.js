@@ -1,39 +1,135 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [desa, setDesa] = useState('Andara');
-  const [kelompok, setKelompok] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleClientId, setGoogleClientId] = useState('');
 
-  const handleLogin = async (targetEmail, targetDesa, targetKelompok) => {
+  useEffect(() => {
+    // Read Google Client ID from environment variable
+    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+    if (clientId) {
+      setGoogleClientId(clientId);
+
+      // Load Google Identity Services script
+      const script = document.createElement("script");
+      script.src = "https://accounts.google.com/gsi/client";
+      script.async = true;
+      script.defer = true;
+      script.onload = () => {
+        if (window.google) {
+          window.google.accounts.id.initialize({
+            client_id: clientId,
+            callback: handleGoogleLoginSuccess,
+          });
+          window.google.accounts.id.renderButton(
+            document.getElementById("google-signin-button"),
+            { 
+              theme: "outline", 
+              size: "large", 
+              width: "350",
+              text: "signin_with",
+              shape: "rectangular"
+            }
+          );
+        }
+      };
+      document.body.appendChild(script);
+
+      return () => {
+        if (document.body.contains(script)) {
+          document.body.removeChild(script);
+        }
+      };
+    }
+  }, []);
+
+  const decodeJwt = (token) => {
+    try {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join(''));
+      return JSON.parse(jsonPayload);
+    } catch (error) {
+      console.error("Failed to decode JWT:", error);
+      return null;
+    }
+  };
+
+  const handleGoogleLoginSuccess = async (response) => {
     setLoading(true);
     setError('');
 
-    // Toggle loading spinner
     const spinner = document.getElementById('loading-spinner');
     if (spinner) spinner.classList.remove('hidden');
 
     try {
-      const response = await fetch('/api/auth/login', {
+      const payload = decodeJwt(response.credential);
+      if (!payload || !payload.email) {
+        throw new Error("Gagal membaca email dari Akun Google");
+      }
+
+      const userEmail = payload.email;
+
+      const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: targetEmail,
-          desa: targetDesa,
-          kelompok: targetKelompok || null
+          email: userEmail,
+          desa: "Andara", // default values for new signups
+          kelompok: null
         })
       });
 
-      const data = await response.json();
+      const data = await res.json();
 
-      if (response.ok) {
-        // Redirect to dashboard or callbackUrl
+      if (res.ok) {
+        const params = new URLSearchParams(window.location.search);
+        const callbackUrl = params.get('callbackUrl') || '/dashboard';
+        window.location.href = callbackUrl;
+      } else {
+        setError(data.error || 'Gagal masuk');
+        if (spinner) spinner.classList.add('hidden');
+      }
+    } catch (err) {
+      setError(err.message || 'Terjadi kesalahan koneksi server');
+      console.error(err);
+      if (spinner) spinner.classList.add('hidden');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMockGoogleLogin = async () => {
+    const inputEmail = prompt("Masukkan Email Akun Google Anda untuk login/simulasi:", "cooltirta@gmail.com");
+    if (!inputEmail) return;
+
+    setLoading(true);
+    setError('');
+
+    const spinner = document.getElementById('loading-spinner');
+    if (spinner) spinner.classList.remove('hidden');
+
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: inputEmail,
+          desa: "Andara",
+          kelompok: null
+        })
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
         const params = new URLSearchParams(window.location.search);
         const callbackUrl = params.get('callbackUrl') || '/dashboard';
         window.location.href = callbackUrl;
@@ -50,13 +146,6 @@ export default function LoginPage() {
     }
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (email) {
-      handleLogin(email, desa, kelompok || null);
-    }
-  };
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-50 via-slate-50 to-emerald-100 p-4 font-sans">
       <div className="max-w-md w-full bg-white/95 backdrop-blur-md border border-grey-200/50 shadow-xl rounded-md p-8 text-center transition-all duration-300">
@@ -64,67 +153,32 @@ export default function LoginPage() {
           A
         </div>
         <h1 className="text-2xl font-extrabold text-grey-900 tracking-tight mb-2">Andara Super Apps</h1>
-        <p className="text-sm text-grey-500 font-medium mb-6">Pendataan & Kehadiran Jamaah Pengajian Desa Andara</p>
+        <p className="text-sm text-grey-500 font-medium mb-8">Pendataan & Kehadiran Jamaah Pengajian Desa Andara</p>
 
         {error && (
-          <div className="bg-pastel-red text-pastel-red-text p-3 rounded-sm mb-5 text-sm font-semibold text-left">
+          <div className="bg-pastel-red text-pastel-red-text p-3 rounded-sm mb-6 text-sm font-semibold text-left">
             {error}
           </div>
         )}
 
-        {/* Login / Register Form */}
-        <form onSubmit={handleSubmit} className="text-left flex flex-col gap-4 mt-6">
-          <div className="flex flex-col gap-2">
-            <label htmlFor="login-email" className="text-xs font-bold uppercase tracking-wider text-grey-500">Alamat Email</label>
-            <input 
-              type="email" 
-              id="login-email" 
-              className="w-full px-4 py-2.5 rounded-sm border border-grey-200 focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all outline-none bg-white/50 text-grey-900" 
-              placeholder="nama@email.com" 
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+        <div className="flex flex-col items-center justify-center w-full min-h-[50px] mb-4">
+          {!googleClientId ? (
+            <button 
+              onClick={handleMockGoogleLogin} 
+              className="flex items-center justify-center gap-3 w-full max-w-[350px] py-3 px-4 rounded-sm bg-white hover:bg-grey-50 border border-grey-300 text-grey-700 font-semibold shadow-sm hover:shadow-md transition-all duration-150 cursor-pointer text-sm"
               disabled={loading}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-2">
-              <label htmlFor="login-desa" className="text-xs font-bold uppercase tracking-wider text-grey-500">Pilih Desa</label>
-              <select 
-                id="login-desa" 
-                className="w-full px-3 py-2.5 rounded-sm border border-grey-200 focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all outline-none bg-white text-grey-900 cursor-pointer"
-                value={desa}
-                onChange={(e) => setDesa(e.target.value)}
-                disabled={loading}
-              >
-                <option value="Andara">Andara</option>
-                <option value="Bojong">Bojong</option>
-                <option value="Cisadane">Cisadane</option>
-              </select>
-            </div>
-            <div className="flex flex-col gap-2">
-              <label htmlFor="login-kelompok" className="text-xs font-bold uppercase tracking-wider text-grey-500">Pilih Kelompok</label>
-              <select 
-                id="login-kelompok" 
-                className="w-full px-3 py-2.5 rounded-sm border border-grey-200 focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all outline-none bg-white text-grey-900 cursor-pointer"
-                value={kelompok}
-                onChange={(e) => setKelompok(e.target.value)}
-                disabled={loading}
-              >
-                <option value="">Tidak Ada</option>
-                <option value="Andara 1">Andara 1</option>
-                <option value="Andara 2">Andara 2</option>
-                <option value="Andara 3">Andara 3</option>
-                <option value="Andara 4">Andara 4</option>
-                <option value="Andara 5">Andara 5</option>
-              </select>
-            </div>
-          </div>
-          <button type="submit" className="w-full mt-2 py-3 px-4 rounded-sm bg-primary hover:bg-primary-hover text-white font-semibold shadow-md shadow-primary/20 transition-all active:scale-[0.98]" disabled={loading}>
-            {loading ? 'Memproses...' : 'Masuk / Daftar'}
-          </button>
-        </form>
+            >
+              <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" className="w-5 h-5" alt="Google Logo" />
+              <span>Masuk dengan Akun Google</span>
+            </button>
+          ) : (
+            <div id="google-signin-button" className="w-full flex justify-center"></div>
+          )}
+        </div>
+        
+        <p className="text-xs text-grey-400 font-medium mt-6">
+          Gunakan akun Google Anda yang terdaftar untuk masuk atau mendaftar ke sistem.
+        </p>
       </div>
     </div>
   );
