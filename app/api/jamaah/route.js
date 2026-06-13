@@ -51,14 +51,16 @@ export async function POST(request) {
     const data = await request.json();
     let nama_lengkap = data.nama_lengkap;
     let jenis_kelamin = data.jenis_kelamin;
-    let tempat_lahir = data.tempat_lahir;
+    let tempat_lahir = data.tempat_lahir || null;
     let status_kehidupan = data.status_kehidupan || "Hidup";
-    let golongan_darah = data.golongan_darah;
+    let golongan_darah = data.golongan_darah || "Tidak Diketahui";
     let kelompok = data.kelompok;
     let pendidikan_terakhir = data.pendidikan_terakhir;
     let tanggal_lulus = data.tanggal_lulus_pendidikan_terakhir || null;
     let desa = data.desa || "Andara";
     let kategori = data.kategori || "Dewasa";
+    let tanggal_lahir = data.tanggal_lahir || null;
+    let status_pernikahan = data.status_pernikahan || "Belum Menikah";
 
     if (user.role === 'Moderator') {
       kelompok = user.kelompok;
@@ -67,16 +69,12 @@ export async function POST(request) {
       desa = user.desa;
     }
 
-    if (!nama_lengkap || !jenis_kelamin || !tempat_lahir || !golongan_darah || !kelompok || !pendidikan_terakhir) {
-      return NextResponse.json({ error: "Semua data wajib diisi kecuali tanggal lulus" }, { status: 400 });
+    if (!nama_lengkap || !jenis_kelamin || !golongan_darah || !kelompok || !pendidikan_terakhir) {
+      return NextResponse.json({ error: "Nama lengkap, jenis kelamin, golongan darah, kelompok, dan pendidikan terakhir wajib diisi" }, { status: 400 });
     }
 
     if (!['Balita', 'CBR/PAUD', 'Pra Remaja', 'Remaja', 'Pra Nikah', 'Dewasa', 'Lansia'].includes(kategori)) {
       return NextResponse.json({ error: "Kategori tidak valid" }, { status: 400 });
-    }
-
-    if (pendidikan_terakhir !== "Tidak Sekolah" && !tanggal_lulus) {
-      return NextResponse.json({ error: "Tanggal lulus wajib diisi jika memiliki riwayat sekolah" }, { status: 400 });
     }
 
     if (pendidikan_terakhir === "Tidak Sekolah") {
@@ -90,9 +88,9 @@ export async function POST(request) {
     try {
       // 1. Insert Jamaah
       await db.query(`
-        INSERT INTO jamaah (id, nama_lengkap, jenis_kelamin, tempat_lahir, status_kehidupan, golongan_darah, kelompok, pendidikan_terakhir, tanggal_lulus_pendidikan_terakhir, desa, kategori)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11);
-      `, [jamaah_id, nama_lengkap, jenis_kelamin, tempat_lahir, status_kehidupan, golongan_darah, kelompok, pendidikan_terakhir, tanggal_lulus, desa, kategori]);
+        INSERT INTO jamaah (id, nama_lengkap, jenis_kelamin, tempat_lahir, status_kehidupan, golongan_darah, kelompok, pendidikan_terakhir, tanggal_lulus_pendidikan_terakhir, desa, kategori, tanggal_lahir, status_pernikahan)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13);
+      `, [jamaah_id, nama_lengkap, jenis_kelamin, tempat_lahir, status_kehidupan, golongan_darah, kelompok, pendidikan_terakhir, tanggal_lulus, desa, kategori, tanggal_lahir, status_pernikahan]);
 
       // 2. Fetch distinct dates from kehadiran to sync this new jamaah with past dates
       const { rows: datesRows } = await db.query("SELECT DISTINCT tanggal, recorded_by FROM kehadiran WHERE tanggal IS NOT NULL;");

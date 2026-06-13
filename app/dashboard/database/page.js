@@ -28,11 +28,13 @@ export default function DatabasePage() {
   const [locations, setLocations] = useState([]);
   const [formDesa, setFormDesa] = useState('Andara');
   const [formKelompok, setFormKelompok] = useState('Andara 1');
-  const [formBlood, setFormBlood] = useState('O');
+  const [formBlood, setFormBlood] = useState('Tidak Diketahui');
   const [formStatus, setFormStatus] = useState('Hidup');
   const [formEducation, setFormEducation] = useState('Tidak Sekolah');
   const [formGradDate, setFormGradDate] = useState('');
   const [formKategori, setFormKategori] = useState('Dewasa');
+  const [formBirthDate, setFormBirthDate] = useState('');
+  const [formStatusPernikahan, setFormStatusPernikahan] = useState('Belum Menikah');
 
   const [isKeluargaModalOpen, setIsKeluargaModalOpen] = useState(false);
   const [selectedKkId, setSelectedKkId] = useState('');
@@ -58,6 +60,19 @@ export default function DatabasePage() {
         setToasts(prev => prev.filter(t => t.id !== id));
       }, 300);
     }, 4000);
+  };
+
+  const calculateAge = (birthDateStr) => {
+    if (!birthDateStr) return '-';
+    const birthDate = new Date(birthDateStr);
+    if (isNaN(birthDate.getTime())) return '-';
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return `${age} Tahun`;
   };
 
   // Fetch initial data
@@ -109,14 +124,16 @@ export default function DatabasePage() {
         setSelectedJamaahId(id);
         setFormNama(j.nama_lengkap);
         setFormGender(j.jenis_kelamin);
-        setFormBirthplace(j.tempat_lahir);
+        setFormBirthplace(j.tempat_lahir || '');
         setFormDesa(j.desa);
         setFormKelompok(j.kelompok);
-        setFormBlood(j.golongan_darah);
+        setFormBlood(j.golongan_darah || 'Tidak Diketahui');
         setFormStatus(j.status_kehidupan);
         setFormEducation(j.pendidikan_terakhir);
         setFormGradDate(j.tanggal_lulus_pendidikan_terakhir || '');
         setFormKategori(j.kategori || 'Dewasa');
+        setFormBirthDate(j.tanggal_lahir || '');
+        setFormStatusPernikahan(j.status_pernikahan || 'Belum Menikah');
         setIsJamaahModalOpen(true);
       }
     } else {
@@ -133,11 +150,13 @@ export default function DatabasePage() {
         ? user.kelompok 
         : (dObj && dObj.kelompoks.length > 0 ? dObj.kelompoks[0].nama_kelompok : '');
       setFormKelompok(defaultKelompok);
-      setFormBlood('O');
+      setFormBlood('Tidak Diketahui');
       setFormStatus('Hidup');
       setFormEducation('Tidak Sekolah');
       setFormGradDate('');
       setFormKategori('Dewasa');
+      setFormBirthDate('');
+      setFormStatusPernikahan('Belum Menikah');
       setIsJamaahModalOpen(true);
     }
   };
@@ -162,14 +181,16 @@ export default function DatabasePage() {
     const payload = {
       nama_lengkap: formNama,
       jenis_kelamin: formGender,
-      tempat_lahir: formBirthplace,
+      tempat_lahir: formBirthplace || null,
       golongan_darah: formBlood,
       kelompok: formKelompok,
       status_kehidupan: formStatus,
       pendidikan_terakhir: formEducation,
       tanggal_lulus_pendidikan_terakhir: formEducation === 'Tidak Sekolah' ? null : (formGradDate || null),
       desa: formDesa,
-      kategori: formKategori
+      kategori: formKategori,
+      tanggal_lahir: formBirthDate || null,
+      status_pernikahan: formStatusPernikahan
     };
 
     try {
@@ -528,8 +549,8 @@ export default function DatabasePage() {
                   <thead>
                     <tr className="bg-slate-50/50 border-b border-slate-150 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                       <th className="px-6 py-4">Nama Lengkap</th>
-                      <th className="px-6 py-4">Gender</th>
-                      <th className="px-6 py-4">Tempat Lahir</th>
+                      <th className="px-6 py-4">Gender & Status</th>
+                      <th className="px-6 py-4">Lahir</th>
                       <th className="px-6 py-4">Desa</th>
                       <th className="px-6 py-4">Kelompok</th>
                       <th className="px-6 py-4">Kategori</th>
@@ -545,9 +566,30 @@ export default function DatabasePage() {
                       const isAlive = j.status_kehidupan === 'Hidup';
                       return (
                         <tr key={j.id} id={`row-jamaah-${j.id}`} className="hover:bg-slate-50/50 transition-colors text-xs font-semibold text-slate-650">
-                          <td className="px-6 py-4 font-bold text-slate-800">{j.nama_lengkap}</td>
-                          <td className="px-6 py-4">{j.jenis_kelamin}</td>
-                          <td className="px-6 py-4">{j.tempat_lahir}</td>
+                          <td className="px-6 py-4 leading-tight">
+                            <div className="font-bold text-slate-800">{j.nama_lengkap}</div>
+                            {isAlive && j.tanggal_lahir && (
+                              <div className="text-[10px] text-slate-400 font-bold mt-0.5">
+                                Usia: {calculateAge(j.tanggal_lahir)}
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 leading-tight">
+                            <div className="font-bold text-slate-700">{j.jenis_kelamin}</div>
+                            {j.status_pernikahan && (
+                              <div className="text-[10px] text-slate-400 font-bold mt-0.5">
+                                {j.status_pernikahan}
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 leading-tight">
+                            <div className="font-bold text-slate-700">{j.tempat_lahir || '-'}</div>
+                            {j.tanggal_lahir && (
+                              <div className="text-[10px] text-slate-400 font-bold mt-0.5">
+                                {new Date(j.tanggal_lahir).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                              </div>
+                            )}
+                          </td>
                           <td className="px-6 py-4 text-primary font-bold">{j.desa}</td>
                           <td className="px-6 py-4">
                             <span className="inline-block px-2 py-0.5 rounded bg-primary-light text-primary font-bold text-[10px] uppercase">
@@ -603,15 +645,22 @@ export default function DatabasePage() {
                       {/* Name, Status & Family Info */}
                       <div className="flex justify-between items-start gap-2">
                         <div className="flex flex-col gap-0.5 min-w-0">
-                          <span className="text-sm font-bold text-slate-800 truncate">{j.nama_lengkap}</span>
-                          <span className="text-[10px] text-slate-400 font-semibold">
-                            {j.desa} &bull; {j.kelompok}
-                          </span>
-                          {j.nama_keluarga && (
-                            <span className="text-[9px] text-primary/80 font-bold mt-0.5">
-                              {j.nama_keluarga} ({j.jenis_anggota})
-                            </span>
-                          )}
+                           <span className="text-sm font-bold text-slate-800 truncate">
+                             {j.nama_lengkap}
+                             {isAlive && j.tanggal_lahir && (
+                               <span className="text-[10px] text-slate-400 font-bold ml-1.5">
+                                 ({calculateAge(j.tanggal_lahir)})
+                               </span>
+                             )}
+                           </span>
+                           <span className="text-[10px] text-slate-400 font-semibold">
+                             {j.desa} &bull; {j.kelompok}
+                           </span>
+                           {j.nama_keluarga && (
+                             <span className="text-[9px] text-primary/80 font-bold mt-0.5">
+                               {j.nama_keluarga} ({j.jenis_anggota})
+                             </span>
+                           )}
                         </div>
                         <span className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-bold shrink-0 uppercase ${
                           isAlive ? 'bg-pastel-green text-pastel-green-text' : 'bg-pastel-red text-pastel-red-text'
@@ -642,8 +691,8 @@ export default function DatabasePage() {
 
                       {/* Actions */}
                       <div className="flex items-center justify-between border-t border-slate-50 pt-2.5 mt-0.5">
-                        <span className="text-[9.5px] text-slate-400 font-semibold">
-                          Lahir: {j.tempat_lahir || '-'}
+                        <span className="text-[9.5px] text-slate-400 font-semibold leading-relaxed">
+                          Lahir: {j.tempat_lahir || '-'}{j.tanggal_lahir ? ` (${new Date(j.tanggal_lahir).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })})` : ''} &bull; {j.status_pernikahan || 'Belum Menikah'}
                         </span>
                         <div className="flex gap-2">
                           <button className="py-1.5 px-3 rounded-lg bg-teal-50 hover:bg-teal-500 text-teal-700 hover:text-white border border-teal-100/50 transition-all font-bold text-[10px] cursor-pointer" onClick={() => handleOpenQrModal(j)} title="Cetak Kartu QR">
@@ -943,9 +992,36 @@ export default function DatabasePage() {
                       className="w-full px-3.5 py-2 rounded-lg border border-slate-200 focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all outline-none bg-white text-slate-700 text-xs font-semibold" 
                       value={formBirthplace}
                       onChange={(e) => setFormBirthplace(e.target.value)}
-                      required 
                       placeholder="Kota kelahiran"
                     />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <label htmlFor="form-birthdate" className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Tanggal Lahir</label>
+                    <input 
+                      type="date" 
+                      id="form-birthdate" 
+                      className="w-full px-3.5 py-2 rounded-lg border border-slate-200 focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all outline-none bg-white text-slate-700 text-xs font-semibold cursor-pointer" 
+                      value={formBirthDate}
+                      onChange={(e) => setFormBirthDate(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label htmlFor="form-marital" className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Status Pernikahan</label>
+                    <select 
+                      id="form-marital" 
+                      className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-primary outline-none bg-white text-slate-700 text-xs font-semibold cursor-pointer"
+                      value={formStatusPernikahan}
+                      onChange={(e) => setFormStatusPernikahan(e.target.value)}
+                      required
+                    >
+                      <option value="Belum Menikah">Belum Menikah</option>
+                      <option value="Menikah">Menikah</option>
+                      <option value="Janda">Janda</option>
+                      <option value="Duda">Duda</option>
+                    </select>
                   </div>
                 </div>
 
@@ -1075,10 +1151,9 @@ export default function DatabasePage() {
                     <input 
                       type="date" 
                       id="form-grad-date" 
-                      className="w-full px-3.5 py-2 rounded-lg border border-slate-200 focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all outline-none bg-white text-slate-700 text-xs font-semibold"
+                      className="w-full px-3.5 py-2 rounded-lg border border-slate-200 focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all outline-none bg-white text-slate-700 text-xs font-semibold cursor-pointer"
                       value={formGradDate}
                       onChange={(e) => setFormGradDate(e.target.value)}
-                      required
                     />
                   </div>
                 )}

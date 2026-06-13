@@ -157,22 +157,6 @@ export default function Sidebar({ user }) {
               </Link>
             )}
 
-            {/* Lokasi Link */}
-            {(role === 'Admin' || role === 'Super Admin') && (
-              <Link 
-                href="/dashboard/lokasi" 
-                onClick={() => setIsOpen(false)}
-                className={`flex items-center gap-3 px-4 py-2.5 rounded-3xl font-semibold text-sm transition-all duration-150 ${
-                  pathname === '/dashboard/lokasi' 
-                    ? 'bg-primary-light text-primary font-bold shadow-sm' 
-                    : 'text-slate-600 hover:text-primary hover:bg-slate-50'
-                }`}
-              >
-                <MapPin size={18} />
-                <span>Manajemen Lokasi</span>
-              </Link>
-            )}
-
             {/* Attendance Link */}
             {(role === 'Moderator' || role === 'Admin' || role === 'Super Admin') && (
               <Link 
@@ -189,7 +173,7 @@ export default function Sidebar({ user }) {
               </Link>
             )}
 
-            {/* Users Link */}
+            {/* User Access Link */}
             {(role === 'Moderator' || role === 'Admin' || role === 'Super Admin') && (
               <Link 
                 href="/dashboard/users" 
@@ -202,6 +186,22 @@ export default function Sidebar({ user }) {
               >
                 <ShieldCheck size={18} />
                 <span>User Access</span>
+              </Link>
+            )}
+
+            {/* Lokasi Link */}
+            {(role === 'Admin' || role === 'Super Admin') && (
+              <Link 
+                href="/dashboard/lokasi" 
+                onClick={() => setIsOpen(false)}
+                className={`flex items-center gap-3 px-4 py-2.5 rounded-3xl font-semibold text-sm transition-all duration-150 ${
+                  pathname === '/dashboard/lokasi' 
+                    ? 'bg-primary-light text-primary font-bold shadow-sm' 
+                    : 'text-slate-600 hover:text-primary hover:bg-slate-50'
+                }`}
+              >
+                <MapPin size={18} />
+                <span>Manajemen Lokasi</span>
               </Link>
             )}
 
