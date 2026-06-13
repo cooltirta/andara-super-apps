@@ -1,0 +1,40 @@
+import { NextResponse } from 'next/server';
+import db from '@/lib/db';
+import { getCurrentUser } from '@/lib/auth';
+
+export async function DELETE(request, { params }) {
+  const user = await getCurrentUser();
+  if (!user) {
+    return NextResponse.json({ error: "Tidak terautentikasi" }, { status: 401 });
+  }
+
+  if (user.role === 'Member') {
+    return NextResponse.json({ error: "Akses ditolak" }, { status: 403 });
+  }
+
+  const { anggota_id } = await params;
+
+  try {
+    const j_row = db.prepare(`
+      SELECT j.* FROM anggota_keluarga ak 
+      JOIN jamaah j ON ak.jamaah_id = j.id 
+      WHERE ak.id = ?;
+    `).get(anggota_id);
+
+    if (!j_row) {
+      return NextResponse.json({ error: "Anggota keluarga tidak ditemukan" }, { status: 404 });
+    }
+
+    if (user.role === 'Moderator' && (j_row.kelompok !== user.kelompok || j_row.desa !== user.desa)) {
+      return NextResponse.json({ error: "Akses ditolak: Anggota keluarga di luar kelompok Anda" }, { status: 403 });
+    } else if (user.role === 'Admin' && j_row.desa !== user.desa) {
+      return NextResponse.json({ error: "Akses ditolak: Anggota keluarga di luar desa Anda" }, { status: 403 });
+    }
+
+    db.prepare("DELETE FROM anggota_keluarga WHERE id = ?;").run(anggota_id);
+
+    return NextResponse.json({ success: true, message: "Anggota keluarga berhasil dikeluarkan" });
+  } catch (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}

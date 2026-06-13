@@ -1,0 +1,135 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #0f766e;
+  --color-primary-hover: #0f5b55;
+  --color-primary-light: #e6f4f2;
+  --color-primary-active: #0d9488;
+
+  --color-secondary: #3f5e43;
+  --color-secondary-hover: #2f4632;
+  --color-secondary-light: #edf1ec;
+
+  --color-pastel-green: #e2f0e9;
+  --color-pastel-green-solid: #58a983;
+  --color-pastel-green-text: #146c43;
+
+  --color-pastel-yellow: #fef5d9;
+  --color-pastel-yellow-solid: #f5cc5c;
+  --color-pastel-yellow-text: #7d6006;
+
+  --color-pastel-red: #fde8e9;
+  --color-pastel-red-solid: #df6c51;
+  --color-pastel-red-text: #ab2c36;
+
+  --color-lightprimary: #e6f4f2;
+  --color-lightsecondary: #edf1ec;
+
+  --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-3xl: 24px;
+
+  --shadow-sm: 0px 1px 3px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0px 4px 12px rgba(133, 146, 173, 0.08);
+  --shadow-lg: 0px 10px 30px rgba(133, 146, 173, 0.12);
+  --shadow-boxShadow: 7px 7px 10px rgba(0, 0, 0, 0.03);
+}
+
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-700 font-sans min-h-screen antialiased;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply text-slate-800 font-semibold;
+  }
+}
+
+/* ==========================================================================
+   SPINNER LOADER (Global Next.js & Login)
+   ========================================================================== */
+.spinner-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255, 255, 255, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  backdrop-filter: blur(4px);
+  transition: opacity 0.2s ease;
+}
+
+.spinner-overlay.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.spinner {
+  width: 44px;
+  height: 44px;
+  border: 4px solid #f1f5f9;
+  border-top: 4px solid #0f766e;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* ==========================================================================
+   TOAST ANIMATIONS
+   ========================================================================== */
+@keyframes slideIn {
+  from {
+    transform: translateY(1rem) scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeOut {
+  to {
+    transform: translateY(0.5rem);
+    opacity: 0;
+  }
+}
+
+.animate-slideIn {
+  animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.2s ease-out forwards;
+}
+
+.animate-scaleIn {
+  animation: scaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
