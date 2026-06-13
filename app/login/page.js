@@ -72,58 +72,15 @@ export default function LoginPage() {
           </div>
         )}
 
-        {/* Mock Google Login Button */}
-        <button 
-          onClick={() => handleLogin('cooltirta@gmail.com', 'Andara', null)} 
-          className="flex items-center justify-center gap-3 w-full py-3 px-4 rounded-sm bg-white hover:bg-grey-50 border border-grey-200 text-grey-700 font-semibold shadow-sm hover:shadow-md transition-all duration-150 mb-6 disabled:opacity-60"
-          disabled={loading}
-        >
-          <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" className="w-5 h-5" alt="Google Logo" />
-          <span>Masuk dengan Google</span>
-        </button>
-
-        <div className="flex items-center my-6 text-grey-500 text-xs font-bold uppercase tracking-wider before:content-[''] before:flex-1 before:h-[1px] before:bg-grey-200 before:mr-4 after:content-[''] after:flex-1 after:h-[1px] after:bg-grey-200 after:ml-4">
-          atau
-        </div>
-
-        {/* Simulation Options for Evaluators */}
-        <h3 className="text-left text-xs font-bold uppercase tracking-wider text-grey-500 mb-3">Mode Simulasi (Evaluasi Role & Wilayah)</h3>
-        <div className="grid grid-cols-2 gap-2 mb-6">
-          <button onClick={() => handleLogin('cooltirta@gmail.com', 'Andara', null)} className="py-2.5 px-2 text-xs font-semibold rounded-sm bg-grey-100 hover:bg-primary-light hover:border-primary hover:text-primary border border-transparent text-grey-700 transition-all duration-150 text-center" disabled={loading}>
-            cooltirta (Super Admin)
-          </button>
-          <button onClick={() => handleLogin('admin@andara.com', 'Andara', null)} className="py-2.5 px-2 text-xs font-semibold rounded-sm bg-grey-100 hover:bg-primary-light hover:border-primary hover:text-primary border border-transparent text-grey-700 transition-all duration-150 text-center" disabled={loading}>
-            admin (Admin - Andara)
-          </button>
-          <button onClick={() => handleLogin('mod1@andara.com', 'Andara', 'Andara 1')} className="py-2.5 px-2 text-xs font-semibold rounded-sm bg-grey-100 hover:bg-primary-light hover:border-primary hover:text-primary border border-transparent text-grey-700 transition-all duration-150 text-center" disabled={loading}>
-            mod1 (Mod - Andara 1)
-          </button>
-          <button onClick={() => handleLogin('mod2@andara.com', 'Andara', 'Andara 2')} className="py-2.5 px-2 text-xs font-semibold rounded-sm bg-grey-100 hover:bg-primary-light hover:border-primary hover:text-primary border border-transparent text-grey-700 transition-all duration-150 text-center" disabled={loading}>
-            mod2 (Mod - Andara 2)
-          </button>
-          <button onClick={() => handleLogin('fulan_a@andara.com', 'Andara', 'Andara 2')} className="py-2.5 px-2 text-xs font-semibold rounded-sm bg-grey-100 hover:bg-primary-light hover:border-primary hover:text-primary border border-transparent text-grey-700 transition-all duration-150 text-center" disabled={loading}>
-            Fulan A (Mod - Andara 2)
-          </button>
-          <button onClick={() => handleLogin('fulan_b@andara.com', 'Andara', 'Andara 2')} className="py-2.5 px-2 text-xs font-semibold rounded-sm bg-grey-100 hover:bg-primary-light hover:border-primary hover:text-primary border border-transparent text-grey-700 transition-all duration-150 text-center" disabled={loading}>
-            Fulan B (Mod - Andara 2)
-          </button>
-          <button onClick={() => handleLogin('fulan_c@andara.com', 'Andara', 'Andara 1')} className="py-2.5 px-2 text-xs font-semibold rounded-sm bg-grey-100 hover:bg-primary-light hover:border-primary hover:text-primary border border-transparent text-grey-700 transition-all duration-150 text-center" disabled={loading}>
-            Fulan C (Admin - Andara 1)
-          </button>
-          <button onClick={() => handleLogin('fulan_d@andara.com', 'Andara', 'Andara 2')} className="py-2.5 px-2 text-xs font-semibold rounded-sm bg-grey-100 hover:bg-primary-light hover:border-primary hover:text-primary border border-transparent text-grey-700 transition-all duration-150 text-center" disabled={loading}>
-            Fulan D (Admin - Andara 2)
-          </button>
-        </div>
-
-        {/* Custom Login Form */}
-        <form onSubmit={handleSubmit} className="text-left flex flex-direction-col flex-col gap-3">
+        {/* Login / Register Form */}
+        <form onSubmit={handleSubmit} className="text-left flex flex-col gap-4 mt-6">
           <div className="flex flex-col gap-2">
-            <label htmlFor="login-email" className="text-xs font-bold uppercase tracking-wider text-grey-500">Uji Email Kustom</label>
+            <label htmlFor="login-email" className="text-xs font-bold uppercase tracking-wider text-grey-500">Alamat Email</label>
             <input 
               type="email" 
               id="login-email" 
               className="w-full px-4 py-2.5 rounded-sm border border-grey-200 focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all outline-none bg-white/50 text-grey-900" 
-              placeholder="nama@gmail.com" 
+              placeholder="nama@email.com" 
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}

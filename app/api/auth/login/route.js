@@ -35,16 +35,6 @@ export async function POST(request) {
 
       const { rows: newRows } = await db.query("SELECT * FROM user_profiles WHERE email = $1;", [email]);
       user = newRows[0];
-    } else {
-      // If user exists, check if we need to update kelompok/desa for simulation purposes (except Super Admin)
-      if (email !== "cooltirta@gmail.com" && (kelompok !== undefined || desa !== user.desa)) {
-        await db.query(
-          "UPDATE user_profiles SET kelompok = $1, desa = $2 WHERE email = $3;",
-          [kelompok, desa, email]
-        );
-        const { rows: updatedRows } = await db.query("SELECT * FROM user_profiles WHERE email = $1;", [email]);
-        user = updatedRows[0];
-      }
     }
 
     const response = NextResponse.json(user);
