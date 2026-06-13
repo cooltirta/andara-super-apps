@@ -44,3 +44,10 @@ next-env.d.ts
 *.db
 *.db-shm
 *.db-wal
+
+# Dev scratch and backups
+/scratch
+/backup_flask
+
+.vercel
+.env*

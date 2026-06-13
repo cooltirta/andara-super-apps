@@ -15,11 +15,12 @@ export async function DELETE(request, { params }) {
   const { id } = await params;
 
   try {
-    const j_row = db.prepare(`
+    const { rows: jRows } = await db.query(`
       SELECT j.* FROM anggota_keluarga ak 
       JOIN jamaah j ON ak.jamaah_id = j.id 
-      WHERE ak.keluarga_id = ? LIMIT 1;
-    `).get(id);
+      WHERE ak.keluarga_id = $1 LIMIT 1;
+    `, [id]);
+    const j_row = jRows[0];
 
     if (j_row) {
       if (user.role === 'Moderator' && (j_row.kelompok !== user.kelompok || j_row.desa !== user.desa)) {
@@ -29,7 +30,7 @@ export async function DELETE(request, { params }) {
       }
     }
 
-    db.prepare("DELETE FROM keluarga WHERE id = ?;").run(id);
+    await db.query("DELETE FROM keluarga WHERE id = $1;", [id]);
 
     return NextResponse.json({ success: true, message: "Keluarga berhasil dihapus" });
   } catch (error) {

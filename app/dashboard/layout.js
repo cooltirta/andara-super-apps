@@ -11,8 +11,8 @@ export default async function DashboardLayout({ children }) {
     redirect('/login');
   }
 
-  const email = emailCookie.value.trim().toLowerCase();
-  const user = db.prepare("SELECT * FROM user_profiles WHERE email = ?;").get(email);
+  const { rows } = await db.query("SELECT * FROM user_profiles WHERE email = $1;", [email]);
+  const user = rows[0];
 
   if (!user) {
     redirect('/login');

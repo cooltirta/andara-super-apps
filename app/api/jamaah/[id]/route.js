@@ -16,7 +16,8 @@ export async function PUT(request, { params }) {
 
   try {
     // Check if jamaah exists and verify scope
-    const orig = db.prepare("SELECT * FROM jamaah WHERE id = ?;").get(id);
+    const { rows: origRows } = await db.query("SELECT * FROM jamaah WHERE id = $1;", [id]);
+    const orig = origRows[0];
     if (!orig) {
       return NextResponse.json({ error: "Jamaah tidak ditemukan" }, { status: 404 });
     }
@@ -62,11 +63,11 @@ export async function PUT(request, { params }) {
       tanggal_lulus = null;
     }
 
-    db.prepare(`
+    await db.query(`
       UPDATE jamaah 
-      SET nama_lengkap = ?, jenis_kelamin = ?, tempat_lahir = ?, status_kehidupan = ?, golongan_darah = ?, kelompok = ?, pendidikan_terakhir = ?, tanggal_lulus_pendidikan_terakhir = ?, desa = ?, kategori = ?
-      WHERE id = ?;
-    `).run(nama_lengkap, jenis_kelamin, tempat_lahir, status_kehidupan, golongan_darah, kelompok, pendidikan_terakhir, tanggal_lulus, desa, kategori, id);
+      SET nama_lengkap = $1, jenis_kelamin = $2, tempat_lahir = $3, status_kehidupan = $4, golongan_darah = $5, kelompok = $6, pendidikan_terakhir = $7, tanggal_lulus_pendidikan_terakhir = $8, desa = $9, kategori = $10
+      WHERE id = $11;
+    `, [nama_lengkap, jenis_kelamin, tempat_lahir, status_kehidupan, golongan_darah, kelompok, pendidikan_terakhir, tanggal_lulus, desa, kategori, id]);
 
     return NextResponse.json({ success: true, message: "Data jamaah berhasil diperbarui" });
   } catch (error) {
@@ -87,7 +88,8 @@ export async function DELETE(request, { params }) {
   const { id } = await params;
 
   try {
-    const orig = db.prepare("SELECT * FROM jamaah WHERE id = ?;").get(id);
+    const { rows: origRows } = await db.query("SELECT * FROM jamaah WHERE id = $1;", [id]);
+    const orig = origRows[0];
     if (!orig) {
       return NextResponse.json({ error: "Jamaah tidak ditemukan" }, { status: 404 });
     }
@@ -98,7 +100,7 @@ export async function DELETE(request, { params }) {
       return NextResponse.json({ error: "Akses ditolak: Jamaah di luar desa Anda" }, { status: 403 });
     }
 
-    db.prepare("DELETE FROM jamaah WHERE id = ?;").run(id);
+    await db.query("DELETE FROM jamaah WHERE id = $1;", [id]);
 
     return NextResponse.json({ success: true, message: "Data jamaah berhasil dihapus" });
   } catch (error) {

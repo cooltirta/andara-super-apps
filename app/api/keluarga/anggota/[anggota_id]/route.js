@@ -15,11 +15,12 @@ export async function DELETE(request, { params }) {
   const { anggota_id } = await params;
 
   try {
-    const j_row = db.prepare(`
+    const { rows: jRows } = await db.query(`
       SELECT j.* FROM anggota_keluarga ak 
       JOIN jamaah j ON ak.jamaah_id = j.id 
-      WHERE ak.id = ?;
-    `).get(anggota_id);
+      WHERE ak.id = $1;
+    `, [anggota_id]);
+    const j_row = jRows[0];
 
     if (!j_row) {
       return NextResponse.json({ error: "Anggota keluarga tidak ditemukan" }, { status: 404 });
@@ -31,7 +32,7 @@ export async function DELETE(request, { params }) {
       return NextResponse.json({ error: "Akses ditolak: Anggota keluarga di luar desa Anda" }, { status: 403 });
     }
 
-    db.prepare("DELETE FROM anggota_keluarga WHERE id = ?;").run(anggota_id);
+    await db.query("DELETE FROM anggota_keluarga WHERE id = $1;", [anggota_id]);
 
     return NextResponse.json({ success: true, message: "Anggota keluarga berhasil dikeluarkan" });
   } catch (error) {

@@ -24,7 +24,8 @@ export async function PUT(request, { params }) {
       return NextResponse.json({ error: "Role wajib dipilih" }, { status: 400 });
     }
 
-    const target = db.prepare("SELECT * FROM user_profiles WHERE id = ?;").get(id);
+    const { rows: targetRows } = await db.query("SELECT * FROM user_profiles WHERE id = $1;", [id]);
+    const target = targetRows[0];
     if (!target) {
       return NextResponse.json({ error: "User tidak ditemukan" }, { status: 404 });
     }
@@ -49,12 +50,12 @@ export async function PUT(request, { params }) {
       desa = user.desa;
     }
 
-    db.prepare("UPDATE user_profiles SET role = ?, kelompok = ?, desa = ? WHERE id = ?;").run(
+    await db.query("UPDATE user_profiles SET role = $1, kelompok = $2, desa = $3 WHERE id = $4;", [
       role,
       ['Moderator', 'Admin', 'Member'].includes(role) ? kelompok : null,
       desa,
       id
-    );
+    ]);
 
     return NextResponse.json({ success: true, message: "User access berhasil diperbarui" });
   } catch (error) {
@@ -75,7 +76,8 @@ export async function DELETE(request, { params }) {
   const { id } = await params;
 
   try {
-    const target = db.prepare("SELECT * FROM user_profiles WHERE id = ?;").get(id);
+    const { rows: targetRows } = await db.query("SELECT * FROM user_profiles WHERE id = $1;", [id]);
+    const target = targetRows[0];
     if (!target) {
       return NextResponse.json({ error: "User tidak ditemukan" }, { status: 404 });
     }
@@ -94,7 +96,7 @@ export async function DELETE(request, { params }) {
       }
     }
 
-    db.prepare("DELETE FROM user_profiles WHERE id = ?;").run(id);
+    await db.query("DELETE FROM user_profiles WHERE id = $1;", [id]);
 
     return NextResponse.json({ success: true, message: "User berhasil dihapus" });
   } catch (error) {

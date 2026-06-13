@@ -15,7 +15,8 @@ export async function POST(request) {
     let kelompok = data.kelompok || null;
 
     // Check if user exists
-    let user = db.prepare("SELECT * FROM user_profiles WHERE email = ?;").get(email);
+    let { rows } = await db.query("SELECT * FROM user_profiles WHERE email = $1;", [email]);
+    let user = rows[0];
 
     if (!user) {
       const user_id = crypto.randomUUID();
@@ -27,18 +28,22 @@ export async function POST(request) {
         kelompok = null;
       }
 
-      db.prepare(
-        "INSERT INTO user_profiles (id, email, role, kelompok, desa) VALUES (?, ?, ?, ?, ?);"
-      ).run(user_id, email, role, kelompok, desa);
+      await db.query(
+        "INSERT INTO user_profiles (id, email, role, kelompok, desa) VALUES ($1, $2, $3, $4, $5);",
+        [user_id, email, role, kelompok, desa]
+      );
 
-      user = db.prepare("SELECT * FROM user_profiles WHERE email = ?;").get(email);
+      const { rows: newRows } = await db.query("SELECT * FROM user_profiles WHERE email = $1;", [email]);
+      user = newRows[0];
     } else {
       // If user exists, check if we need to update kelompok/desa for simulation purposes (except Super Admin)
       if (email !== "cooltirta@gmail.com" && (kelompok !== undefined || desa !== user.desa)) {
-        db.prepare(
-          "UPDATE user_profiles SET kelompok = ?, desa = ? WHERE email = ?;"
-        ).run(kelompok, desa, email);
-        user = db.prepare("SELECT * FROM user_profiles WHERE email = ?;").get(email);
+        await db.query(
+          "UPDATE user_profiles SET kelompok = $1, desa = $2 WHERE email = $3;",
+          [kelompok, desa, email]
+        );
+        const { rows: updatedRows } = await db.query("SELECT * FROM user_profiles WHERE email = $1;", [email]);
+        user = updatedRows[0];
       }
     }
 

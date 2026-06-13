@@ -22,7 +22,8 @@ export async function POST(request) {
     }
 
     // 1. Dapatkan profil jamaah yang di-scan
-    const jamaah = db.prepare("SELECT * FROM jamaah WHERE id = ? AND status_kehidupan = 'Hidup';").get(jamaahId);
+    const { rows: jamaahRows } = await db.query("SELECT * FROM jamaah WHERE id = $1 AND status_kehidupan = 'Hidup';", [jamaahId]);
+    const jamaah = jamaahRows[0];
     if (!jamaah) {
       return NextResponse.json({ error: "Data jamaah tidak ditemukan atau telah meninggal" }, { status: 404 });
     }
@@ -47,17 +48,18 @@ export async function POST(request) {
     const localTimeStr = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
 
     // Cek record eksisting
-    const existing = db.prepare("SELECT * FROM kehadiran WHERE jamaah_id = ? AND tanggal = ?;").get(jamaahId, today);
+    const { rows: existingRows } = await db.query("SELECT * FROM kehadiran WHERE jamaah_id = $1 AND tanggal = $2;", [jamaahId, today]);
+    const existing = existingRows[0];
     const presenceId = existing ? existing.id : crypto.randomUUID();
 
-    db.prepare(`
+    await db.query(`
       INSERT INTO kehadiran (id, jamaah_id, tanggal, waktu_presensi, status, recorded_by)
-      VALUES (?, ?, ?, ?, 'Hadir', ?)
+      VALUES ($1, $2, $3, $4, 'Hadir', $5)
       ON CONFLICT(jamaah_id, tanggal) DO UPDATE SET
         status = 'Hadir',
         waktu_presensi = excluded.waktu_presensi,
         recorded_by = excluded.recorded_by;
-    `).run(presenceId, jamaahId, today, localTimeStr, user.email);
+    `, [presenceId, jamaahId, today, localTimeStr, user.email]);
 
     return NextResponse.json({
       success: true,

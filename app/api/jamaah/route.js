@@ -19,11 +19,14 @@ export async function GET() {
     `;
 
     if (user.role === 'Super Admin') {
-      jamaah_list = db.prepare(`${baseQuery} ORDER BY j.desa ASC, j.kelompok ASC, j.nama_lengkap ASC;`).all();
+      const { rows } = await db.query(`${baseQuery} ORDER BY j.desa ASC, j.kelompok ASC, j.nama_lengkap ASC;`);
+      jamaah_list = rows;
     } else if (user.role === 'Admin') {
-      jamaah_list = db.prepare(`${baseQuery} WHERE j.desa = ? ORDER BY j.kelompok ASC, j.nama_lengkap ASC;`).all(user.desa);
+      const { rows } = await db.query(`${baseQuery} WHERE j.desa = $1 ORDER BY j.kelompok ASC, j.nama_lengkap ASC;`, [user.desa]);
+      jamaah_list = rows;
     } else { // Moderator / Member
-      jamaah_list = db.prepare(`${baseQuery} WHERE j.kelompok = ? AND j.desa = ? ORDER BY j.nama_lengkap ASC;`).all(user.kelompok, user.desa);
+      const { rows } = await db.query(`${baseQuery} WHERE j.kelompok = $1 AND j.desa = $2 ORDER BY j.nama_lengkap ASC;`, [user.kelompok, user.desa]);
+      jamaah_list = rows;
     }
 
     return NextResponse.json(jamaah_list);
@@ -80,28 +83,31 @@ export async function POST(request) {
 
     const jamaah_id = crypto.randomUUID();
 
-    // Use a database transaction for inserting jamaah and syncing presence records
-    const insertTx = db.transaction(() => {
+    // Use PostgreSQL transaction for inserting jamaah and syncing presence records
+    await db.query("BEGIN;");
+    try {
       // 1. Insert Jamaah
-      db.prepare(`
+      await db.query(`
         INSERT INTO jamaah (id, nama_lengkap, jenis_kelamin, tempat_lahir, status_kehidupan, golongan_darah, kelompok, pendidikan_terakhir, tanggal_lulus_pendidikan_terakhir, desa, kategori)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-      `).run(jamaah_id, nama_lengkap, jenis_kelamin, tempat_lahir, status_kehidupan, golongan_darah, kelompok, pendidikan_terakhir, tanggal_lulus, desa, kategori);
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11);
+      `, [jamaah_id, nama_lengkap, jenis_kelamin, tempat_lahir, status_kehidupan, golongan_darah, kelompok, pendidikan_terakhir, tanggal_lulus, desa, kategori]);
 
-      // 2. Fetch matching active sessions (stubbed sessions)
-      const matching_sessions = db.prepare(`
-        SELECT id FROM sesi_presensi 
-        WHERE desa = ? AND (jenis_pengajian = 'Pengajian Desa' OR (jenis_pengajian = 'Pengajian Kelompok' AND kelompok = ?));
-      `).all(desa, kelompok);
+      // 2. Fetch distinct dates from kehadiran to sync this new jamaah with past dates
+      const { rows: datesRows } = await db.query("SELECT DISTINCT tanggal, recorded_by FROM kehadiran WHERE tanggal IS NOT NULL;");
 
-      // 3. Insert 'Tidak Hadir' presence record for each matching session
-      const insertPresence = db.prepare("INSERT INTO kehadiran (id, sesi_id, jamaah_id, status) VALUES (?, ?, ?, ?);");
-      for (const session of matching_sessions) {
-        insertPresence.run(crypto.randomUUID(), session.id, jamaah_id, "Tidak Hadir");
+      // 3. Insert 'Tidak Hadir' presence record for each unique past date
+      for (const d of datesRows) {
+        await db.query(
+          "INSERT INTO kehadiran (id, jamaah_id, tanggal, status, recorded_by) VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING;",
+          [crypto.randomUUID(), jamaah_id, d.tanggal, "Tidak Hadir", d.recorded_by]
+        );
       }
-    });
 
-    insertTx();
+      await db.query("COMMIT;");
+    } catch (txErr) {
+      await db.query("ROLLBACK;");
+      throw txErr;
+    }
 
     return NextResponse.json({
       success: true,

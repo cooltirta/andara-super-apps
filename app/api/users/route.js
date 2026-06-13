@@ -16,11 +16,14 @@ export async function GET() {
   try {
     let users_list = [];
     if (user.role === 'Super Admin') {
-      users_list = db.prepare("SELECT * FROM user_profiles ORDER BY email ASC;").all();
+      const { rows } = await db.query("SELECT * FROM user_profiles ORDER BY email ASC;");
+      users_list = rows;
     } else if (user.role === 'Admin') {
-      users_list = db.prepare("SELECT * FROM user_profiles WHERE desa = ? ORDER BY email ASC;").all(user.desa);
+      const { rows } = await db.query("SELECT * FROM user_profiles WHERE desa = $1 ORDER BY email ASC;", [user.desa]);
+      users_list = rows;
     } else { // Moderator
-      users_list = db.prepare("SELECT * FROM user_profiles WHERE desa = ? AND kelompok = ? ORDER BY email ASC;").all(user.desa, user.kelompok);
+      const { rows } = await db.query("SELECT * FROM user_profiles WHERE desa = $1 AND kelompok = $2 ORDER BY email ASC;", [user.desa, user.kelompok]);
+      users_list = rows;
     }
 
     return NextResponse.json(users_list);
@@ -63,19 +66,20 @@ export async function POST(request) {
       }
     }
 
-    const existing = db.prepare("SELECT COUNT(*) as count FROM user_profiles WHERE email = ?;").get(email).count;
+    const { rows: existingRows } = await db.query("SELECT COUNT(*) as count FROM user_profiles WHERE email = $1;", [email]);
+    const existing = parseInt(existingRows[0].count, 10);
     if (existing > 0) {
       return NextResponse.json({ error: "User dengan email ini sudah terdaftar" }, { status: 400 });
     }
 
     const user_id = crypto.randomUUID();
-    db.prepare("INSERT INTO user_profiles (id, email, role, kelompok, desa) VALUES (?, ?, ?, ?, ?);").run(
+    await db.query("INSERT INTO user_profiles (id, email, role, kelompok, desa) VALUES ($1, $2, $3, $4, $5);", [
       user_id,
       email,
       role,
       ['Moderator', 'Admin', 'Member'].includes(role) ? kelompok : null,
       desa
-    );
+    ]);
 
     return NextResponse.json({ success: true, id: user_id, message: "User berhasil ditambahkan" });
   } catch (error) {

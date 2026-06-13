@@ -32,16 +32,19 @@ export async function GET(request) {
         k.waktu_presensi, 
         k.recorded_by
       FROM jamaah j
-      LEFT JOIN kehadiran k ON j.id = k.jamaah_id AND k.tanggal = ?
+      LEFT JOIN kehadiran k ON j.id = k.jamaah_id AND k.tanggal = $1
       WHERE j.status_kehidupan = 'Hidup'
     `;
 
     if (user.role === 'Super Admin') {
-      jamaah_list = db.prepare(`${baseQuery} ORDER BY j.desa ASC, j.kelompok ASC, j.nama_lengkap ASC;`).all(date);
+      const { rows } = await db.query(`${baseQuery} ORDER BY j.desa ASC, j.kelompok ASC, j.nama_lengkap ASC;`, [date]);
+      jamaah_list = rows;
     } else if (user.role === 'Admin') {
-      jamaah_list = db.prepare(`${baseQuery} AND j.desa = ? ORDER BY j.kelompok ASC, j.nama_lengkap ASC;`).all(date, user.desa);
+      const { rows } = await db.query(`${baseQuery} AND j.desa = $2 ORDER BY j.kelompok ASC, j.nama_lengkap ASC;`, [date, user.desa]);
+      jamaah_list = rows;
     } else { // Moderator
-      jamaah_list = db.prepare(`${baseQuery} AND j.desa = ? AND j.kelompok = ? ORDER BY j.nama_lengkap ASC;`).all(date, user.desa, user.kelompok);
+      const { rows } = await db.query(`${baseQuery} AND j.desa = $2 AND j.kelompok = $3 ORDER BY j.nama_lengkap ASC;`, [date, user.desa, user.kelompok]);
+      jamaah_list = rows;
     }
 
     // Hitung hak modifikasi (can_edit) untuk tiap baris secara dinamis
@@ -50,7 +53,7 @@ export async function GET(request) {
         jamaah_id: j.jamaah_id,
         recorded_by: j.recorded_by
       };
-      j.can_edit = canModifyAttendance(mockPresence, user) ? 1 : 0;
+      j.can_edit = (await canModifyAttendance(mockPresence, user)) ? 1 : 0;
     }
 
     return NextResponse.json(jamaah_list);
@@ -78,7 +81,8 @@ export async function PUT(request) {
       }
 
       try {
-        const updateTx = db.transaction(() => {
+        await db.query("BEGIN;");
+        try {
           for (const item of kehadiran) {
             const { jamaah_id, status } = item;
             if (!jamaah_id || !status) {
@@ -88,7 +92,8 @@ export async function PUT(request) {
               throw new Error("Status kehadiran tidak valid");
             }
 
-            const existing = db.prepare("SELECT * FROM kehadiran WHERE jamaah_id = ? AND tanggal = ?;").get(jamaah_id, tanggal);
+            const { rows: existingRows } = await db.query("SELECT * FROM kehadiran WHERE jamaah_id = $1 AND tanggal = $2;", [jamaah_id, tanggal]);
+            const existing = existingRows[0];
 
             // Skip if status is unchanged
             if (existing && existing.status === status) {
@@ -104,8 +109,9 @@ export async function PUT(request) {
               recorded_by: user.email
             };
 
-            if (!canModifyAttendance(testPresence, user)) {
-              const jamaah = db.prepare("SELECT nama_lengkap FROM jamaah WHERE id = ?;").get(jamaah_id);
+            if (!(await canModifyAttendance(testPresence, user))) {
+              const { rows: jamaahRows } = await db.query("SELECT nama_lengkap FROM jamaah WHERE id = $1;", [jamaah_id]);
+              const jamaah = jamaahRows[0];
               const nameStr = jamaah ? jamaah.nama_lengkap : jamaah_id;
               throw new Error(`Akses ditolak: Anda tidak memiliki wewenang untuk mencatat kehadiran jamaah '${nameStr}'.`);
             }
@@ -125,18 +131,20 @@ export async function PUT(request) {
               }
             }
 
-            db.prepare(`
+            await db.query(`
               INSERT INTO kehadiran (id, jamaah_id, tanggal, waktu_presensi, status, recorded_by)
-              VALUES (?, ?, ?, ?, ?, ?)
+              VALUES ($1, $2, $3, $4, $5, $6)
               ON CONFLICT(jamaah_id, tanggal) DO UPDATE SET
                 status = excluded.status,
                 waktu_presensi = excluded.waktu_presensi,
                 recorded_by = excluded.recorded_by;
-            `).run(presenceId, jamaah_id, tanggal, rowWaktu, status, user.email);
+            `, [presenceId, jamaah_id, tanggal, rowWaktu, status, user.email]);
           }
-        });
-
-        updateTx();
+          await db.query("COMMIT;");
+        } catch (txError) {
+          await db.query("ROLLBACK;");
+          throw txError;
+        }
 
         return NextResponse.json({
           success: true,
@@ -157,14 +165,15 @@ export async function PUT(request) {
         return NextResponse.json({ error: "Status kehadiran tidak valid" }, { status: 400 });
       }
 
-      const existing = db.prepare("SELECT * FROM kehadiran WHERE jamaah_id = ? AND tanggal = ?;").get(jamaah_id, tanggal);
+      const { rows: existingRows } = await db.query("SELECT * FROM kehadiran WHERE jamaah_id = $1 AND tanggal = $2;", [jamaah_id, tanggal]);
+      const existing = existingRows[0];
 
       const testPresence = existing || {
         jamaah_id: jamaah_id,
         recorded_by: user.email
       };
 
-      if (!canModifyAttendance(testPresence, user)) {
+      if (!(await canModifyAttendance(testPresence, user))) {
         return NextResponse.json({ error: "Akses ditolak: Anda tidak memiliki wewenang untuk mencatat kehadiran jamaah ini." }, { status: 403 });
       }
 
@@ -175,14 +184,14 @@ export async function PUT(request) {
         rowWaktu = null;
       }
 
-      db.prepare(`
+      await db.query(`
         INSERT INTO kehadiran (id, jamaah_id, tanggal, waktu_presensi, status, recorded_by)
-        VALUES (?, ?, ?, ?, ?, ?)
+        VALUES ($1, $2, $3, $4, $5, $6)
         ON CONFLICT(jamaah_id, tanggal) DO UPDATE SET
           status = excluded.status,
           waktu_presensi = excluded.waktu_presensi,
           recorded_by = excluded.recorded_by;
-      `).run(presenceId, jamaah_id, tanggal, rowWaktu || null, status, user.email);
+      `, [presenceId, jamaah_id, tanggal, rowWaktu || null, status, user.email]);
 
       return NextResponse.json({ 
         success: true, 
@@ -212,21 +221,21 @@ export async function DELETE(request) {
 
   try {
     if (user.role === 'Super Admin') {
-      db.prepare("DELETE FROM kehadiran WHERE tanggal = ?;").run(date);
+      await db.query("DELETE FROM kehadiran WHERE tanggal = $1;", [date]);
     } else if (user.role === 'Admin') {
-      db.prepare(`
+      await db.query(`
         DELETE FROM kehadiran 
-        WHERE tanggal = ? AND jamaah_id IN (
-          SELECT id FROM jamaah WHERE desa = ?
+        WHERE tanggal = $1 AND jamaah_id IN (
+          SELECT id FROM jamaah WHERE desa = $2
         );
-      `).run(date, user.desa);
+      `, [date, user.desa]);
     } else { // Moderator
-      db.prepare(`
+      await db.query(`
         DELETE FROM kehadiran 
-        WHERE tanggal = ? AND jamaah_id IN (
-          SELECT id FROM jamaah WHERE desa = ? AND kelompok = ?
+        WHERE tanggal = $1 AND jamaah_id IN (
+          SELECT id FROM jamaah WHERE desa = $2 AND kelompok = $3
         );
-      `).run(date, user.desa, user.kelompok);
+      `, [date, user.desa, user.kelompok]);
     }
 
     return NextResponse.json({ success: true, message: `Kehadiran pada tanggal ${date} berhasil dihapus` });
