@@ -21,26 +21,30 @@ export default function ActivityLogsPage() {
   // Dropdown options
   const actionOptions = [
     { value: '', label: 'Semua Aksi' },
-    { value: 'LOGIN', label: 'LOGIN (Masuk)' },
-    { value: 'VISIT', label: 'VISIT (Akses Halaman)' },
-    { value: 'ADD', label: 'ADD (Tambah Data)' },
-    { value: 'EDIT', label: 'EDIT (Ubah Data)' },
-    { value: 'DELETE', label: 'DELETE (Hapus Data)' },
-    { value: 'SAVE_ATTENDANCE', label: 'SAVE_ATTENDANCE (Simpan Hadir)' },
-    { value: 'RESET_ATTENDANCE', label: 'RESET_ATTENDANCE (Reset Hadir)' },
-    { value: 'SCAN_QR', label: 'SCAN_QR (Scan QR Presensi)' },
-    { value: 'ADD_MEMBER', label: 'ADD_MEMBER (Tambah Anggota)' },
-    { value: 'DELETE_MEMBER', label: 'DELETE_MEMBER (Keluarkan Anggota)' }
+    ...[
+      { value: 'LOGIN', label: 'LOGIN (Masuk)' },
+      { value: 'VISIT', label: 'VISIT (Akses Halaman)' },
+      { value: 'ADD', label: 'ADD (Tambah Data)' },
+      { value: 'EDIT', label: 'EDIT (Ubah Data)' },
+      { value: 'DELETE', label: 'DELETE (Hapus Data)' },
+      { value: 'SAVE_ATTENDANCE', label: 'SAVE_ATTENDANCE (Simpan Hadir)' },
+      { value: 'RESET_ATTENDANCE', label: 'RESET_ATTENDANCE (Reset Hadir)' },
+      { value: 'SCAN_QR', label: 'SCAN_QR (Scan QR Presensi)' },
+      { value: 'ADD_MEMBER', label: 'ADD_MEMBER (Tambah Anggota)' },
+      { value: 'DELETE_MEMBER', label: 'DELETE_MEMBER (Keluarkan Anggota)' }
+    ].sort((a, b) => a.label.localeCompare(b.label))
   ];
 
   const targetTypeOptions = [
     { value: '', label: 'Semua Tipe' },
-    { value: 'AUTH', label: 'AUTH (Otentikasi)' },
-    { value: 'PAGE', label: 'PAGE (Halaman)' },
-    { value: 'JAMAAH', label: 'JAMAAH (Jamaah)' },
-    { value: 'KELUARGA', label: 'KELUARGA (Keluarga)' },
-    { value: 'USER', label: 'USER (User Akses)' },
-    { value: 'KEHADIRAN', label: 'KEHADIRAN (Presensi)' }
+    ...[
+      { value: 'AUTH', label: 'AUTH (Otentikasi)' },
+      { value: 'PAGE', label: 'PAGE (Halaman)' },
+      { value: 'JAMAAH', label: 'JAMAAH (Jamaah)' },
+      { value: 'KELUARGA', label: 'KELUARGA (Keluarga)' },
+      { value: 'USER', label: 'USER (User Akses)' },
+      { value: 'KEHADIRAN', label: 'KEHADIRAN (Presensi)' }
+    ].sort((a, b) => a.label.localeCompare(b.label))
   ];
 
   useEffect(() => {

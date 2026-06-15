@@ -18,6 +18,11 @@ export default function DatabasePage() {
   const [filterGender, setFilterGender] = useState('');
   const [filterBlood, setFilterBlood] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  
+  // Keluarga Filters
+  const [searchKeluarga, setSearchKeluarga] = useState('');
+  const [filterKeluargaDesa, setFilterKeluargaDesa] = useState('');
+  const [filterKeluargaKelompok, setFilterKeluargaKelompok] = useState('');
 
   // Modals state
   const [isJamaahModalOpen, setIsJamaahModalOpen] = useState(false);
@@ -237,10 +242,10 @@ export default function DatabasePage() {
 
   const openKeluargaModal = () => {
     const associatedJamaahIds = keluargaList.flatMap(f => f.anggota.map(m => m.jamaah_id));
-    const unassociated = jamaahList.filter(j => !associatedJamaahIds.includes(j.id) && j.status_kehidupan === 'Hidup');
+    const unassociated = jamaahList.filter(j => !associatedJamaahIds.includes(j.id));
 
     if (unassociated.length === 0) {
-      showToast("Semua jamaah yang hidup dalam wewenang Anda sudah memiliki keluarga.", "error");
+      showToast("Semua jamaah dalam wewenang Anda sudah memiliki keluarga.", "error");
       return;
     }
 
@@ -294,10 +299,10 @@ export default function DatabasePage() {
 
   const openAddMemberModal = (keluargaId) => {
     const associatedJamaahIds = keluargaList.flatMap(f => f.anggota.map(m => m.jamaah_id));
-    const unassociated = jamaahList.filter(j => !associatedJamaahIds.includes(j.id) && j.status_kehidupan === 'Hidup');
+    const unassociated = jamaahList.filter(j => !associatedJamaahIds.includes(j.id));
 
     if (unassociated.length === 0) {
-      showToast("Semua jamaah aktif sudah terdaftar di unit keluarga.", "error");
+      showToast("Semua jamaah sudah terdaftar di unit keluarga.", "error");
       return;
     }
 
@@ -374,9 +379,27 @@ export default function DatabasePage() {
   });
 
   const associatedJamaahIdsForModal = keluargaList.flatMap(f => f.anggota.map(m => m.jamaah_id));
-  const unassociatedJamaahForModal = jamaahList.filter(j => !associatedJamaahIdsForModal.includes(j.id) && j.status_kehidupan === 'Hidup');
+  const unassociatedJamaahForModal = jamaahList.filter(j => !associatedJamaahIdsForModal.includes(j.id));
 
   let scopeLabel = user.role === 'Admin' ? ` (Desa ${user.desa})` : '';
+
+  const filteredKeluarga = keluargaList.filter(f => {
+    const searchVal = searchKeluarga.toLowerCase().trim();
+    const matchesSearch = !searchVal ? true : (
+      f.nama_keluarga.toLowerCase().includes(searchVal) ||
+      f.anggota.some(m => m.nama_lengkap.toLowerCase().includes(searchVal))
+    );
+
+    const matchesDesa = !filterKeluargaDesa ? true : (
+      f.anggota.some(m => m.desa === filterKeluargaDesa)
+    );
+
+    const matchesKelompok = !filterKeluargaKelompok ? true : (
+      f.anggota.some(m => m.kelompok === filterKeluargaKelompok)
+    );
+
+    return matchesSearch && matchesDesa && matchesKelompok;
+  });
 
   // Statistik Calculations
   const statsActiveJamaah = jamaahList.filter(j => j.status_kehidupan === 'Hidup');
@@ -486,8 +509,8 @@ export default function DatabasePage() {
             >
               <option value="">Semua Kelompok</option>
               {(user.role === 'Super Admin' 
-                ? locations.flatMap(d => d.kelompoks) 
-                : (locations.find(d => d.nama_desa === user.desa)?.kelompoks || [])
+                ? [...locations.flatMap(d => d.kelompoks)].sort((a, b) => a.nama_kelompok.localeCompare(b.nama_kelompok))
+                : [...(locations.find(d => d.nama_desa === user.desa)?.kelompoks || [])].sort((a, b) => a.nama_kelompok.localeCompare(b.nama_kelompok))
               ).map(k => (
                 <option key={k.id} value={k.nama_kelompok}>{k.nama_kelompok}</option>
               ))}
@@ -713,74 +736,134 @@ export default function DatabasePage() {
             </div>
           )
         ) : activeTab === 'keluarga' ? (
-          keluargaList.length === 0 ? (
-            <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-12 text-center text-slate-400 flex flex-col items-center justify-center">
-              <Home size={44} className="opacity-40 mb-4" />
-              <p className="font-bold text-sm">Belum ada data keluarga dibuat.</p>
+          <>
+            {/* Keluarga Filters Bar */}
+            <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-3 flex flex-wrap items-center gap-3.5 mb-6" id="keluarga-search-filter-section">
+              {/* Search bar */}
+              <div className="relative flex-1 min-w-[240px]">
+                <Search className="absolute left-3 top-3 text-slate-400 w-4 h-4" />
+                <input 
+                  type="text" 
+                  id="search-keluarga" 
+                  className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-slate-200 focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all outline-none bg-white text-slate-755 text-xs font-semibold" 
+                  placeholder="Cari nama keluarga atau nama anggota..."
+                  value={searchKeluarga}
+                  onChange={(e) => setSearchKeluarga(e.target.value)}
+                />
+              </div>
+              
+              {/* Dropdown Filters */}
+              <div className="flex flex-wrap gap-2">
+                {user.role === 'Super Admin' ? (
+                  <select 
+                    id="filter-keluarga-desa" 
+                    className="px-2.5 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 font-bold text-[10px] cursor-pointer outline-none focus:border-primary"
+                    value={filterKeluargaDesa}
+                    onChange={(e) => {
+                      setFilterKeluargaDesa(e.target.value);
+                      setFilterKeluargaKelompok(''); // Reset kelompok when desa changes
+                    }}
+                  >
+                    <option value="">Semua Desa</option>
+                    {[...locations].sort((a, b) => a.nama_desa.localeCompare(b.nama_desa)).map(d => (
+                      <option key={d.id} value={d.nama_desa}>{d.nama_desa}</option>
+                    ))}
+                  </select>
+                ) : null}
+
+                <select 
+                  id="filter-keluarga-kelompok" 
+                  className="px-2.5 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 font-bold text-[10px] cursor-pointer outline-none focus:border-primary"
+                  value={filterKeluargaKelompok}
+                  onChange={(e) => setFilterKeluargaKelompok(e.target.value)}
+                >
+                  <option value="">Semua Kelompok</option>
+                  {(user.role === 'Super Admin'
+                    ? (filterKeluargaDesa 
+                        ? (locations.find(d => d.nama_desa === filterKeluargaDesa)?.kelompoks || [])
+                        : locations.flatMap(d => d.kelompoks))
+                    : (locations.find(d => d.nama_desa === user.desa)?.kelompoks || [])
+                  )
+                  .sort((a, b) => a.nama_kelompok.localeCompare(b.nama_kelompok))
+                  .map(k => (
+                    <option key={k.id} value={k.nama_kelompok}>{k.nama_kelompok}</option>
+                  ))}
+                </select>
+              </div>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-              {keluargaList.map(f => {
-                return (
-                  <div key={f.id} className="bg-white border border-slate-100 shadow-sm rounded-xl p-5 flex flex-col justify-between min-h-[260px] hover:shadow-md transition-all duration-200">
-                    <div>
-                      {/* Family card Header */}
-                      <div className="flex justify-between items-start mb-4 border-b border-slate-100 pb-3">
-                        <h4 className="font-bold text-slate-800 text-sm leading-tight">{f.nama_keluarga}</h4>
-                        <button className="text-slate-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-slate-50 transition-all shrink-0" onClick={() => handleDeleteKeluarga(f.id)} title="Hapus Unit Keluarga">
-                          <Trash2 size={15} />
-                        </button>
+
+            {filteredKeluarga.length === 0 ? (
+              <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-12 text-center text-slate-400 flex flex-col items-center justify-center">
+                <Home size={44} className="opacity-40 mb-4" />
+                <p className="font-bold text-sm">Belum ada data keluarga dibuat atau tidak sesuai filter.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {filteredKeluarga.map(f => {
+                  return (
+                    <div key={f.id} className="bg-white border border-slate-100 shadow-sm rounded-xl p-5 flex flex-col justify-between min-h-[260px] hover:shadow-md transition-all duration-200">
+                      <div>
+                        {/* Family card Header */}
+                        <div className="flex justify-between items-start mb-4 border-b border-slate-100 pb-3">
+                          <h4 className="font-bold text-slate-800 text-sm leading-tight">{f.nama_keluarga}</h4>
+                          <button className="text-slate-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-slate-50 transition-all shrink-0 cursor-pointer" onClick={() => handleDeleteKeluarga(f.id)} title="Hapus Unit Keluarga">
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                        
+                        {/* Members list */}
+                        <div className="mb-6">
+                          {f.anggota.length === 0 ? (
+                            <p className="text-xs text-slate-400 font-bold italic py-2">Keluarga tidak memiliki anggota aktif</p>
+                          ) : (
+                            <table className="w-full text-left text-[11px] font-semibold">
+                              <thead>
+                                <tr className="border-b border-slate-100 text-slate-400 font-bold">
+                                  <th className="py-1.5">Nama Anggota</th>
+                                  <th className="py-1.5">Kelompok</th>
+                                  <th className="py-1.5">Hubungan</th>
+                                  <th className="py-1.5 text-right">Aksi</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-50">
+                                {f.anggota.map(m => {
+                                  const isWafat = m.status_kehidupan === 'Meninggal';
+                                  return (
+                                    <tr key={m.anggota_id} className="text-slate-600 hover:bg-slate-50/50">
+                                      <td className="py-2 font-bold text-slate-800">
+                                        {m.nama_lengkap}
+                                        {isWafat && <span className="text-[8px] font-extrabold text-red-500 bg-red-50 px-1.5 py-0.5 rounded-full ml-1.5 uppercase tracking-wider">Wafat</span>}
+                                      </td>
+                                      <td className="py-2 text-primary font-bold text-[10px] uppercase">{m.kelompok}</td>
+                                      <td className="py-2 text-slate-400 text-[10px] font-bold">{m.jenis_anggota}</td>
+                                      <td className="py-2 text-right">
+                                        <button className="text-red-500 hover:text-red-700 font-extrabold text-[10px] cursor-pointer" onClick={() => handleRemoveMember(m.anggota_id)} title="Keluarkan dari keluarga">
+                                          Hapus
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          )}
+                        </div>
                       </div>
                       
-                      {/* Members list */}
-                      <div className="mb-6">
-                        {f.anggota.length === 0 ? (
-                          <p className="text-xs text-slate-400 font-bold italic py-2">Keluarga tidak memiliki anggota aktif</p>
-                        ) : (
-                          <table className="w-full text-left text-[11px] font-semibold">
-                            <thead>
-                              <tr className="border-b border-slate-100 text-slate-400 font-bold">
-                                <th className="py-1.5">Nama Anggota</th>
-                                <th className="py-1.5">Hubungan</th>
-                                <th className="py-1.5 text-right">Aksi</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-50">
-                              {f.anggota.map(m => {
-                                const isWafat = m.status_kehidupan === 'Meninggal';
-                                return (
-                                  <tr key={m.anggota_id} className="text-slate-600 hover:bg-slate-50/50">
-                                    <td className="py-2 font-bold text-slate-800">
-                                      {m.nama_lengkap}
-                                      {isWafat && <span className="text-[8px] font-extrabold text-red-500 bg-red-50 px-1.5 py-0.5 rounded-full ml-1.5 uppercase tracking-wider">Wafat</span>}
-                                    </td>
-                                    <td className="py-2 text-slate-400 text-[10px] font-bold">{m.jenis_anggota}</td>
-                                    <td className="py-2 text-right">
-                                      <button className="text-red-500 hover:text-red-700 font-extrabold text-[10px]" onClick={() => handleRemoveMember(m.anggota_id)} title="Keluarkan dari keluarga">
-                                        Hapus
-                                      </button>
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        )}
+                      {/* Actions button */}
+                      <div>
+                        <button className="flex items-center justify-center gap-1.5 w-full py-2 px-3 font-bold text-[10px] bg-slate-50 hover:bg-primary-light text-slate-650 hover:text-primary rounded-lg transition-all border border-slate-100 cursor-pointer" onClick={() => openAddMemberModal(f.id)}>
+                          <Plus size={12} />
+                          <span>Tambah Anggota Keluarga</span>
+                        </button>
                       </div>
                     </div>
-                    
-                    {/* Actions button */}
-                    <div>
-                      <button className="flex items-center justify-center gap-1.5 w-full py-2 px-3 font-bold text-[10px] bg-slate-50 hover:bg-primary-light text-slate-650 hover:text-primary rounded-lg transition-all border border-slate-100" onClick={() => openAddMemberModal(f.id)}>
-                        <Plus size={12} />
-                        <span>Tambah Anggota Keluarga</span>
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) ) : (
+                  );
+                })}
+              </div>
+            )}
+          </>
+        ) : (
             <div className="flex flex-col gap-6 animate-fadeIn">
               {/* Cards Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -1045,7 +1128,7 @@ export default function DatabasePage() {
                         }}
                         required
                       >
-                        {locations.map(d => (
+                        {[...locations].sort((a, b) => a.nama_desa.localeCompare(b.nama_desa)).map(d => (
                           <option key={d.id} value={d.nama_desa}>{d.nama_desa}</option>
                         ))}
                       </select>
@@ -1068,7 +1151,7 @@ export default function DatabasePage() {
                       onChange={(e) => setFormKelompok(e.target.value)}
                       required
                     >
-                      {(locations.find(d => d.nama_desa === formDesa)?.kelompoks || []).map(k => (
+                      {[...(locations.find(d => d.nama_desa === formDesa)?.kelompoks || [])].sort((a, b) => a.nama_kelompok.localeCompare(b.nama_kelompok)).map(k => (
                         <option key={k.id} value={k.nama_kelompok}>{k.nama_kelompok}</option>
                       ))}
                     </select>
@@ -1192,7 +1275,7 @@ export default function DatabasePage() {
                     onChange={(e) => setSelectedKkId(e.target.value)}
                     required
                   >
-                    {unassociatedJamaahForModal.map(j => (
+                    {[...unassociatedJamaahForModal].sort((a, b) => a.nama_lengkap.localeCompare(b.nama_lengkap)).map(j => (
                       <option key={j.id} value={j.id}>{j.nama_lengkap} ({j.desa} - {j.kelompok})</option>
                     ))}
                   </select>
@@ -1231,7 +1314,7 @@ export default function DatabasePage() {
                     onChange={(e) => setSelectedMemberJamaahId(e.target.value)}
                     required
                   >
-                    {unassociatedJamaahForModal.map(j => (
+                    {[...unassociatedJamaahForModal].sort((a, b) => a.nama_lengkap.localeCompare(b.nama_lengkap)).map(j => (
                       <option key={j.id} value={j.id}>{j.nama_lengkap} ({j.desa} - {j.kelompok})</option>
                     ))}
                   </select>

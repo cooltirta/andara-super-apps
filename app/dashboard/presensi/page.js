@@ -432,7 +432,7 @@ export default function PresensiPage() {
                   }}
                 >
                   <option value="">Semua Desa</option>
-                  {locations.map(d => (
+                  {[...locations].sort((a, b) => a.nama_desa.localeCompare(b.nama_desa)).map(d => (
                     <option key={d.id} value={d.nama_desa}>{d.nama_desa}</option>
                   ))}
                 </select>
@@ -463,7 +463,9 @@ export default function PresensiPage() {
                   {(user.role === 'Super Admin'
                     ? (filterDesa ? (locations.find(d => d.nama_desa === filterDesa)?.kelompoks || []) : locations.flatMap(d => d.kelompoks))
                     : (locations.find(d => d.nama_desa === user.desa)?.kelompoks || [])
-                  ).map(k => (
+                  )
+                  .sort((a, b) => a.nama_kelompok.localeCompare(b.nama_kelompok))
+                  .map(k => (
                     <option key={k.id} value={k.nama_kelompok}>{k.nama_kelompok}</option>
                   ))}
                 </select>
@@ -748,7 +750,7 @@ export default function PresensiPage() {
                   }}
                 >
                   <option value="">Semua Desa</option>
-                  {locations.map(d => (
+                  {[...locations].sort((a, b) => a.nama_desa.localeCompare(b.nama_desa)).map(d => (
                     <option key={d.id} value={d.nama_desa}>{d.nama_desa}</option>
                   ))}
                 </select>
@@ -765,7 +767,9 @@ export default function PresensiPage() {
                   {(user.role === 'Super Admin'
                     ? (reportDesa ? (locations.find(d => d.nama_desa === reportDesa)?.kelompoks || []) : locations.flatMap(d => d.kelompoks))
                     : (locations.find(d => d.nama_desa === user.desa)?.kelompoks || [])
-                  ).map(k => (
+                  )
+                  .sort((a, b) => a.nama_kelompok.localeCompare(b.nama_kelompok))
+                  .map(k => (
                     <option key={k.id} value={k.nama_kelompok}>{k.nama_kelompok}</option>
                   ))}
                 </select>

@@ -19,15 +19,20 @@ export async function DELETE(request, { params }) {
     const { rows: jRows } = await db.query(`
       SELECT j.* FROM anggota_keluarga ak 
       JOIN jamaah j ON ak.jamaah_id = j.id 
-      WHERE ak.keluarga_id = $1 LIMIT 1;
+      WHERE ak.keluarga_id = $1;
     `, [id]);
-    const j_row = jRows[0];
 
-    if (j_row) {
-      if (user.role === 'Moderator' && (j_row.kelompok !== user.kelompok || j_row.desa !== user.desa)) {
-        return NextResponse.json({ error: "Akses ditolak: Unit keluarga di luar kelompok Anda" }, { status: 403 });
-      } else if (user.role === 'Admin' && j_row.desa !== user.desa) {
-        return NextResponse.json({ error: "Akses ditolak: Unit keluarga di luar desa Anda" }, { status: 403 });
+    if (jRows.length > 0) {
+      if (user.role === 'Moderator') {
+        const hasMemberInGroup = jRows.some(j => j.kelompok === user.kelompok && j.desa === user.desa);
+        if (!hasMemberInGroup) {
+          return NextResponse.json({ error: "Akses ditolak: Unit keluarga di luar kelompok terpantau Anda" }, { status: 403 });
+        }
+      } else if (user.role === 'Admin') {
+        const hasMemberInDesa = jRows.some(j => j.desa === user.desa);
+        if (!hasMemberInDesa) {
+          return NextResponse.json({ error: "Akses ditolak: Unit keluarga di luar desa terpantau Anda" }, { status: 403 });
+        }
       }
     }
 

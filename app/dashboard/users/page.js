@@ -618,7 +618,7 @@ export default function UserAccessPage() {
                         }}
                         required
                       >
-                        {locations.map(d => (
+                        {[...locations].sort((a, b) => a.nama_desa.localeCompare(b.nama_desa)).map(d => (
                           <option key={d.id} value={d.nama_desa}>{d.nama_desa}</option>
                         ))}
                       </select>
@@ -738,7 +738,7 @@ export default function UserAccessPage() {
                       onChange={(e) => setFormGroup(e.target.value)}
                     >
                       <option value="">Semua Kelompok</option>
-                      {(locations.find(d => d.nama_desa === formDesa)?.kelompoks || []).map(k => (
+                      {[...(locations.find(d => d.nama_desa === formDesa)?.kelompoks || [])].sort((a, b) => a.nama_kelompok.localeCompare(b.nama_kelompok)).map(k => (
                         <option key={k.id} value={k.nama_kelompok}>{k.nama_kelompok}</option>
                       ))}
                     </select>
