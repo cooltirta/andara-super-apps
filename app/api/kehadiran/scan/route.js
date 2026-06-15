@@ -48,18 +48,11 @@ export async function POST(request) {
     const pad = (n) => n.toString().padStart(2, '0');
     const localTimeStr = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
 
-    // Cek record eksisting
-    const { rows: existingRows } = await db.query("SELECT * FROM kehadiran WHERE jamaah_id = $1 AND tanggal = $2;", [jamaahId, today]);
-    const existing = existingRows[0];
-    const presenceId = existing ? existing.id : crypto.randomUUID();
+    const presenceId = crypto.randomUUID();
 
     await db.query(`
       INSERT INTO kehadiran (id, jamaah_id, tanggal, waktu_presensi, status, recorded_by)
-      VALUES ($1, $2, $3, $4, 'Hadir', $5)
-      ON CONFLICT(jamaah_id, tanggal) DO UPDATE SET
-        status = 'Hadir',
-        waktu_presensi = excluded.waktu_presensi,
-        recorded_by = excluded.recorded_by;
+      VALUES ($1, $2, $3, $4, 'Hadir', $5);
     `, [presenceId, jamaahId, today, localTimeStr, user.email]);
 
     await logActivity(user.email, 'SCAN_QR', 'KEHADIRAN', jamaahId, `Scan QR presensi berhasil: ${jamaah.nama_lengkap} (Desa: ${jamaah.desa}, Kelompok: ${jamaah.kelompok})`);

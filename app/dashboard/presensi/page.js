@@ -31,6 +31,10 @@ export default function PresensiPage() {
   // Laporan Tab States
   const [reportStartDate, setReportStartDate] = useState('');
   const [reportEndDate, setReportEndDate] = useState('');
+  const [reportStartTime, setReportStartTime] = useState('00:00');
+  const [reportEndTime, setReportEndTime] = useState('23:59');
+  const [reportKategori, setReportKategori] = useState(['Balita', 'CBR/PAUD', 'Pra Remaja', 'Remaja', 'Pra Nikah', 'Dewasa', 'Lansia']);
+  const [reportStatusPernikahan, setReportStatusPernikahan] = useState(['Belum Menikah', 'Menikah', 'Janda', 'Duda']);
   const [reportDesa, setReportDesa] = useState('');
   const [reportKelompok, setReportKelompok] = useState('');
   const [reportData, setReportData] = useState(null);
@@ -109,7 +113,12 @@ export default function PresensiPage() {
 
       const initialDraft = {};
       data.forEach(j => {
-        initialDraft[j.jamaah_id] = j.status || 'Tidak Hadir';
+        initialDraft[j.row_key] = {
+          kehadiran_id: j.kehadiran_id,
+          jamaah_id: j.jamaah_id,
+          status: j.status || 'Tidak Hadir',
+          waktu_presensi: j.waktu_presensi || null
+        };
       });
       setAttendanceDraft(initialDraft);
     } catch (err) {
@@ -139,15 +148,42 @@ export default function PresensiPage() {
     }
   }, [selectedDate]);
 
-  // 3. Update Status Kehadiran secara Lokal di Draf
-  const handleUpdateStatus = (jamaahId, status) => {
-    setAttendanceDraft(prev => ({
-      ...prev,
-      [jamaahId]: status
-    }));
+  // 3. Update Status Kehadiran secara Lokal di Draf (Mendukung Waktu Manual)
+  const handleUpdateStatus = (rowKey, status, jamaahId) => {
+    setAttendanceDraft(prev => {
+      const current = prev[rowKey] || {
+        kehadiran_id: rowKey.endsWith('_standby') ? null : rowKey,
+        jamaah_id: jamaahId,
+        status: 'Tidak Hadir',
+        waktu_presensi: null
+      };
+      
+      let waktu = current.waktu_presensi;
+      if (status === 'Hadir') {
+        const now = new Date();
+        const pad = (n) => n.toString().padStart(2, '0');
+        if (isBackdate) {
+          const timeVal = attendanceTime || `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+          waktu = `${selectedDate} ${timeVal}:00`;
+        } else {
+          waktu = `${selectedDate} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+        }
+      } else {
+        waktu = null;
+      }
+      
+      return {
+        ...prev,
+        [rowKey]: {
+          ...current,
+          status,
+          waktu_presensi: waktu
+        }
+      };
+    });
   };
 
-  // 3b. Submit Bulk Kehadiran ke Database
+  // 3b. Submit Bulk Kehadiran ke Database (Mendukung Multi-Sesi)
   const handleSubmitAttendance = async () => {
     if (isBackdate && !attendanceTime) {
       showToast("Gagal: Anda harus mengisi jam & menit untuk pengisian tanggal lampau (backdate)", "error");
@@ -156,20 +192,15 @@ export default function PresensiPage() {
 
     setLoadingSubmit(true);
 
-    let waktuPresensi = null;
-    const now = new Date();
-    const pad = (n) => n.toString().padStart(2, '0');
-
-    if (isBackdate) {
-      waktuPresensi = `${selectedDate} ${attendanceTime}:00`;
-    } else {
-      waktuPresensi = `${selectedDate} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-    }
-
-    const kehadiranPayload = Object.keys(attendanceDraft).map(id => ({
-      jamaah_id: id,
-      status: attendanceDraft[id]
-    }));
+    const kehadiranPayload = Object.keys(attendanceDraft).map(rowKey => {
+      const draftItem = attendanceDraft[rowKey];
+      return {
+        id: draftItem.kehadiran_id || null,
+        jamaah_id: draftItem.jamaah_id,
+        status: draftItem.status,
+        waktu_presensi: draftItem.waktu_presensi
+      };
+    });
 
     try {
       const res = await fetch('/api/kehadiran', {
@@ -177,7 +208,6 @@ export default function PresensiPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           tanggal: selectedDate,
-          waktu_presensi: waktuPresensi,
           kehadiran: kehadiranPayload
         })
       });
@@ -224,15 +254,21 @@ export default function PresensiPage() {
     }
   };
 
-  // 4. Load Laporan Kehadiran
+  // 4. Load Laporan Kehadiran (Mendukung Rentang Waktu dan Checkbox Kategori/Pernikahan)
   const loadReport = async () => {
     if (!reportStartDate || !reportEndDate) {
       showToast("Mulai dan selesai wajib diisi", "error");
       return;
     }
     setLoadingReport(true);
+
+    const startDateTime = `${reportStartDate} ${reportStartTime || '00:00'}:00`;
+    const endDateTime = `${reportEndDate} ${reportEndTime || '23:59'}:59`;
+    const kategoriParam = reportKategori.join(',');
+    const maritalParam = reportStatusPernikahan.join(',');
+
     try {
-      const res = await fetch(`/api/kehadiran/laporan?start_date=${reportStartDate}&end_date=${reportEndDate}&desa=${reportDesa}&kelompok=${reportKelompok}`);
+      const res = await fetch(`/api/kehadiran/laporan?start_date=${encodeURIComponent(startDateTime)}&end_date=${encodeURIComponent(endDateTime)}&desa=${reportDesa}&kelompok=${reportKelompok}&kategori=${encodeURIComponent(kategoriParam)}&status_pernikahan=${encodeURIComponent(maritalParam)}`);
       if (!res.ok) throw new Error("Gagal memuat laporan kehadiran");
       const data = await res.json();
       setReportData(data);
@@ -497,11 +533,26 @@ export default function PresensiPage() {
                     {filteredInputList.map(j => {
                       const isDisabled = !j.can_edit || (isBackdate && !attendanceTime);
                       const disabledClass = isDisabled ? 'opacity-50 cursor-not-allowed' : '';
-                      const currentStatus = attendanceDraft[j.jamaah_id] || 'Tidak Hadir';
+                      const draftItem = attendanceDraft[j.row_key] || { status: 'Tidak Hadir', waktu_presensi: null };
+                      const currentStatus = draftItem.status;
+                      const waktuPresensi = draftItem.waktu_presensi;
                       
                       return (
-                        <tr key={j.jamaah_id} className="hover:bg-slate-50/50 transition-colors text-xs font-semibold text-slate-650">
-                          <td className="px-6 py-4.5 font-bold text-slate-800">{j.nama_lengkap}</td>
+                        <tr key={j.row_key} className="hover:bg-slate-50/50 transition-colors text-xs font-semibold text-slate-650">
+                          <td className="px-6 py-4.5 font-bold text-slate-800">
+                            <div>{j.nama_lengkap}</div>
+                            {waktuPresensi && (
+                              <div className="text-[10px] text-slate-400 font-bold mt-0.5 flex items-center gap-1">
+                                <Clock size={10} />
+                                <span>{waktuPresensi.split(' ')[1] || waktuPresensi}</span>
+                              </div>
+                            )}
+                            {j.kehadiran_id === null && (
+                              <div className="text-[9px] text-primary/70 font-bold mt-0.5 uppercase tracking-wide">
+                                Standby (Baru)
+                              </div>
+                            )}
+                          </td>
                           <td className="px-6 py-4.5 text-primary">{j.desa}</td>
                           <td className="px-6 py-4.5">
                             <span className="inline-block px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 font-bold text-[10px]">
@@ -525,7 +576,7 @@ export default function PresensiPage() {
                                       : 'text-slate-500 hover:text-slate-700'
                                   }`} 
                                   disabled={isDisabled}
-                                  onClick={() => handleUpdateStatus(j.jamaah_id, 'Hadir')}
+                                  onClick={() => handleUpdateStatus(j.row_key, 'Hadir', j.jamaah_id)}
                                 >
                                   Hadir
                                 </button>
@@ -536,7 +587,7 @@ export default function PresensiPage() {
                                       : 'text-slate-500 hover:text-slate-700'
                                   }`} 
                                   disabled={isDisabled}
-                                  onClick={() => handleUpdateStatus(j.jamaah_id, 'Ijin')}
+                                  onClick={() => handleUpdateStatus(j.row_key, 'Ijin', j.jamaah_id)}
                                 >
                                   Ijin
                                 </button>
@@ -547,7 +598,7 @@ export default function PresensiPage() {
                                       : 'text-slate-500 hover:text-slate-700'
                                   }`} 
                                   disabled={isDisabled}
-                                  onClick={() => handleUpdateStatus(j.jamaah_id, 'Tidak Hadir')}
+                                  onClick={() => handleUpdateStatus(j.row_key, 'Tidak Hadir', j.jamaah_id)}
                                 >
                                   Absen
                                 </button>
@@ -566,17 +617,31 @@ export default function PresensiPage() {
                 {filteredInputList.map(j => {
                   const isDisabled = !j.can_edit || (isBackdate && !attendanceTime);
                   const disabledClass = isDisabled ? 'opacity-50 cursor-not-allowed' : '';
-                  const currentStatus = attendanceDraft[j.jamaah_id] || 'Tidak Hadir';
+                  const draftItem = attendanceDraft[j.row_key] || { status: 'Tidak Hadir', waktu_presensi: null };
+                  const currentStatus = draftItem.status;
+                  const waktuPresensi = draftItem.waktu_presensi;
                   
                   return (
-                    <div key={j.jamaah_id} className="p-4 flex flex-col gap-3.5 hover:bg-slate-50/30 transition-colors">
+                    <div key={j.row_key} className="p-4 flex flex-col gap-3.5 hover:bg-slate-50/30 transition-colors">
                       {/* Name & Badges */}
                       <div className="flex justify-between items-start gap-2">
                         <div className="flex flex-col gap-0.5 min-w-0">
-                          <span className="text-sm font-bold text-slate-800 truncate">{j.nama_lengkap}</span>
+                          <span className="text-sm font-bold text-slate-800 truncate">
+                            {j.nama_lengkap}
+                            {waktuPresensi && (
+                              <span className="text-[10px] text-slate-400 font-semibold ml-1.5">
+                                ({waktuPresensi.split(' ')[1] || waktuPresensi})
+                              </span>
+                            )}
+                          </span>
                           <span className="text-[10px] text-slate-400 font-semibold">
                             {j.desa} &bull; {j.kelompok}
                           </span>
+                          {j.kehadiran_id === null && (
+                            <span className="text-[8px] text-primary/80 font-bold uppercase tracking-wide mt-0.5">
+                              Standby (Baru)
+                            </span>
+                          )}
                         </div>
                         <div className="flex gap-1.5 shrink-0">
                           <span className="inline-block px-2 py-0.5 rounded-full bg-slate-50 text-slate-500 border border-slate-200/50 font-bold text-[9px] uppercase">
@@ -598,7 +663,7 @@ export default function PresensiPage() {
                                 : 'text-slate-500 hover:text-slate-700'
                             }`} 
                             disabled={isDisabled}
-                            onClick={() => handleUpdateStatus(j.jamaah_id, 'Hadir')}
+                            onClick={() => handleUpdateStatus(j.row_key, 'Hadir', j.jamaah_id)}
                           >
                             Hadir
                           </button>
@@ -609,7 +674,7 @@ export default function PresensiPage() {
                                 : 'text-slate-500 hover:text-slate-700'
                             }`} 
                             disabled={isDisabled}
-                            onClick={() => handleUpdateStatus(j.jamaah_id, 'Ijin')}
+                            onClick={() => handleUpdateStatus(j.row_key, 'Ijin', j.jamaah_id)}
                           >
                             Ijin
                           </button>
@@ -620,7 +685,7 @@ export default function PresensiPage() {
                                 : 'text-slate-500 hover:text-slate-700'
                             }`} 
                             disabled={isDisabled}
-                            onClick={() => handleUpdateStatus(j.jamaah_id, 'Tidak Hadir')}
+                            onClick={() => handleUpdateStatus(j.row_key, 'Tidak Hadir', j.jamaah_id)}
                           >
                             Absen
                           </button>
@@ -639,67 +704,138 @@ export default function PresensiPage() {
       {activeTab === 'laporan' && (
         <div className="flex flex-col gap-6">
           {/* Laporan Filter Bar */}
-          <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-5 flex flex-wrap items-center gap-5">
-            <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
-              <span className="uppercase tracking-wider">Mulai:</span>
-              <input 
-                type="date" 
-                className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 font-semibold text-xs" 
-                value={reportStartDate}
-                onChange={(e) => setReportStartDate(e.target.value)}
-              />
-            </div>
-            <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
-              <span className="uppercase tracking-wider">Selesai:</span>
-              <input 
-                type="date" 
-                className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 font-semibold text-xs" 
-                value={reportEndDate}
-                onChange={(e) => setReportEndDate(e.target.value)}
-              />
-            </div>
+          <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-5 flex flex-col gap-5">
+            <div className="flex flex-wrap items-center gap-5">
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
+                <span className="uppercase tracking-wider">Mulai:</span>
+                <input 
+                  type="date" 
+                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 font-semibold text-xs" 
+                  value={reportStartDate}
+                  onChange={(e) => setReportStartDate(e.target.value)}
+                />
+                <input 
+                  type="time" 
+                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 font-semibold text-xs cursor-pointer" 
+                  value={reportStartTime}
+                  onChange={(e) => setReportStartTime(e.target.value)}
+                />
+              </div>
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
+                <span className="uppercase tracking-wider">Selesai:</span>
+                <input 
+                  type="date" 
+                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 font-semibold text-xs" 
+                  value={reportEndDate}
+                  onChange={(e) => setReportEndDate(e.target.value)}
+                />
+                <input 
+                  type="time" 
+                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 font-semibold text-xs cursor-pointer" 
+                  value={reportEndTime}
+                  onChange={(e) => setReportEndTime(e.target.value)}
+                />
+              </div>
 
-            {/* Filter Desa */}
-            {user.role === 'Super Admin' ? (
-              <select 
-                className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 font-bold text-xs cursor-pointer"
-                value={reportDesa}
-                onChange={(e) => {
-                  setReportDesa(e.target.value);
-                  setReportKelompok('');
-                }}
+              {/* Filter Desa */}
+              {user.role === 'Super Admin' ? (
+                <select 
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 font-bold text-xs cursor-pointer"
+                  value={reportDesa}
+                  onChange={(e) => {
+                    setReportDesa(e.target.value);
+                    setReportKelompok('');
+                  }}
+                >
+                  <option value="">Semua Desa</option>
+                  {locations.map(d => (
+                    <option key={d.id} value={d.nama_desa}>{d.nama_desa}</option>
+                  ))}
+                </select>
+              ) : null}
+
+              {/* Filter Kelompok */}
+              {user.role === 'Super Admin' || user.role === 'Admin' ? (
+                <select 
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 font-bold text-xs cursor-pointer"
+                  value={reportKelompok}
+                  onChange={(e) => setReportKelompok(e.target.value)}
+                >
+                  <option value="">Semua Kelompok</option>
+                  {(user.role === 'Super Admin'
+                    ? (reportDesa ? (locations.find(d => d.nama_desa === reportDesa)?.kelompoks || []) : locations.flatMap(d => d.kelompoks))
+                    : (locations.find(d => d.nama_desa === user.desa)?.kelompoks || [])
+                  ).map(k => (
+                    <option key={k.id} value={k.nama_kelompok}>{k.nama_kelompok}</option>
+                  ))}
+                </select>
+              ) : null}
+
+              <button 
+                onClick={loadReport} 
+                className="py-2 px-4 font-bold text-xs bg-primary hover:bg-primary-hover text-white rounded-lg transition-all shadow-sm active:scale-95 ml-auto"
+                disabled={loadingReport}
               >
-                <option value="">Semua Desa</option>
-                {locations.map(d => (
-                  <option key={d.id} value={d.nama_desa}>{d.nama_desa}</option>
-                ))}
-              </select>
-            ) : null}
+                {loadingReport ? "Memuat..." : "Tampilkan Laporan"}
+              </button>
+            </div>
 
-            {/* Filter Kelompok */}
-            {user.role === 'Super Admin' || user.role === 'Admin' ? (
-              <select 
-                className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 font-bold text-xs cursor-pointer"
-                value={reportKelompok}
-                onChange={(e) => setReportKelompok(e.target.value)}
-              >
-                <option value="">Semua Kelompok</option>
-                {(user.role === 'Super Admin'
-                  ? (reportDesa ? (locations.find(d => d.nama_desa === reportDesa)?.kelompoks || []) : locations.flatMap(d => d.kelompoks))
-                  : (locations.find(d => d.nama_desa === user.desa)?.kelompoks || [])
-                ).map(k => (
-                  <option key={k.id} value={k.nama_kelompok}>{k.nama_kelompok}</option>
-                ))}
-              </select>
-            ) : null}
+            {/* Checklist Filters Row */}
+            <div className="flex flex-col sm:flex-row gap-6 border-t border-slate-100 pt-4 text-left">
+              {/* Kategori Checklist */}
+              <div className="flex-1">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Kategori Jamaah</span>
+                <div className="flex flex-wrap gap-x-4 gap-y-2">
+                  {['Balita', 'CBR/PAUD', 'Pra Remaja', 'Remaja', 'Pra Nikah', 'Dewasa', 'Lansia'].map(cat => {
+                    const isChecked = reportKategori.includes(cat);
+                    return (
+                      <label key={cat} className="flex items-center gap-2 text-xs font-semibold text-slate-650 cursor-pointer select-none">
+                        <input 
+                          type="checkbox" 
+                          className="rounded border-slate-300 text-primary focus:ring-primary w-4 h-4"
+                          checked={isChecked}
+                          onChange={() => {
+                            if (isChecked) {
+                              setReportKategori(prev => prev.filter(c => c !== cat));
+                            } else {
+                              setReportKategori(prev => [...prev, cat]);
+                            }
+                          }}
+                        />
+                        <span>{cat}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
 
-            <button 
-              onClick={loadReport} 
-              className="py-2 px-4 font-bold text-xs bg-primary hover:bg-primary-hover text-white rounded-lg transition-all shadow-sm active:scale-95 ml-auto"
-              disabled={loadingReport}
-            >
-              {loadingReport ? "Memuat..." : "Tampilkan Laporan"}
-            </button>
+              {/* Status Pernikahan Checklist */}
+              <div className="flex-1 border-t sm:border-t-0 sm:border-l border-slate-100 pt-4 sm:pt-0 sm:pl-6">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Status Pernikahan</span>
+                <div className="flex flex-wrap gap-x-4 gap-y-2">
+                  {['Belum Menikah', 'Menikah', 'Janda', 'Duda'].map(status => {
+                    const isChecked = reportStatusPernikahan.includes(status);
+                    return (
+                      <label key={status} className="flex items-center gap-2 text-xs font-semibold text-slate-650 cursor-pointer select-none">
+                        <input 
+                          type="checkbox" 
+                          className="rounded border-slate-300 text-primary focus:ring-primary w-4 h-4"
+                          checked={isChecked}
+                          onChange={() => {
+                            if (isChecked) {
+                              setReportStatusPernikahan(prev => prev.filter(s => s !== status));
+                            } else {
+                              setReportStatusPernikahan(prev => [...prev, status]);
+                            }
+                          }}
+                        />
+                        <span>{status}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
           </div>
 
           {loadingReport ? (
