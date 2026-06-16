@@ -293,10 +293,36 @@ export default function UserAccessPage() {
     e.preventDefault();
     const isEdit = selectedUserId !== null;
 
+    // Calculate primary village (desa) automatically based on desas_pantau or default
+    let computedDesa = 'Andara';
+    if (!monitorAllDesas && desasPantau.length > 0) {
+      computedDesa = desasPantau[0];
+    } else if (user.monitor_all_desas) {
+      computedDesa = locations[0]?.nama_desa || 'Andara';
+    } else {
+      computedDesa = user.desas_pantau?.[0] || 'Andara';
+    }
+
+    // Calculate primary group (kelompok) automatically based on kelompoks_pantau
+    let computedGroup = null;
+    if (!monitorAllKelompoks && kelompoksPantau.length > 0) {
+      computedGroup = kelompoksPantau[0];
+    }
+
+    // Calculate role preset automatically based on detailed permissions
+    let computedRole = 'Member';
+    if (canCreateUser || canUpdateUser || canReadLogs) {
+      computedRole = 'Super Admin';
+    } else if (canCreateJamaah || canCreateKeluarga) {
+      computedRole = 'Admin';
+    } else if (canCreateKehadiran) {
+      computedRole = 'Moderator';
+    }
+
     const payload = {
-      role: formRole,
-      kelompok: (formRole === 'Moderator' || formRole === 'Admin') ? (formGroup || null) : null,
-      desa: formDesa,
+      role: computedRole,
+      kelompok: computedGroup,
+      desa: computedDesa,
 
       monitor_all_desas: monitorAllDesas,
       desas_pantau: desasPantau,
@@ -766,54 +792,7 @@ export default function UserAccessPage() {
                   )}
                 </div>
                 
-                {/* Desa & Role select */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="flex flex-col gap-2">
-                    <label htmlFor="form-user-desa" className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Desa Utama</label>
-                    {user.monitor_all_desas ? (
-                      <select 
-                        id="form-user-desa" 
-                        className="w-full px-3 py-2.5 rounded-lg border border-slate-200 focus:border-primary outline-none bg-white text-slate-700 cursor-pointer font-semibold text-sm"
-                        value={formDesa}
-                        onChange={(e) => {
-                          const newDesa = e.target.value;
-                          setFormDesa(newDesa);
-                          setFormGroup(''); // Reset kelompok selection
-                          syncCheckboxesFromRole(formRole, newDesa, '');
-                        }}
-                        required
-                      >
-                        {[...locations].sort((a, b) => a.nama_desa.localeCompare(b.nama_desa)).map(d => (
-                          <option key={d.id} value={d.nama_desa}>{d.nama_desa}</option>
-                        ))}
-                      </select>
-                    ) : (
-                      <input 
-                        type="text" 
-                        id="form-user-desa" 
-                        className="w-full px-4 py-2.5 rounded-lg border border-slate-200 bg-slate-100 text-slate-450 font-semibold cursor-not-allowed outline-none text-sm" 
-                        value={formDesa}
-                        disabled 
-                      />
-                    )}
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label htmlFor="form-user-role" className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Tingkat Hak Akses</label>
-                    <select 
-                      id="form-user-role" 
-                      className="w-full px-3 py-2.5 rounded-lg border border-slate-200 focus:border-primary outline-none bg-white text-slate-700 cursor-pointer font-semibold text-sm"
-                      value={formRole}
-                      onChange={(e) => {
-                        const newRole = e.target.value;
-                        setFormRole(newRole);
-                        syncCheckboxesFromRole(newRole, formDesa, formGroup);
-                      }}
-                      required
-                    >
-                      {roleOptions}
-                    </select>
-                  </div>
-                </div>
+
 
                 {/* Monitored Locations Section (Modern Checkboxes) */}
                 <div className="border border-slate-100 rounded-xl p-4 bg-slate-50/20 flex flex-col gap-4">
@@ -834,8 +813,7 @@ export default function UserAccessPage() {
                             onChange={(e) => {
                               const val = e.target.checked;
                               setMonitorAllDesas(val);
-                              if (val) setDesasPantau([]);
-                              else setDesasPantau([formDesa]);
+                              setDesasPantau([]);
                             }}
                           />
                           <span>PANTAU SEMUA DESA</span>
@@ -882,8 +860,7 @@ export default function UserAccessPage() {
                             onChange={(e) => {
                               const val = e.target.checked;
                               setMonitorAllKelompoks(val);
-                              if (val) setKelompoksPantau([]);
-                              else setKelompoksPantau(formGroup ? [formGroup] : []);
+                              setKelompoksPantau([]);
                             }}
                           />
                           <span>PANTAU SEMUA KELOMPOK</span>
@@ -1055,27 +1032,7 @@ export default function UserAccessPage() {
                   </div>
                 </div>
                 
-                {/* Dynamic Kelompok select, only shown for Moderator and Admin presets */}
-                {(formRole === 'Moderator' || formRole === 'Admin') && (
-                  <div className="flex flex-col gap-2" id="form-user-group-group">
-                    <label htmlFor="form-user-group" className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Kelompok Utama Pengawasan</label>
-                    <select 
-                      id="form-user-group" 
-                      className="w-full px-3 py-2.5 rounded-lg border border-slate-200 focus:border-primary outline-none bg-white text-slate-700 cursor-pointer font-semibold text-sm"
-                      value={formGroup}
-                      onChange={(e) => {
-                        const newGrp = e.target.value;
-                        setFormGroup(newGrp);
-                        syncCheckboxesFromRole(formRole, formDesa, newGrp);
-                      }}
-                    >
-                      <option value="">Semua Kelompok</option>
-                      {[...(locations.find(d => d.nama_desa === formDesa)?.kelompoks || [])].sort((a, b) => a.nama_kelompok.localeCompare(b.nama_kelompok)).map(k => (
-                        <option key={k.id} value={k.nama_kelompok}>{k.nama_kelompok}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
+
                 
                 <div className="flex justify-end gap-3 border-t border-slate-100 pt-5 mt-4 shrink-0">
                   <button type="button" className="py-2.5 px-4 font-bold text-xs bg-white border border-slate-200 hover:bg-slate-50 text-slate-650 rounded-lg transition-all" onClick={() => setIsModalOpen(false)}>Batal</button>
