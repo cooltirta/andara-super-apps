@@ -1148,7 +1148,7 @@ export default function PresensiPage() {
                     <span className="text-xl font-bold text-pastel-green-text">
                       {reportData.stats.total > 0 ? Math.round((reportData.stats.hadir / reportData.stats.total) * 100) : 0}%
                     </span>
-                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Tingkat Kehadiran ({reportData.stats.hadir} Kali)</span>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Tingkat Kehadiran</span>
                   </div>
                 </div>
 
@@ -1157,8 +1157,8 @@ export default function PresensiPage() {
                     <Clock size={20} />
                   </div>
                   <div className="flex flex-col">
-                    <span className="text-xl font-bold text-pastel-yellow-text">{reportData.stats.ijin} Kali</span>
-                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Jumlah Ijin (Excused)</span>
+                    <span className="text-xl font-bold text-pastel-yellow-text">{reportData.stats.ijin}</span>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Jumlah Ijin</span>
                   </div>
                 </div>
 
@@ -1167,8 +1167,8 @@ export default function PresensiPage() {
                     <AlertTriangle size={20} />
                   </div>
                   <div className="flex flex-col">
-                    <span className="text-xl font-bold text-pastel-red-text">{reportData.stats.tidak_hadir} Kali</span>
-                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Jumlah Absen (Tidak Hadir)</span>
+                    <span className="text-xl font-bold text-pastel-red-text">{reportData.stats.tidak_hadir}</span>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Jumlah Absen</span>
                   </div>
                 </div>
               </div>
