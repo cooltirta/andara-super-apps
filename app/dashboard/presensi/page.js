@@ -133,7 +133,8 @@ export default function PresensiPage() {
               jamaah_id: j.jamaah_id,
               status: p.status,
               waktu_presensi: p.waktu_presensi,
-              recorded_by: p.recorded_by
+              recorded_by: p.recorded_by,
+              isDeleted: false
             };
           });
         } else {
@@ -144,7 +145,8 @@ export default function PresensiPage() {
             jamaah_id: j.jamaah_id,
             status: 'Tidak Hadir',
             waktu_presensi: null,
-            recorded_by: null
+            recorded_by: null,
+            isDeleted: false
           };
         }
       });
@@ -221,7 +223,8 @@ export default function PresensiPage() {
         jamaah_id: jamaahId,
         status: 'Tidak Hadir',
         waktu_presensi: null,
-        recorded_by: user.email
+        recorded_by: user.email,
+        isDeleted: false
       }
     }));
   };
@@ -231,6 +234,44 @@ export default function PresensiPage() {
     setAttendanceDraft(prev => {
       const copy = { ...prev };
       delete copy[rowKey];
+      return copy;
+    });
+  };
+
+  // Hapus atau reset baris kehadiran
+  const handleDeletePresenceRow = (rowKey, jamaahId) => {
+    setAttendanceDraft(prev => {
+      const copy = { ...prev };
+      
+      // Hitung baris aktif (non-deleted) untuk jamaah ini
+      const activeEntries = Object.entries(copy).filter(
+        ([key, val]) => val.jamaah_id === jamaahId && !val.isDeleted
+      );
+      
+      if (activeEntries.length > 1) {
+        // Jika lebih dari 1 sesi aktif, hapus dari list
+        const draftItem = copy[rowKey];
+        if (draftItem.kehadiran_id === null) {
+          // Jika baru di draft, hapus saja kuncinya
+          delete copy[rowKey];
+        } else {
+          // Jika sudah ada di database, set status Absen dan flag isDeleted agar hilang di UI dan di-delete oleh backend saat Simpan
+          copy[rowKey] = {
+            ...draftItem,
+            status: 'Tidak Hadir',
+            waktu_presensi: null,
+            isDeleted: true
+          };
+        }
+      } else {
+        // Jika hanya 1 sesi aktif, ubah fungsi menjadi reset (Absen & waktu kosong)
+        copy[rowKey] = {
+          ...copy[rowKey],
+          status: 'Tidak Hadir',
+          waktu_presensi: null
+        };
+      }
+      
       return copy;
     });
   };
@@ -650,7 +691,8 @@ export default function PresensiPage() {
                   </thead>
                   <tbody className="divide-y divide-slate-50">
                     {filteredInputList.map(j => {
-                      const draftEntries = Object.entries(attendanceDraft).filter(([key, val]) => val.jamaah_id === j.jamaah_id);
+                      const draftEntries = Object.entries(attendanceDraft).filter(([key, val]) => val.jamaah_id === j.jamaah_id && !val.isDeleted);
+                      const isMultiSession = draftEntries.length > 1;
                       
                       return (
                         <tr key={j.jamaah_id} className="hover:bg-slate-50/50 transition-colors text-xs font-semibold text-slate-650">
@@ -676,7 +718,6 @@ export default function PresensiPage() {
                                 const disabledClass = isDisabled ? 'opacity-50 cursor-not-allowed' : '';
                                 const currentStatus = draftItem.status;
                                 const waktuPresensi = draftItem.waktu_presensi;
-                                const isNewRow = rowKey.includes('_new_') || rowKey.endsWith('_standby');
                                 
                                 return (
                                   <div key={rowKey} className="flex items-center gap-2 justify-center">
@@ -717,22 +758,33 @@ export default function PresensiPage() {
                                       </button>
                                     </div>
 
-                                    {/* Timestamp or New Flag */}
-                                    {waktuPresensi ? (
+                                    {/* Timestamp */}
+                                    {waktuPresensi && (
                                       <span className="text-[10px] text-slate-400 font-bold bg-slate-50 px-2 py-1 rounded border border-slate-100 flex items-center gap-1 shrink-0" title={`Pencatat: ${draftItem.recorded_by || '-'}`}>
                                         <Clock size={10} />
                                         <span>{(waktuPresensi.split(' ')[1] || waktuPresensi).substring(0, 5)}</span>
                                       </span>
-                                    ) : (
-                                      isNewRow && rowKey.includes('_new_') ? (
+                                    )}
+
+                                    {/* Delete / Reset Button */}
+                                    {j.can_edit && (user.can_create_kehadiran || user.can_update_kehadiran) && (
+                                      isMultiSession ? (
                                         <button 
-                                          onClick={() => handleRemoveDraftRow(rowKey)}
-                                          className="p-1 rounded text-red-500 hover:bg-red-50 hover:text-red-700 transition-colors"
-                                          title="Batalkan Sesi Baru"
+                                          onClick={() => handleDeletePresenceRow(rowKey, j.jamaah_id)}
+                                          className="p-1 rounded text-red-500 hover:bg-red-50 hover:text-red-700 transition-colors cursor-pointer shrink-0"
+                                          title="Hapus Sesi Kehadiran Ini"
                                         >
-                                          <X size={14} />
+                                          <Trash2 size={13} />
                                         </button>
-                                      ) : null
+                                      ) : (
+                                        <button 
+                                          onClick={() => handleDeletePresenceRow(rowKey, j.jamaah_id)}
+                                          className="p-1 rounded text-slate-400 hover:bg-slate-50 hover:text-amber-600 transition-colors cursor-pointer shrink-0"
+                                          title="Reset Kehadiran Menjadi Absen"
+                                        >
+                                          <RefreshCw size={12} />
+                                        </button>
+                                      )
                                     )}
                                   </div>
                                 );
@@ -742,7 +794,7 @@ export default function PresensiPage() {
                               {j.can_edit && (user.can_create_kehadiran || user.can_update_kehadiran) && (
                                 <button 
                                   onClick={() => handleAddNewPresence(j.jamaah_id)}
-                                  className="self-center text-[9px] font-extrabold uppercase text-primary hover:text-primary-hover flex items-center gap-1 mt-1 transition-colors"
+                                  className="self-center text-[9px] font-extrabold uppercase text-primary hover:text-primary-hover flex items-center gap-1 mt-1 transition-colors cursor-pointer"
                                 >
                                   + Tambah Kehadiran
                                 </button>
@@ -759,7 +811,8 @@ export default function PresensiPage() {
               {/* Mobile Card List View */}
               <div className="block md:hidden divide-y divide-slate-100 bg-white">
                 {filteredInputList.map(j => {
-                  const draftEntries = Object.entries(attendanceDraft).filter(([key, val]) => val.jamaah_id === j.jamaah_id);
+                  const draftEntries = Object.entries(attendanceDraft).filter(([key, val]) => val.jamaah_id === j.jamaah_id && !val.isDeleted);
+                  const isMultiSession = draftEntries.length > 1;
                   
                   return (
                     <div key={j.jamaah_id} className="p-4 flex flex-col gap-3.5 hover:bg-slate-50/30 transition-colors">
@@ -790,7 +843,6 @@ export default function PresensiPage() {
                           const disabledClass = isDisabled ? 'opacity-50 cursor-not-allowed' : '';
                           const currentStatus = draftItem.status;
                           const waktuPresensi = draftItem.waktu_presensi;
-                          const isNewRow = rowKey.includes('_new_') || rowKey.endsWith('_standby');
                           
                           return (
                             <div key={rowKey} className="flex flex-col gap-1.5 bg-slate-50/40 p-2.5 rounded-xl border border-slate-100">
@@ -805,13 +857,22 @@ export default function PresensiPage() {
                                     <span className="text-primary/80 font-bold">SESI BARU (STANDBY)</span>
                                   )}
                                 </span>
-                                {isNewRow && rowKey.includes('_new_') && (
-                                  <button 
-                                    onClick={() => handleRemoveDraftRow(rowKey)}
-                                    className="text-red-500 hover:text-red-700 transition-colors uppercase tracking-wider font-extrabold"
-                                  >
-                                    Hapus Sesi
-                                  </button>
+                                {j.can_edit && (user.can_create_kehadiran || user.can_update_kehadiran) && (
+                                  isMultiSession ? (
+                                    <button 
+                                      onClick={() => handleDeletePresenceRow(rowKey, j.jamaah_id)}
+                                      className="text-red-500 hover:text-red-700 transition-colors uppercase tracking-wider font-extrabold cursor-pointer"
+                                    >
+                                      Hapus Sesi
+                                    </button>
+                                  ) : (
+                                    <button 
+                                      onClick={() => handleDeletePresenceRow(rowKey, j.jamaah_id)}
+                                      className="text-slate-400 hover:text-amber-600 transition-colors uppercase tracking-wider font-extrabold cursor-pointer"
+                                    >
+                                      Reset
+                                    </button>
+                                  )
                                 )}
                               </div>
                               <div className={`flex bg-slate-100 p-1 rounded-lg border border-slate-200/60 w-full ${disabledClass}`}>
