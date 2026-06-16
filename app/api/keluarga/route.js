@@ -10,32 +10,37 @@ export async function GET() {
     return NextResponse.json({ error: "Tidak terautentikasi" }, { status: 401 });
   }
 
+  if (!user.can_read_keluarga) {
+    return NextResponse.json({ error: "Akses ditolak" }, { status: 403 });
+  }
+
   try {
-    let keluarga_list = [];
-    if (user.role === 'Super Admin') {
-      const { rows } = await db.query("SELECT * FROM keluarga ORDER BY nama_keluarga ASC;");
-      keluarga_list = rows;
-    } else if (user.role === 'Admin') {
-      const { rows } = await db.query(`
-        SELECT DISTINCT k.* 
-        FROM keluarga k 
-        JOIN anggota_keluarga ak ON k.id = ak.keluarga_id 
-        JOIN jamaah j ON ak.jamaah_id = j.id
-        WHERE j.desa = $1
-        ORDER BY k.nama_keluarga ASC;
-      `, [user.desa]);
-      keluarga_list = rows;
-    } else { // Moderator
-      const { rows } = await db.query(`
-        SELECT DISTINCT k.* 
-        FROM keluarga k 
-        JOIN anggota_keluarga ak ON k.id = ak.keluarga_id 
-        JOIN jamaah j ON ak.jamaah_id = j.id
-        WHERE j.kelompok = $1 AND j.desa = $2
-        ORDER BY k.nama_keluarga ASC;
-      `, [user.kelompok, user.desa]);
-      keluarga_list = rows;
+    let query = `
+      SELECT DISTINCT k.* 
+      FROM keluarga k 
+      JOIN anggota_keluarga ak ON k.id = ak.keluarga_id 
+      JOIN jamaah j ON ak.jamaah_id = j.id
+      WHERE ak.jenis_anggota = 'Kepala Keluarga'
+    `;
+    const params = [];
+    let paramIdx = 1;
+
+    if (user.monitor_all_desas && user.monitor_all_kelompoks) {
+      // No filter
+    } else if (!user.monitor_all_desas && user.monitor_all_kelompoks) {
+      query += ` AND j.desa = ANY($${paramIdx++}::text[])`;
+      params.push(user.desas_pantau || []);
+    } else if (user.monitor_all_desas && !user.monitor_all_kelompoks) {
+      query += ` AND j.kelompok = ANY($${paramIdx++}::text[])`;
+      params.push(user.kelompoks_pantau || []);
+    } else {
+      query += ` AND j.desa = ANY($${paramIdx++}::text[]) AND j.kelompok = ANY($${paramIdx++}::text[])`;
+      params.push(user.desas_pantau || [], user.kelompoks_pantau || []);
     }
+    query += ` ORDER BY k.nama_keluarga ASC;`;
+
+    const { rows } = await db.query(query, params);
+    let keluarga_list = rows;
 
     for (const fam of keluarga_list) {
       const { rows: memberRows } = await db.query(`
@@ -59,7 +64,7 @@ export async function POST(request) {
     return NextResponse.json({ error: "Tidak terautentikasi" }, { status: 401 });
   }
 
-  if (user.role === 'Member') {
+  if (!user.can_create_keluarga) {
     return NextResponse.json({ error: "Akses ditolak" }, { status: 403 });
   }
 
@@ -77,10 +82,11 @@ export async function POST(request) {
       return NextResponse.json({ error: "Jamaah tidak ditemukan" }, { status: 404 });
     }
 
-    if (user.role === 'Moderator' && (jamaah.kelompok !== user.kelompok || jamaah.desa !== user.desa)) {
-      return NextResponse.json({ error: "Akses ditolak: Kepala Keluarga harus berada di kelompok Anda" }, { status: 403 });
-    } else if (user.role === 'Admin' && jamaah.desa !== user.desa) {
-      return NextResponse.json({ error: "Akses ditolak: Kepala Keluarga harus berada di desa Anda" }, { status: 403 });
+    if (!user.monitor_all_desas && (!user.desas_pantau || !user.desas_pantau.includes(jamaah.desa))) {
+      return NextResponse.json({ error: "Akses ditolak: Kepala Keluarga di luar desa terpantau Anda" }, { status: 403 });
+    }
+    if (!user.monitor_all_kelompoks && (!user.kelompoks_pantau || !user.kelompoks_pantau.includes(jamaah.kelompok))) {
+      return NextResponse.json({ error: "Akses ditolak: Kepala Keluarga di luar kelompok terpantau Anda" }, { status: 403 });
     }
 
     const { rows: existingRows } = await db.query("SELECT keluarga_id FROM anggota_keluarga WHERE jamaah_id = $1;", [kepala_keluarga_id]);

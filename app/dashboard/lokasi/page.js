@@ -42,7 +42,7 @@ export default function LokasiManagementPage() {
       const currentUser = await userRes.json();
       setUser(currentUser);
 
-      if (currentUser.role !== 'Admin' && currentUser.role !== 'Super Admin') {
+      if (!currentUser.can_read_lokasi) {
         showToast("Akses Ditolak: Anda tidak memiliki akses ke Manajemen Lokasi", "error");
         setTimeout(() => router.push('/dashboard'), 1500);
         return;
@@ -75,7 +75,7 @@ export default function LokasiManagementPage() {
     loadData();
   }, []);
 
-  const isSuperAdmin = user?.role === 'Super Admin';
+  const isSuperAdmin = !!(user?.can_create_lokasi && user?.can_update_lokasi && user?.can_delete_lokasi);
 
   // Desa Modal Triggers
   const openDesaModal = (desa = null) => {
@@ -232,7 +232,7 @@ export default function LokasiManagementPage() {
     }
   };
 
-  if (!user || (user.role !== 'Admin' && user.role !== 'Super Admin')) {
+  if (!user || !user.can_read_lokasi) {
     return (
       <div className="flex justify-center items-center h-[80vh]">
         <div className="spinner"></div>

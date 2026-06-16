@@ -10,8 +10,8 @@ export async function PUT(request, { params }) {
     return NextResponse.json({ error: "Tidak terautentikasi" }, { status: 401 });
   }
 
-  if (user.role !== 'Super Admin') {
-    return NextResponse.json({ error: "Akses ditolak: Hanya Super Admin yang dapat mengubah lokasi" }, { status: 403 });
+  if (!user.can_update_lokasi) {
+    return NextResponse.json({ error: "Akses ditolak" }, { status: 403 });
   }
 
   const { id } = await params;
@@ -35,6 +35,13 @@ export async function PUT(request, { params }) {
     const orig = origRows[0];
     if (!orig) {
       return NextResponse.json({ error: "Kelompok tidak ditemukan" }, { status: 404 });
+    }
+
+    if (!user.monitor_all_desas && (!user.desas_pantau || !user.desas_pantau.includes(orig.nama_desa))) {
+      return NextResponse.json({ error: "Akses ditolak: Kelompok di luar desa terpantau Anda" }, { status: 403 });
+    }
+    if (!user.monitor_all_kelompoks && (!user.kelompoks_pantau || !user.kelompoks_pantau.includes(orig.nama_kelompok))) {
+      return NextResponse.json({ error: "Akses ditolak: Kelompok di luar kelompok terpantau Anda" }, { status: 403 });
     }
 
     if (orig.nama_kelompok === nama_kelompok) {
@@ -96,8 +103,8 @@ export async function DELETE(request, { params }) {
     return NextResponse.json({ error: "Tidak terautentikasi" }, { status: 401 });
   }
 
-  if (user.role !== 'Super Admin') {
-    return NextResponse.json({ error: "Akses ditolak: Hanya Super Admin yang dapat menghapus lokasi" }, { status: 403 });
+  if (!user.can_delete_lokasi) {
+    return NextResponse.json({ error: "Akses ditolak" }, { status: 403 });
   }
 
   const { id } = await params;
@@ -114,6 +121,13 @@ export async function DELETE(request, { params }) {
     const orig = origRows[0];
     if (!orig) {
       return NextResponse.json({ error: "Kelompok tidak ditemukan" }, { status: 404 });
+    }
+
+    if (!user.monitor_all_desas && (!user.desas_pantau || !user.desas_pantau.includes(orig.nama_desa))) {
+      return NextResponse.json({ error: "Akses ditolak: Kelompok di luar desa terpantau Anda" }, { status: 403 });
+    }
+    if (!user.monitor_all_kelompoks && (!user.kelompoks_pantau || !user.kelompoks_pantau.includes(orig.nama_kelompok))) {
+      return NextResponse.json({ error: "Akses ditolak: Kelompok di luar kelompok terpantau Anda" }, { status: 403 });
     }
 
     // 2. Cegah penghapusan jika masih ada jamaah di kelompok/desa ini

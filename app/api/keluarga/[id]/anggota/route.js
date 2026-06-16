@@ -10,7 +10,7 @@ export async function POST(request, { params }) {
     return NextResponse.json({ error: "Tidak terautentikasi" }, { status: 401 });
   }
 
-  if (user.role === 'Member') {
+  if (!user.can_update_keluarga) {
     return NextResponse.json({ error: "Akses ditolak" }, { status: 403 });
   }
 
@@ -25,16 +25,34 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: "Jamaah dan jenis anggota wajib dipilih" }, { status: 400 });
     }
 
+    // A. Check Kepala Keluarga of target family
+    const { rows: headRows } = await db.query(`
+      SELECT j.* FROM anggota_keluarga ak
+      JOIN jamaah j ON ak.jamaah_id = j.id
+      WHERE ak.keluarga_id = $1 AND ak.jenis_anggota = 'Kepala Keluarga';
+    `, [id]);
+    const head = headRows[0];
+    if (head) {
+      if (!user.monitor_all_desas && (!user.desas_pantau || !user.desas_pantau.includes(head.desa))) {
+        return NextResponse.json({ error: "Akses ditolak: Kepala Keluarga di luar desa terpantau Anda" }, { status: 403 });
+      }
+      if (!user.monitor_all_kelompoks && (!user.kelompoks_pantau || !user.kelompoks_pantau.includes(head.kelompok))) {
+        return NextResponse.json({ error: "Akses ditolak: Kepala Keluarga di luar kelompok terpantau Anda" }, { status: 403 });
+      }
+    }
+
+    // B. Check new member being added
     const { rows: targetRows } = await db.query("SELECT * FROM jamaah WHERE id = $1;", [jamaah_id]);
     const j_target = targetRows[0];
     if (!j_target) {
       return NextResponse.json({ error: "Jamaah tidak ditemukan" }, { status: 404 });
     }
 
-    if (user.role === 'Moderator' && (j_target.kelompok !== user.kelompok || j_target.desa !== user.desa)) {
-      return NextResponse.json({ error: "Akses ditolak: Jamaah harus berada di kelompok Anda" }, { status: 403 });
-    } else if (user.role === 'Admin' && j_target.desa !== user.desa) {
-      return NextResponse.json({ error: "Akses ditolak: Jamaah harus berada di desa Anda" }, { status: 403 });
+    if (!user.monitor_all_desas && (!user.desas_pantau || !user.desas_pantau.includes(j_target.desa))) {
+      return NextResponse.json({ error: "Akses ditolak: Jamaah baru di luar desa terpantau Anda" }, { status: 403 });
+    }
+    if (!user.monitor_all_kelompoks && (!user.kelompoks_pantau || !user.kelompoks_pantau.includes(j_target.kelompok))) {
+      return NextResponse.json({ error: "Akses ditolak: Jamaah baru di luar kelompok terpantau Anda" }, { status: 403 });
     }
 
     const { rows: existingRows } = await db.query("SELECT keluarga_id FROM anggota_keluarga WHERE jamaah_id = $1;", [jamaah_id]);

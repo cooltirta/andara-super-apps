@@ -10,28 +10,37 @@ export async function GET() {
     return NextResponse.json({ error: "Tidak terautentikasi" }, { status: 401 });
   }
 
+  if (!user.can_read_jamaah) {
+    return NextResponse.json({ error: "Akses ditolak" }, { status: 403 });
+  }
+
   try {
     await logActivity(user.email, 'VISIT', 'PAGE', 'DATABASE_JAMAAH', 'Mengakses halaman Database Jamaah');
-    let jamaah_list = [];
-    const baseQuery = `
+    
+    let baseQuery = `
       SELECT j.*, ak.jenis_anggota, ak.keluarga_id, k.nama_keluarga
       FROM jamaah j
       LEFT JOIN anggota_keluarga ak ON j.id = ak.jamaah_id
       LEFT JOIN keluarga k ON ak.keluarga_id = k.id
     `;
+    const params = [];
+    let paramIdx = 1;
 
-    if (user.role === 'Super Admin') {
-      const { rows } = await db.query(`${baseQuery} ORDER BY j.desa ASC, j.kelompok ASC, j.nama_lengkap ASC;`);
-      jamaah_list = rows;
-    } else if (user.role === 'Admin') {
-      const { rows } = await db.query(`${baseQuery} WHERE j.desa = $1 ORDER BY j.kelompok ASC, j.nama_lengkap ASC;`, [user.desa]);
-      jamaah_list = rows;
-    } else { // Moderator / Member
-      const { rows } = await db.query(`${baseQuery} WHERE j.kelompok = $1 AND j.desa = $2 ORDER BY j.nama_lengkap ASC;`, [user.kelompok, user.desa]);
-      jamaah_list = rows;
+    if (user.monitor_all_desas && user.monitor_all_kelompoks) {
+      baseQuery += ` ORDER BY j.desa ASC, j.kelompok ASC, j.nama_lengkap ASC;`;
+    } else if (!user.monitor_all_desas && user.monitor_all_kelompoks) {
+      baseQuery += ` WHERE j.desa = ANY($${paramIdx++}::text[]) ORDER BY j.desa ASC, j.kelompok ASC, j.nama_lengkap ASC;`;
+      params.push(user.desas_pantau || []);
+    } else if (user.monitor_all_desas && !user.monitor_all_kelompoks) {
+      baseQuery += ` WHERE j.kelompok = ANY($${paramIdx++}::text[]) ORDER BY j.desa ASC, j.kelompok ASC, j.nama_lengkap ASC;`;
+      params.push(user.kelompoks_pantau || []);
+    } else {
+      baseQuery += ` WHERE j.desa = ANY($${paramIdx++}::text[]) AND j.kelompok = ANY($${paramIdx++}::text[]) ORDER BY j.desa ASC, j.kelompok ASC, j.nama_lengkap ASC;`;
+      params.push(user.desas_pantau || [], user.kelompoks_pantau || []);
     }
 
-    return NextResponse.json(jamaah_list);
+    const { rows } = await db.query(baseQuery, params);
+    return NextResponse.json(rows);
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
@@ -43,7 +52,7 @@ export async function POST(request) {
     return NextResponse.json({ error: "Tidak terautentikasi" }, { status: 401 });
   }
 
-  if (user.role === 'Member') {
+  if (!user.can_create_jamaah) {
     return NextResponse.json({ error: "Akses ditolak" }, { status: 403 });
   }
 
@@ -62,11 +71,12 @@ export async function POST(request) {
     let tanggal_lahir = data.tanggal_lahir || null;
     let status_pernikahan = data.status_pernikahan || "Belum Menikah";
 
-    if (user.role === 'Moderator') {
-      kelompok = user.kelompok;
-      desa = user.desa;
-    } else if (user.role === 'Admin') {
-      desa = user.desa;
+    // Validate monitored locations
+    if (!user.monitor_all_desas && (!user.desas_pantau || !user.desas_pantau.includes(desa))) {
+      return NextResponse.json({ error: `Akses ditolak: Desa '${desa}' tidak dalam wilayah terpantau Anda` }, { status: 403 });
+    }
+    if (!user.monitor_all_kelompoks && (!user.kelompoks_pantau || !user.kelompoks_pantau.includes(kelompok))) {
+      return NextResponse.json({ error: `Akses ditolak: Kelompok '${kelompok}' tidak dalam wilayah terpantau Anda` }, { status: 403 });
     }
 
     if (!nama_lengkap || !jenis_kelamin || !golongan_darah || !kelompok || !pendidikan_terakhir) {

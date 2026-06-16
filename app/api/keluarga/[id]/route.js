@@ -9,30 +9,25 @@ export async function DELETE(request, { params }) {
     return NextResponse.json({ error: "Tidak terautentikasi" }, { status: 401 });
   }
 
-  if (user.role === 'Member') {
+  if (!user.can_delete_keluarga) {
     return NextResponse.json({ error: "Akses ditolak" }, { status: 403 });
   }
 
   const { id } = await params;
 
   try {
-    const { rows: jRows } = await db.query(`
-      SELECT j.* FROM anggota_keluarga ak 
-      JOIN jamaah j ON ak.jamaah_id = j.id 
-      WHERE ak.keluarga_id = $1;
+    const { rows: headRows } = await db.query(`
+      SELECT j.* FROM anggota_keluarga ak
+      JOIN jamaah j ON ak.jamaah_id = j.id
+      WHERE ak.keluarga_id = $1 AND ak.jenis_anggota = 'Kepala Keluarga';
     `, [id]);
-
-    if (jRows.length > 0) {
-      if (user.role === 'Moderator') {
-        const hasMemberInGroup = jRows.some(j => j.kelompok === user.kelompok && j.desa === user.desa);
-        if (!hasMemberInGroup) {
-          return NextResponse.json({ error: "Akses ditolak: Unit keluarga di luar kelompok terpantau Anda" }, { status: 403 });
-        }
-      } else if (user.role === 'Admin') {
-        const hasMemberInDesa = jRows.some(j => j.desa === user.desa);
-        if (!hasMemberInDesa) {
-          return NextResponse.json({ error: "Akses ditolak: Unit keluarga di luar desa terpantau Anda" }, { status: 403 });
-        }
+    const head = headRows[0];
+    if (head) {
+      if (!user.monitor_all_desas && (!user.desas_pantau || !user.desas_pantau.includes(head.desa))) {
+        return NextResponse.json({ error: "Akses ditolak: Kepala Keluarga di luar desa terpantau Anda" }, { status: 403 });
+      }
+      if (!user.monitor_all_kelompoks && (!user.kelompoks_pantau || !user.kelompoks_pantau.includes(head.kelompok))) {
+        return NextResponse.json({ error: "Akses ditolak: Kepala Keluarga di luar kelompok terpantau Anda" }, { status: 403 });
       }
     }
 

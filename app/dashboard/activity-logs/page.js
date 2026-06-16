@@ -62,7 +62,7 @@ export default function ActivityLogsPage() {
       const user = await userRes.json();
       setCurrentUser(user);
 
-      if (user.role !== 'Super Admin') {
+      if (!user.can_read_logs) {
         router.push('/dashboard');
         return;
       }
@@ -158,7 +158,7 @@ export default function ActivityLogsPage() {
     }
   };
 
-  if (!currentUser || currentUser.role !== 'Super Admin') {
+  if (!currentUser || !currentUser.can_read_logs) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px]">
         <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-primary"></div>

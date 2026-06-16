@@ -9,7 +9,7 @@ export async function PUT(request, { params }) {
     return NextResponse.json({ error: "Tidak terautentikasi" }, { status: 401 });
   }
 
-  if (user.role === 'Member') {
+  if (!user.can_update_jamaah) {
     return NextResponse.json({ error: "Akses ditolak" }, { status: 403 });
   }
 
@@ -23,10 +23,11 @@ export async function PUT(request, { params }) {
       return NextResponse.json({ error: "Jamaah tidak ditemukan" }, { status: 404 });
     }
 
-    if (user.role === 'Moderator' && (orig.kelompok !== user.kelompok || orig.desa !== user.desa)) {
-      return NextResponse.json({ error: "Akses ditolak: Jamaah di luar kelompok Anda" }, { status: 403 });
-    } else if (user.role === 'Admin' && orig.desa !== user.desa) {
-      return NextResponse.json({ error: "Akses ditolak: Jamaah di luar desa Anda" }, { status: 403 });
+    if (!user.monitor_all_desas && (!user.desas_pantau || !user.desas_pantau.includes(orig.desa))) {
+      return NextResponse.json({ error: "Akses ditolak: Jamaah di luar desa terpantau Anda" }, { status: 403 });
+    }
+    if (!user.monitor_all_kelompoks && (!user.kelompoks_pantau || !user.kelompoks_pantau.includes(orig.kelompok))) {
+      return NextResponse.json({ error: "Akses ditolak: Jamaah di luar kelompok terpantau Anda" }, { status: 403 });
     }
 
     const data = await request.json();
@@ -43,11 +44,12 @@ export async function PUT(request, { params }) {
     let tanggal_lahir = data.tanggal_lahir || null;
     let status_pernikahan = data.status_pernikahan || "Belum Menikah";
 
-    if (user.role === 'Moderator') {
-      kelompok = user.kelompok;
-      desa = user.desa;
-    } else if (user.role === 'Admin') {
-      desa = user.desa;
+    // Validate new location changes
+    if (!user.monitor_all_desas && (!user.desas_pantau || !user.desas_pantau.includes(desa))) {
+      return NextResponse.json({ error: `Akses ditolak: Desa baru '${desa}' di luar desa terpantau Anda` }, { status: 403 });
+    }
+    if (!user.monitor_all_kelompoks && (!user.kelompoks_pantau || !user.kelompoks_pantau.includes(kelompok))) {
+      return NextResponse.json({ error: `Akses ditolak: Kelompok baru '${kelompok}' di luar kelompok terpantau Anda` }, { status: 403 });
     }
 
     if (!nama_lengkap || !jenis_kelamin || !golongan_darah || !kelompok || !pendidikan_terakhir) {
@@ -146,7 +148,7 @@ export async function DELETE(request, { params }) {
     return NextResponse.json({ error: "Tidak terautentikasi" }, { status: 401 });
   }
 
-  if (user.role === 'Member') {
+  if (!user.can_delete_jamaah) {
     return NextResponse.json({ error: "Akses ditolak" }, { status: 403 });
   }
 
@@ -159,10 +161,11 @@ export async function DELETE(request, { params }) {
       return NextResponse.json({ error: "Jamaah tidak ditemukan" }, { status: 404 });
     }
 
-    if (user.role === 'Moderator' && (orig.kelompok !== user.kelompok || orig.desa !== user.desa)) {
-      return NextResponse.json({ error: "Akses ditolak: Jamaah di luar kelompok Anda" }, { status: 403 });
-    } else if (user.role === 'Admin' && orig.desa !== user.desa) {
-      return NextResponse.json({ error: "Akses ditolak: Jamaah di luar desa Anda" }, { status: 403 });
+    if (!user.monitor_all_desas && (!user.desas_pantau || !user.desas_pantau.includes(orig.desa))) {
+      return NextResponse.json({ error: "Akses ditolak: Jamaah di luar desa terpantau Anda" }, { status: 403 });
+    }
+    if (!user.monitor_all_kelompoks && (!user.kelompoks_pantau || !user.kelompoks_pantau.includes(orig.kelompok))) {
+      return NextResponse.json({ error: "Akses ditolak: Jamaah di luar kelompok terpantau Anda" }, { status: 403 });
     }
 
     await db.query("DELETE FROM jamaah WHERE id = $1;", [id]);

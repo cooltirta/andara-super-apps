@@ -9,9 +9,9 @@ export async function GET(request) {
     return NextResponse.json({ error: "Tidak terautentikasi" }, { status: 401 });
   }
 
-  // Strictly restrict activity logs access to Super Admin only
-  if (user.role !== 'Super Admin') {
-    return NextResponse.json({ error: "Akses ditolak: Hanya Super Admin yang dapat mengakses rekam jejak aktivitas." }, { status: 403 });
+  // Restrict activity logs access based on can_read_logs permission
+  if (!user.can_read_logs) {
+    return NextResponse.json({ error: "Akses ditolak: Anda tidak memiliki wewenang untuk mengakses rekam jejak aktivitas." }, { status: 403 });
   }
 
   const { searchParams } = new URL(request.url);

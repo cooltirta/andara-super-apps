@@ -12,8 +12,32 @@ export async function GET() {
   }
 
   try {
-    const { rows: desas } = await db.query("SELECT * FROM desas ORDER BY nama_desa ASC;");
-    const { rows: kelompoks } = await db.query("SELECT * FROM kelompoks ORDER BY nama_kelompok ASC;");
+    let desasQuery = "SELECT * FROM desas";
+    const desasParams = [];
+    if (!user.monitor_all_desas) {
+      desasQuery += " WHERE nama_desa = ANY($1::text[])";
+      desasParams.push(user.desas_pantau || []);
+    }
+    desasQuery += " ORDER BY nama_desa ASC;";
+    const { rows: desas } = await db.query(desasQuery, desasParams);
+
+    let kelompoksQuery = "SELECT * FROM kelompoks";
+    const kelompoksParams = [];
+    let paramIdx = 1;
+    const conditions = [];
+    if (!user.monitor_all_desas) {
+      conditions.push(`desa_id IN (SELECT id FROM desas WHERE nama_desa = ANY($${paramIdx++}::text[]))`);
+      kelompoksParams.push(user.desas_pantau || []);
+    }
+    if (!user.monitor_all_kelompoks) {
+      conditions.push(`nama_kelompok = ANY($${paramIdx++}::text[])`);
+      kelompoksParams.push(user.kelompoks_pantau || []);
+    }
+    if (conditions.length > 0) {
+      kelompoksQuery += " WHERE " + conditions.join(" AND ");
+    }
+    kelompoksQuery += " ORDER BY nama_kelompok ASC;";
+    const { rows: kelompoks } = await db.query(kelompoksQuery, kelompoksParams);
 
     const tree = desas.map(desa => ({
       ...desa,
@@ -27,16 +51,15 @@ export async function GET() {
   }
 }
 
-// POST: Membuat Desa baru (Khusus Super Admin)
+// POST: Membuat Desa baru
 export async function POST(request) {
   const user = await getCurrentUser();
   if (!user) {
     return NextResponse.json({ error: "Tidak terautentikasi" }, { status: 401 });
   }
 
-  // Hanya Super Admin yang diperbolehkan melakukan CRUD Master Data Lokasi
-  if (user.role !== 'Super Admin') {
-    return NextResponse.json({ error: "Akses ditolak: Hanya Super Admin yang dapat membuat lokasi baru" }, { status: 403 });
+  if (!user.can_create_lokasi) {
+    return NextResponse.json({ error: "Akses ditolak" }, { status: 403 });
   }
 
   try {

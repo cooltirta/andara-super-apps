@@ -11,9 +11,8 @@ export async function POST(request) {
     return NextResponse.json({ error: "Tidak terautentikasi" }, { status: 401 });
   }
 
-  // Hanya Super Admin yang diperbolehkan melakukan CRUD Master Data Lokasi
-  if (user.role !== 'Super Admin') {
-    return NextResponse.json({ error: "Akses ditolak: Hanya Super Admin yang dapat membuat lokasi baru" }, { status: 403 });
+  if (!user.can_create_lokasi) {
+    return NextResponse.json({ error: "Akses ditolak" }, { status: 403 });
   }
 
   try {
@@ -34,6 +33,10 @@ export async function POST(request) {
       return NextResponse.json({ error: "Desa tidak ditemukan" }, { status: 404 });
     }
     const nama_desa = desaRows[0].nama_desa;
+
+    if (!user.monitor_all_desas && (!user.desas_pantau || !user.desas_pantau.includes(nama_desa))) {
+      return NextResponse.json({ error: `Akses ditolak: Desa '${nama_desa}' di luar wilayah terpantau Anda` }, { status: 403 });
+    }
 
     // Cek jika kelompok dengan nama sama sudah ada di desa tersebut
     const { rows: existingRows } = await db.query(

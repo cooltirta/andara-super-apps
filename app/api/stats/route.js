@@ -22,118 +22,90 @@ export async function GET(request) {
     let groups_dist = [];
     let last_session_stats = null;
 
-    // 1. Total Jamaah
-    if (user.role === 'Super Admin') {
-      const { rows } = await db.query("SELECT COUNT(*) as count FROM jamaah WHERE status_kehidupan = 'Hidup';");
-      total_jamaah = parseInt(rows[0].count, 10);
-    } else if (user.role === 'Admin') {
-      const { rows } = await db.query("SELECT COUNT(*) as count FROM jamaah WHERE status_kehidupan = 'Hidup' AND desa = $1;", [user.desa]);
-      total_jamaah = parseInt(rows[0].count, 10);
-    } else { // Moderator / Member
-      const { rows } = await db.query("SELECT COUNT(*) as count FROM jamaah WHERE status_kehidupan = 'Hidup' AND kelompok = $1 AND desa = $2;", [user.kelompok, user.desa]);
-      total_jamaah = parseInt(rows[0].count, 10);
+    // Helper function to build dynamic conditions for monitored locations
+    function buildFilter(params, prefix = "j") {
+      let conditions = [];
+      let paramIdx = params.length + 1;
+
+      if (!user.monitor_all_desas) {
+        conditions.push(`${prefix}.desa = ANY($${paramIdx++}::text[])`);
+        params.push(user.desas_pantau || []);
+      }
+      if (!user.monitor_all_kelompoks) {
+        conditions.push(`${prefix}.kelompok = ANY($${paramIdx++}::text[])`);
+        params.push(user.kelompoks_pantau || []);
+      }
+
+      return conditions.length > 0 ? ` AND ${conditions.join(" AND ")}` : "";
     }
 
-    // 2. Total Keluarga
-    if (user.role === 'Super Admin') {
-      const { rows } = await db.query("SELECT COUNT(*) as count FROM keluarga;");
-      total_keluarga = parseInt(rows[0].count, 10);
-    } else if (user.role === 'Admin') {
-      const { rows } = await db.query(`
-        SELECT COUNT(DISTINCT k.id) as count 
-        FROM keluarga k 
-        JOIN anggota_keluarga ak ON k.id = ak.keluarga_id 
-        JOIN jamaah j ON ak.jamaah_id = j.id
-        WHERE j.desa = $1;
-      `, [user.desa]);
-      total_keluarga = parseInt(rows[0].count, 10);
-    } else { // Moderator / Member
-      const { rows } = await db.query(`
-        SELECT COUNT(DISTINCT k.id) as count 
-        FROM keluarga k 
-        JOIN anggota_keluarga ak ON k.id = ak.keluarga_id 
-        JOIN jamaah j ON ak.jamaah_id = j.id
-        WHERE j.kelompok = $1 AND j.desa = $2;
-      `, [user.kelompok, user.desa]);
-      total_keluarga = parseInt(rows[0].count, 10);
-    }
+    // 1. Total Jamaah
+    const jamaahParams = [];
+    const jamaahFilter = buildFilter(jamaahParams, "j");
+    const { rows: jamaahRows } = await db.query(
+      `SELECT COUNT(*) as count FROM jamaah j WHERE j.status_kehidupan = 'Hidup'${jamaahFilter};`,
+      jamaahParams
+    );
+    total_jamaah = parseInt(jamaahRows[0].count, 10);
+
+    // 2. Total Keluarga (scoped to Kepala Keluarga's monitored locations)
+    const keluargaParams = [];
+    const keluargaFilter = buildFilter(keluargaParams, "j");
+    const { rows: keluargaRows } = await db.query(
+      `SELECT COUNT(DISTINCT k.id) as count 
+       FROM keluarga k 
+       JOIN anggota_keluarga ak ON k.id = ak.keluarga_id 
+       JOIN jamaah j ON ak.jamaah_id = j.id
+       WHERE ak.jenis_anggota = 'Kepala Keluarga'${keluargaFilter};`,
+      keluargaParams
+    );
+    total_keluarga = parseInt(keluargaRows[0].count, 10);
 
     // 3. Distribusi Kelompok
-    if (user.role === 'Super Admin') {
-      const { rows } = await db.query("SELECT kelompok, COUNT(*) as count FROM jamaah WHERE status_kehidupan = 'Hidup' GROUP BY kelompok;");
-      groups_dist = rows;
-    } else if (user.role === 'Admin') {
-      const { rows } = await db.query("SELECT kelompok, COUNT(*) as count FROM jamaah WHERE status_kehidupan = 'Hidup' AND desa = $1 GROUP BY kelompok;", [user.desa]);
-      groups_dist = rows;
-    } else { // Moderator / Member
-      const { rows } = await db.query("SELECT kelompok, COUNT(*) as count FROM jamaah WHERE status_kehidupan = 'Hidup' AND kelompok = $1 AND desa = $2 GROUP BY kelompok;", [user.kelompok, user.desa]);
-      groups_dist = rows;
-    }
-    groups_dist = groups_dist.map(g => ({
-      ...g,
+    const distParams = [];
+    const distFilter = buildFilter(distParams, "j");
+    const { rows: distRows } = await db.query(
+      `SELECT j.kelompok, COUNT(*) as count 
+       FROM jamaah j 
+       WHERE j.status_kehidupan = 'Hidup'${distFilter} 
+       GROUP BY j.kelompok;`,
+      distParams
+    );
+    groups_dist = distRows.map(g => ({
+      kelompok: g.kelompok,
       count: parseInt(g.count, 10)
     }));
 
     // 4. Kehadiran Sesi Terakhir OR Rekapitulasi Date Range
+    const parseNum = (val) => val === null || val === undefined ? 0 : parseInt(val, 10);
+
     if (is_date_filtered) {
-      let stats = null;
-      let sessionCount = 0;
+      const reportParams = [start_date, end_date];
+      const reportFilter = buildFilter(reportParams, "j");
 
-      if (user.role === 'Super Admin') {
-        const { rows } = await db.query(`
-          SELECT 
-            COUNT(*) as total,
-            SUM(CASE WHEN status = 'Hadir' THEN 1 ELSE 0 END) as hadir,
-            SUM(CASE WHEN status = 'Ijin' THEN 1 ELSE 0 END) as ijin,
-            SUM(CASE WHEN status = 'Tidak Hadir' THEN 1 ELSE 0 END) as tidak_hadir
-          FROM kehadiran
-          WHERE tanggal >= $1 AND tanggal <= $2;
-        `, [start_date, end_date]);
-        stats = rows[0] || {};
-        
-        const { rows: countRows } = await db.query("SELECT COUNT(DISTINCT tanggal) as count FROM kehadiran WHERE tanggal >= $1 AND tanggal <= $2;", [start_date, end_date]);
-        sessionCount = parseInt(countRows[0].count, 10);
-      } else if (user.role === 'Admin') {
-        const { rows } = await db.query(`
-          SELECT 
-            COUNT(*) as total,
-            SUM(CASE WHEN status = 'Hadir' THEN 1 ELSE 0 END) as hadir,
-            SUM(CASE WHEN status = 'Ijin' THEN 1 ELSE 0 END) as ijin,
-            SUM(CASE WHEN status = 'Tidak Hadir' THEN 1 ELSE 0 END) as tidak_hadir
-          FROM kehadiran k
-          JOIN jamaah j ON k.jamaah_id = j.id
-          WHERE k.tanggal >= $1 AND k.tanggal <= $2 AND j.desa = $3;
-        `, [start_date, end_date, user.desa]);
-        stats = rows[0] || {};
+      const { rows: statsRows } = await db.query(
+        `SELECT 
+           COUNT(*) as total,
+           SUM(CASE WHEN status = 'Hadir' THEN 1 ELSE 0 END) as hadir,
+           SUM(CASE WHEN status = 'Ijin' THEN 1 ELSE 0 END) as ijin,
+           SUM(CASE WHEN status = 'Tidak Hadir' THEN 1 ELSE 0 END) as tidak_hadir
+         FROM kehadiran k
+         JOIN jamaah j ON k.jamaah_id = j.id
+         WHERE k.tanggal >= $1 AND k.tanggal <= $2${reportFilter};`,
+        reportParams
+      );
+      const stats = statsRows[0] || {};
 
-        const { rows: countRows } = await db.query(`
-          SELECT COUNT(DISTINCT k.tanggal) as count 
-          FROM kehadiran k JOIN jamaah j ON k.jamaah_id = j.id
-          WHERE k.tanggal >= $1 AND k.tanggal <= $2 AND j.desa = $3;
-        `, [start_date, end_date, user.desa]);
-        sessionCount = parseInt(countRows[0].count, 10);
-      } else { // Moderator / Member
-        const { rows } = await db.query(`
-          SELECT 
-            COUNT(*) as total,
-            SUM(CASE WHEN status = 'Hadir' THEN 1 ELSE 0 END) as hadir,
-            SUM(CASE WHEN status = 'Ijin' THEN 1 ELSE 0 END) as ijin,
-            SUM(CASE WHEN status = 'Tidak Hadir' THEN 1 ELSE 0 END) as tidak_hadir
-          FROM kehadiran k
-          JOIN jamaah j ON k.jamaah_id = j.id
-          WHERE k.tanggal >= $1 AND k.tanggal <= $2 AND j.kelompok = $3 AND j.desa = $4;
-        `, [start_date, end_date, user.kelompok, user.desa]);
-        stats = rows[0] || {};
-
-        const { rows: countRows } = await db.query(`
-          SELECT COUNT(DISTINCT k.tanggal) as count 
-          FROM kehadiran k JOIN jamaah j ON k.jamaah_id = j.id
-          WHERE k.tanggal >= $1 AND k.tanggal <= $2 AND j.kelompok = $3 AND j.desa = $4;
-        `, [start_date, end_date, user.kelompok, user.desa]);
-        sessionCount = parseInt(countRows[0].count, 10);
-      }
-
-      const parseNum = (val) => val === null || val === undefined ? 0 : parseInt(val, 10);
+      const countParams = [start_date, end_date];
+      const countFilter = buildFilter(countParams, "j");
+      const { rows: countRows } = await db.query(
+        `SELECT COUNT(DISTINCT k.tanggal) as count 
+         FROM kehadiran k 
+         JOIN jamaah j ON k.jamaah_id = j.id
+         WHERE k.tanggal >= $1 AND k.tanggal <= $2${countFilter};`,
+        countParams
+      );
+      const sessionCount = parseInt(countRows[0].count, 10);
 
       const virtual_sesi = {
         id: "range_summary",
@@ -141,7 +113,7 @@ export async function GET(request) {
         tanggal: `Rentang: ${start_date} s/d ${end_date}`,
         jenis_pengajian: "Agregat",
         kelompok: null,
-        desa: user.desa || "Andara"
+        desa: "Semua Terpantau"
       };
 
       last_session_stats = {
@@ -154,76 +126,40 @@ export async function GET(request) {
       };
     } else {
       // Default: Sesi Terakhir (Hari Terakhir Presensi)
-      let lastDateObj = null;
-      if (user.role === 'Super Admin') {
-        const { rows } = await db.query("SELECT MAX(tanggal) as date FROM kehadiran;");
-        lastDateObj = rows[0];
-      } else if (user.role === 'Admin') {
-        const { rows } = await db.query(`
-          SELECT MAX(k.tanggal) as date 
-          FROM kehadiran k JOIN jamaah j ON k.jamaah_id = j.id
-          WHERE j.desa = $1;
-        `, [user.desa]);
-        lastDateObj = rows[0];
-      } else { // Moderator / Member
-        const { rows } = await db.query(`
-          SELECT MAX(k.tanggal) as date 
-          FROM kehadiran k JOIN jamaah j ON k.jamaah_id = j.id
-          WHERE j.kelompok = $1 AND j.desa = $2;
-        `, [user.kelompok, user.desa]);
-        lastDateObj = rows[0];
-      }
-
-      const last_date = lastDateObj ? lastDateObj.date : null;
+      const maxParams = [];
+      const maxFilter = buildFilter(maxParams, "j");
+      const { rows: maxRows } = await db.query(
+        `SELECT MAX(k.tanggal) as date 
+         FROM kehadiran k 
+         JOIN jamaah j ON k.jamaah_id = j.id
+         WHERE 1=1${maxFilter};`,
+        maxParams
+      );
+      const last_date = maxRows[0] ? maxRows[0].date : null;
 
       if (last_date) {
-        let stats = null;
-        if (user.role === 'Super Admin') {
-          const { rows } = await db.query(`
-            SELECT 
-              COUNT(*) as total,
-              SUM(CASE WHEN status = 'Hadir' THEN 1 ELSE 0 END) as hadir,
-              SUM(CASE WHEN status = 'Ijin' THEN 1 ELSE 0 END) as ijin,
-              SUM(CASE WHEN status = 'Tidak Hadir' THEN 1 ELSE 0 END) as tidak_hadir
-            FROM kehadiran
-            WHERE tanggal = $1;
-          `, [last_date]);
-          stats = rows[0] || {};
-        } else if (user.role === 'Admin') {
-          const { rows } = await db.query(`
-            SELECT 
-              COUNT(*) as total,
-              SUM(CASE WHEN status = 'Hadir' THEN 1 ELSE 0 END) as hadir,
-              SUM(CASE WHEN status = 'Ijin' THEN 1 ELSE 0 END) as ijin,
-              SUM(CASE WHEN status = 'Tidak Hadir' THEN 1 ELSE 0 END) as tidak_hadir
-            FROM kehadiran k
-            JOIN jamaah j ON k.jamaah_id = j.id
-            WHERE k.tanggal = $1 AND j.desa = $2;
-          `, [last_date, user.desa]);
-          stats = rows[0] || {};
-        } else { // Moderator / Member
-          const { rows } = await db.query(`
-            SELECT 
-              COUNT(*) as total,
-              SUM(CASE WHEN status = 'Hadir' THEN 1 ELSE 0 END) as hadir,
-              SUM(CASE WHEN status = 'Ijin' THEN 1 ELSE 0 END) as ijin,
-              SUM(CASE WHEN status = 'Tidak Hadir' THEN 1 ELSE 0 END) as tidak_hadir
-            FROM kehadiran k
-            JOIN jamaah j ON k.jamaah_id = j.id
-            WHERE k.tanggal = $1 AND j.kelompok = $2 AND j.desa = $3;
-          `, [last_date, user.kelompok, user.desa]);
-          stats = rows[0] || {};
-        }
-
-        const parseNum = (val) => val === null || val === undefined ? 0 : parseInt(val, 10);
+        const statsParams = [last_date];
+        const statsFilter = buildFilter(statsParams, "j");
+        const { rows: statsRows } = await db.query(
+          `SELECT 
+             COUNT(*) as total,
+             SUM(CASE WHEN status = 'Hadir' THEN 1 ELSE 0 END) as hadir,
+             SUM(CASE WHEN status = 'Ijin' THEN 1 ELSE 0 END) as ijin,
+             SUM(CASE WHEN status = 'Tidak Hadir' THEN 1 ELSE 0 END) as tidak_hadir
+           FROM kehadiran k
+           JOIN jamaah j ON k.jamaah_id = j.id
+           WHERE k.tanggal = $1${statsFilter};`,
+          statsParams
+        );
+        const stats = statsRows[0] || {};
 
         const last_session = {
           id: "last_daily",
           nama_sesi: `Pengajian Terakhir`,
           tanggal: last_date,
           jenis_pengajian: "Harian",
-          kelompok: user.kelompok || null,
-          desa: user.desa || "Andara"
+          kelompok: null,
+          desa: "Semua Terpantau"
         };
 
         last_session_stats = {

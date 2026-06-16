@@ -8,22 +8,52 @@ export default function UserAccessPage() {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [usersList, setUsersList] = useState([]);
+  const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Modal Form States
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState(null); // null means ADD, otherwise EDIT
   const [formEmail, setFormEmail] = useState('');
-  const [locations, setLocations] = useState([]);
   const [formDesa, setFormDesa] = useState('Andara');
-  const [formRole, setFormRole] = useState('Member');
   const [formGroup, setFormGroup] = useState('');
+  const [formRole, setFormRole] = useState('Member');
 
-  // Detailed permission checkboxes (for Super Admin customization)
-  const [permDatabase, setPermDatabase] = useState(false);
-  const [permPresensi, setPermPresensi] = useState(false);
-  const [permScanQr, setPermScanQr] = useState(false);
-  const [permUserAccess, setPermUserAccess] = useState(false);
+  // Monitored Locations Scopes
+  const [monitorAllDesas, setMonitorAllDesas] = useState(false);
+  const [desasPantau, setDesasPantau] = useState([]);
+  const [monitorAllKelompoks, setMonitorAllKelompoks] = useState(false);
+  const [kelompoksPantau, setKelompoksPantau] = useState([]);
+
+  // 21 detailed permissions
+  const [canCreateJamaah, setCanCreateJamaah] = useState(false);
+  const [canReadJamaah, setCanReadJamaah] = useState(false);
+  const [canUpdateJamaah, setCanUpdateJamaah] = useState(false);
+  const [canDeleteJamaah, setCanDeleteJamaah] = useState(false);
+
+  const [canCreateKeluarga, setCanCreateKeluarga] = useState(false);
+  const [canReadKeluarga, setCanReadKeluarga] = useState(false);
+  const [canUpdateKeluarga, setCanUpdateKeluarga] = useState(false);
+  const [canDeleteKeluarga, setCanDeleteKeluarga] = useState(false);
+
+  const [canCreateKehadiran, setCanCreateKehadiran] = useState(false);
+  const [canReadKehadiran, setCanReadKehadiran] = useState(false);
+  const [canUpdateKehadiran, setCanUpdateKehadiran] = useState(false);
+  const [canDeleteKehadiran, setCanDeleteKehadiran] = useState(false);
+
+  const [canReadLaporan, setCanReadLaporan] = useState(false);
+
+  const [canCreateUser, setCanCreateUser] = useState(false);
+  const [canReadUser, setCanReadUser] = useState(false);
+  const [canUpdateUser, setCanUpdateUser] = useState(false);
+  const [canDeleteUser, setCanDeleteUser] = useState(false);
+
+  const [canCreateLokasi, setCanCreateLokasi] = useState(false);
+  const [canReadLokasi, setCanReadLokasi] = useState(false);
+  const [canUpdateLokasi, setCanUpdateLokasi] = useState(false);
+  const [canDeleteLokasi, setCanDeleteLokasi] = useState(false);
+
+  const [canReadLogs, setCanReadLogs] = useState(false);
 
   // Detail Modal States
   const [isDetailOpen, setIsDetailOpen] = useState(false);
@@ -48,25 +78,35 @@ export default function UserAccessPage() {
     const isSelf = u.email === user.email;
     const isPrimarySuperAdmin = u.email === 'cooltirta@gmail.com';
     
-    if (user.role === 'Super Admin') {
-      return !isSelf && !isPrimarySuperAdmin;
-    } else if (user.role === 'Admin') {
-      return u.role === 'Member' || u.role === 'Moderator';
+    if (isSelf || isPrimarySuperAdmin) return false;
+    if (!user.can_update_user) return false;
+
+    // Check monitored bounds
+    if (!user.monitor_all_desas && (!user.desas_pantau || !user.desas_pantau.includes(u.desa))) {
+      return false;
     }
-    return false;
+    if (u.kelompok && !user.monitor_all_kelompoks && (!user.kelompoks_pantau || !user.kelompoks_pantau.includes(u.kelompok))) {
+      return false;
+    }
+    return true;
   };
 
-  const canDeleteUser = (u) => {
+  const checkCanDeleteUser = (u) => {
     if (!user || !u) return false;
     const isSelf = u.email === user.email;
     const isPrimarySuperAdmin = u.email === 'cooltirta@gmail.com';
     
-    if (user.role === 'Super Admin') {
-      return !isSelf && !isPrimarySuperAdmin;
-    } else if (user.role === 'Admin') {
-      return u.role === 'Member' || u.role === 'Moderator';
+    if (isSelf || isPrimarySuperAdmin) return false;
+    if (!user.can_delete_user) return false;
+
+    // Check monitored bounds
+    if (!user.monitor_all_desas && (!user.desas_pantau || !user.desas_pantau.includes(u.desa))) {
+      return false;
     }
-    return false;
+    if (u.kelompok && !user.monitor_all_kelompoks && (!user.kelompoks_pantau || !user.kelompoks_pantau.includes(u.kelompok))) {
+      return false;
+    }
+    return true;
   };
 
   const loadData = async () => {
@@ -77,8 +117,8 @@ export default function UserAccessPage() {
       const currentUser = await userRes.json();
       setUser(currentUser);
 
-      // Check role access
-      if (currentUser.role === 'Member') {
+      // Check access permission instead of hardcoded role
+      if (!currentUser.can_read_user) {
         showToast("Akses Ditolak: Anda tidak memiliki akses ke User Access Management", "error");
         setTimeout(() => router.push('/dashboard'), 1500);
         return;
@@ -117,44 +157,60 @@ export default function UserAccessPage() {
   }, []);
 
   // Sync checkboxes based on preset role selection
-  const syncCheckboxesFromRole = (role) => {
+  const syncCheckboxesFromRole = (role, currentDesa = formDesa, currentGroup = formGroup) => {
     if (role === 'Super Admin') {
-      setPermDatabase(true);
-      setPermPresensi(true);
-      setPermScanQr(true);
-      setPermUserAccess(true);
-    } else if (role === 'Admin') {
-      setPermDatabase(true);
-      setPermPresensi(true);
-      setPermScanQr(true);
-      setPermUserAccess(false);
-    } else if (role === 'Moderator') {
-      setPermDatabase(false);
-      setPermPresensi(true);
-      setPermScanQr(true);
-      setPermUserAccess(false);
-    } else {
-      setPermDatabase(false);
-      setPermPresensi(false);
-      setPermScanQr(false);
-      setPermUserAccess(false);
-    }
-  };
+      setMonitorAllDesas(true);
+      setDesasPantau([]);
+      setMonitorAllKelompoks(true);
+      setKelompoksPantau([]);
 
-  // Sync role based on checkbox combination
-  const updateRoleFromCheckboxes = (db, pres, qr, usr) => {
-    if (usr) {
-      setFormRole('Super Admin');
-      // Auto-check others if Super Admin
-      setPermDatabase(true);
-      setPermPresensi(true);
-      setPermScanQr(true);
-    } else if (db) {
-      setFormRole('Admin');
-    } else if (pres || qr) {
-      setFormRole('Moderator');
+      setCanCreateJamaah(true); setCanReadJamaah(true); setCanUpdateJamaah(true); setCanDeleteJamaah(true);
+      setCanCreateKeluarga(true); setCanReadKeluarga(true); setCanUpdateKeluarga(true); setCanDeleteKeluarga(true);
+      setCanCreateKehadiran(true); setCanReadKehadiran(true); setCanUpdateKehadiran(true); setCanDeleteKehadiran(true);
+      setCanReadLaporan(true);
+      setCanCreateUser(true); setCanReadUser(true); setCanUpdateUser(true); setCanDeleteUser(true);
+      setCanCreateLokasi(true); setCanReadLokasi(true); setCanUpdateLokasi(true); setCanDeleteLokasi(true);
+      setCanReadLogs(true);
+    } else if (role === 'Admin') {
+      setMonitorAllDesas(false);
+      setDesasPantau([currentDesa]);
+      setMonitorAllKelompoks(true);
+      setKelompoksPantau([]);
+
+      setCanCreateJamaah(true); setCanReadJamaah(true); setCanUpdateJamaah(true); setCanDeleteJamaah(true);
+      setCanCreateKeluarga(true); setCanReadKeluarga(true); setCanUpdateKeluarga(true); setCanDeleteKeluarga(true);
+      setCanCreateKehadiran(true); setCanReadKehadiran(true); setCanUpdateKehadiran(true); setCanDeleteKehadiran(true);
+      setCanReadLaporan(true);
+      setCanCreateUser(true); setCanReadUser(true); setCanUpdateUser(true); setCanDeleteUser(true);
+      setCanCreateLokasi(false); setCanReadLokasi(true); setCanUpdateLokasi(false); setCanDeleteLokasi(false);
+      setCanReadLogs(false);
+    } else if (role === 'Moderator') {
+      setMonitorAllDesas(false);
+      setDesasPantau([currentDesa]);
+      setMonitorAllKelompoks(false);
+      setKelompoksPantau(currentGroup ? [currentGroup] : []);
+
+      setCanCreateJamaah(false); setCanReadJamaah(true); setCanUpdateJamaah(false); setCanDeleteJamaah(false);
+      setCanCreateKeluarga(false); setCanReadKeluarga(true); setCanUpdateKeluarga(false); setCanDeleteKeluarga(false);
+      setCanCreateKehadiran(true); setCanReadKehadiran(true); setCanUpdateKehadiran(true); setCanDeleteKehadiran(true);
+      setCanReadLaporan(true);
+      setCanCreateUser(false); setCanReadUser(false); setCanUpdateUser(false); setCanDeleteUser(false);
+      setCanCreateLokasi(false); setCanReadLokasi(true); setCanUpdateLokasi(false); setCanDeleteLokasi(false);
+      setCanReadLogs(false);
     } else {
-      setFormRole('Member');
+      // Member / Biasa
+      setMonitorAllDesas(false);
+      setDesasPantau([currentDesa]);
+      setMonitorAllKelompoks(false);
+      setKelompoksPantau(currentGroup ? [currentGroup] : []);
+
+      setCanCreateJamaah(false); setCanReadJamaah(false); setCanUpdateJamaah(false); setCanDeleteJamaah(false);
+      setCanCreateKeluarga(false); setCanReadKeluarga(false); setCanUpdateKeluarga(false); setCanDeleteKeluarga(false);
+      setCanCreateKehadiran(false); setCanReadKehadiran(false); setCanUpdateKehadiran(false); setCanDeleteKehadiran(false);
+      setCanReadLaporan(false);
+      setCanCreateUser(false); setCanReadUser(false); setCanUpdateUser(false); setCanDeleteUser(false);
+      setCanCreateLokasi(false); setCanReadLokasi(false); setCanUpdateLokasi(false); setCanDeleteLokasi(false);
+      setCanReadLogs(false);
     }
   };
 
@@ -167,26 +223,63 @@ export default function UserAccessPage() {
       if (u) {
         setSelectedUserId(id);
         setFormEmail(u.email);
-        setFormDesa(u.desa);
-        setFormRole(u.role);
+        setFormDesa(u.desa || 'Andara');
         setFormGroup(u.kelompok || '');
-        syncCheckboxesFromRole(u.role);
+        setFormRole(u.role);
+
+        setMonitorAllDesas(!!u.monitor_all_desas);
+        setDesasPantau(u.desas_pantau || []);
+        setMonitorAllKelompoks(!!u.monitor_all_kelompoks);
+        setKelompoksPantau(u.kelompoks_pantau || []);
+
+        setCanCreateJamaah(!!u.can_create_jamaah);
+        setCanReadJamaah(!!u.can_read_jamaah);
+        setCanUpdateJamaah(!!u.can_update_jamaah);
+        setCanDeleteJamaah(!!u.can_delete_jamaah);
+
+        setCanCreateKeluarga(!!u.can_create_keluarga);
+        setCanReadKeluarga(!!u.can_read_keluarga);
+        setCanUpdateKeluarga(!!u.can_update_keluarga);
+        setCanDeleteKeluarga(!!u.can_delete_keluarga);
+
+        setCanCreateKehadiran(!!u.can_create_kehadiran);
+        setCanReadKehadiran(!!u.can_read_kehadiran);
+        setCanUpdateKehadiran(!!u.can_update_kehadiran);
+        setCanDeleteKehadiran(!!u.can_delete_kehadiran);
+
+        setCanReadLaporan(!!u.can_read_laporan);
+
+        setCanCreateUser(!!u.can_create_user);
+        setCanReadUser(!!u.can_read_user);
+        setCanUpdateUser(!!u.can_update_user);
+        setCanDeleteUser(!!u.can_delete_user);
+
+        setCanCreateLokasi(!!u.can_create_lokasi);
+        setCanReadLokasi(!!u.can_read_lokasi);
+        setCanUpdateLokasi(!!u.can_update_lokasi);
+        setCanDeleteLokasi(!!u.can_delete_lokasi);
+
+        setCanReadLogs(!!u.can_read_logs);
+
         setIsModalOpen(true);
       }
     } else {
       // ADD mode
       setSelectedUserId(null);
       setFormEmail('');
-      setFormDesa(user.role === 'Super Admin' ? (locations[0]?.nama_desa || 'Andara') : user.desa);
+      const defaultDesa = user.monitor_all_desas 
+        ? (locations[0]?.nama_desa || 'Andara') 
+        : (user.desas_pantau && user.desas_pantau.length > 0 ? user.desas_pantau[0] : 'Andara');
+      setFormDesa(defaultDesa);
+      setFormGroup('');
       
-      // Default roles based on logged-in user role
       let initialRole = 'Moderator';
       if (user.role === 'Moderator') {
         initialRole = 'Member';
       }
       setFormRole(initialRole);
-      setFormGroup('');
-      syncCheckboxesFromRole(initialRole);
+      
+      syncCheckboxesFromRole(initialRole, defaultDesa, '');
       setIsModalOpen(true);
     }
   };
@@ -203,7 +296,41 @@ export default function UserAccessPage() {
     const payload = {
       role: formRole,
       kelompok: (formRole === 'Moderator' || formRole === 'Admin') ? (formGroup || null) : null,
-      desa: formDesa
+      desa: formDesa,
+
+      monitor_all_desas: monitorAllDesas,
+      desas_pantau: desasPantau,
+      monitor_all_kelompoks: monitorAllKelompoks,
+      kelompoks_pantau: kelompoksPantau,
+
+      can_create_jamaah: canCreateJamaah,
+      can_read_jamaah: canReadJamaah,
+      can_update_jamaah: canUpdateJamaah,
+      can_delete_jamaah: canDeleteJamaah,
+
+      can_create_keluarga: canCreateKeluarga,
+      can_read_keluarga: canReadKeluarga,
+      can_update_keluarga: canUpdateKeluarga,
+      can_delete_keluarga: canDeleteKeluarga,
+
+      can_create_kehadiran: canCreateKehadiran,
+      can_read_kehadiran: canReadKehadiran,
+      can_update_kehadiran: canUpdateKehadiran,
+      can_delete_kehadiran: canDeleteKehadiran,
+
+      can_read_laporan: canReadLaporan,
+
+      can_create_user: canCreateUser,
+      can_read_user: canReadUser,
+      can_update_user: canUpdateUser,
+      can_delete_user: canDeleteUser,
+
+      can_create_lokasi: canCreateLokasi,
+      can_read_lokasi: canReadLokasi,
+      can_update_lokasi: canUpdateLokasi,
+      can_delete_lokasi: canDeleteLokasi,
+
+      can_read_logs: canReadLogs
     };
 
     if (!isEdit) {
@@ -252,40 +379,60 @@ export default function UserAccessPage() {
     }
   };
 
-  const getPermissionsList = (role, desa, kelompok) => {
-    const isSuper = role === 'Super Admin';
-    const isAdmin = role === 'Admin';
-    const isMod = role === 'Moderator';
-
+  const getPermissionsList = (u) => {
+    if (!u) return [];
     return [
       {
         category: "Database Jamaah",
         items: [
-          { name: "Melihat & membaca semua data jamaah", status: isSuper || isAdmin, scope: isSuper ? "Seluruh Desa" : isAdmin ? `Desa ${desa}` : "-" },
-          { name: "Menambah data jamaah baru", status: isSuper || isAdmin, scope: isSuper ? "Seluruh Desa" : isAdmin ? `Desa ${desa}` : "-" },
-          { name: "Mengubah / mengedit data jamaah", status: isSuper || isAdmin, scope: isSuper ? "Seluruh Desa" : isAdmin ? `Desa ${desa}` : "-" },
-          { name: "Menghapus data jamaah", status: isSuper || isAdmin, scope: isSuper ? "Seluruh Desa" : isAdmin ? `Desa ${desa}` : "-" },
+          { name: "Melihat & membaca data jamaah", status: u.can_read_jamaah },
+          { name: "Menambah data jamaah baru", status: u.can_create_jamaah },
+          { name: "Mengubah / mengedit data jamaah", status: u.can_update_jamaah },
+          { name: "Menghapus data jamaah", status: u.can_delete_jamaah },
+        ]
+      },
+      {
+        category: "Unit Keluarga",
+        items: [
+          { name: "Melihat & membaca data keluarga", status: u.can_read_keluarga },
+          { name: "Membuat unit keluarga baru", status: u.can_create_keluarga },
+          { name: "Mengubah / menambah anggota keluarga", status: u.can_update_keluarga },
+          { name: "Menghapus unit keluarga", status: u.can_delete_keluarga },
         ]
       },
       {
         category: "Presensi / Kehadiran",
         items: [
-          { name: "Melihat laporan & summary kehadiran", status: isSuper || isAdmin || isMod, scope: isSuper ? "Seluruh Desa" : isAdmin ? `Desa ${desa}` : isMod ? `Desa ${desa}, Kelompok ${kelompok || 'Semua'}` : "-" },
-          { name: "Mencatat / menginput kehadiran jamaah", status: isSuper || isAdmin || isMod, scope: isSuper ? "Seluruh Desa" : isAdmin ? `Desa ${desa}` : isMod ? `Desa ${desa}, Kelompok ${kelompok || 'Semua'}` : "-" },
-          { name: "Menghapus data kehadiran harian", status: isSuper || isAdmin || isMod, scope: isSuper ? "Seluruh Desa" : isAdmin ? `Desa ${desa}` : isMod ? `Desa ${desa}, Kelompok ${kelompok || 'Semua'}` : "-" },
+          { name: "Melihat & membaca data kehadiran", status: u.can_read_kehadiran },
+          { name: "Mencatat / menginput kehadiran jamaah", status: u.can_create_kehadiran },
+          { name: "Mengubah data kehadiran", status: u.can_update_kehadiran },
+          { name: "Menghapus data kehadiran", status: u.can_delete_kehadiran },
+          { name: "Melihat laporan rekapitulasi kehadiran", status: u.can_read_laporan },
         ]
       },
       {
-        category: "Fitur Khusus & Admin",
+        category: "Manajemen User & Lokasi",
         items: [
-          { name: "Melakukan scan QR Code presensi jamaah", status: isSuper || isAdmin || isMod, scope: "Aktif" },
-          { name: "Mengatur hak akses akun Google user lain", status: isSuper || isAdmin, scope: isSuper ? "Seluruh User" : isAdmin ? `Moderator/Member Desa ${desa}` : "-" },
+          { name: "Melihat daftar user akses", status: u.can_read_user },
+          { name: "Menambah user akses baru", status: u.can_create_user },
+          { name: "Mengubah hak akses user", status: u.can_update_user },
+          { name: "Menghapus user akses", status: u.can_delete_user },
+          { name: "Membaca data lokasi desa/kelompok", status: u.can_read_lokasi },
+          { name: "Menambah lokasi desa/kelompok", status: u.can_create_lokasi },
+          { name: "Mengubah lokasi desa/kelompok", status: u.can_update_lokasi },
+          { name: "Menghapus lokasi desa/kelompok", status: u.can_delete_lokasi },
+        ]
+      },
+      {
+        category: "Rekam Jejak",
+        items: [
+          { name: "Membaca rekam jejak aktivitas (Logs)", status: u.can_read_logs }
         ]
       }
     ];
   };
 
-  if (!user || user.role === 'Member') {
+  if (!user || !user.can_read_user) {
     return (
       <div className="flex justify-center items-center h-[80vh]">
         <div className="spinner"></div>
@@ -293,7 +440,17 @@ export default function UserAccessPage() {
     );
   }
 
-  let scopeLabel = user.role === 'Admin' ? ` (Desa ${user.desa})` : user.role === 'Moderator' ? ` (Kelompok ${user.kelompok})` : '';
+  let scopeLabel = '';
+  if (user) {
+    if (user.monitor_all_desas && user.monitor_all_kelompoks) {
+      scopeLabel = ' (Semua Wilayah)';
+    } else {
+      const monitoredDesas = user.desas_pantau || [];
+      if (monitoredDesas.length > 0) {
+        scopeLabel = ` (Desa: ${monitoredDesas.join(', ')})`;
+      }
+    }
+  }
 
   // Calculate available role options for modal based on logged in user's role
   let roleOptions = [];
@@ -313,6 +470,9 @@ export default function UserAccessPage() {
     ];
   }
 
+  // All desas list
+  const desas = locations.map(l => l.nama_desa);
+
   return (
     <div className="font-sans text-slate-700">
       {/* Header */}
@@ -325,10 +485,12 @@ export default function UserAccessPage() {
             Atur tingkat dan hak akses fungsional untuk akun Google jamaah
           </p>
         </div>
-        <button id="btn-modal-user" onClick={() => openUserModal()} className="flex items-center gap-2 py-2.5 px-4 font-bold text-xs bg-primary hover:bg-primary-hover text-white rounded-xl shadow-sm transition-all active:scale-[0.98]">
-          <UserCheck size={16} />
-          <span>Tambah User Akses</span>
-        </button>
+        {user.can_create_user && (
+          <button id="btn-modal-user" onClick={() => openUserModal()} className="flex items-center gap-2 py-2.5 px-4 font-bold text-xs bg-primary hover:bg-primary-hover text-white rounded-xl shadow-sm transition-all active:scale-[0.98]">
+            <UserCheck size={16} />
+            <span>Tambah User Akses</span>
+          </button>
+        )}
       </div>
 
       <div id="users-content-area">
@@ -349,7 +511,7 @@ export default function UserAccessPage() {
                 <thead>
                   <tr className="bg-slate-50/70 border-b border-slate-100 text-xs font-bold text-slate-500 uppercase tracking-wider">
                     <th className="px-6 py-4">Email Pengguna</th>
-                    <th className="px-6 py-4">Desa</th>
+                    <th className="px-6 py-4">Desa Utama</th>
                     <th className="px-6 py-4">Hak Akses</th>
                     <th className="px-6 py-4 text-center">Aksi</th>
                   </tr>
@@ -358,7 +520,7 @@ export default function UserAccessPage() {
                   {usersList.map(u => {
                     const isSelf = u.email === user.email;
                     const canEdit = canEditUser(u);
-                    const canDelete = canDeleteUser(u);
+                    const canDelete = checkCanDeleteUser(u);
 
                     return (
                       <tr key={u.id} id={`row-user-${u.id}`} className="hover:bg-slate-50/50 transition-colors text-sm font-semibold text-slate-650">
@@ -404,7 +566,7 @@ export default function UserAccessPage() {
               {usersList.map(u => {
                 const isSelf = u.email === user.email;
                 const canEdit = canEditUser(u);
-                const canDelete = canDeleteUser(u);
+                const canDelete = checkCanDeleteUser(u);
 
                 return (
                   <div key={u.id} className="p-4 flex flex-col gap-3.5 hover:bg-slate-50/30 transition-colors">
@@ -416,7 +578,7 @@ export default function UserAccessPage() {
                           {isSelf && <span className="text-xs text-primary font-bold ml-1.5">(Anda)</span>}
                         </span>
                         <span className="text-[10px] text-slate-405 font-bold uppercase tracking-wide">
-                          Desa: {u.desa}
+                          Desa Utama: {u.desa}
                         </span>
                       </div>
                       <span className="inline-block px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-bold text-[9px] uppercase shrink-0">
@@ -464,7 +626,7 @@ export default function UserAccessPage() {
       {isDetailOpen && detailUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-sm p-4 animate-fadeIn" id="detail-modal-backdrop">
           <div className="bg-white rounded-2xl border border-slate-100 shadow-xl max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden animate-scaleIn">
-            <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 bg-slate-50/40">
+            <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 bg-slate-50/40 border-slate-100">
               <div>
                 <h2 className="text-sm font-black text-slate-850 tracking-tight">Rincian Detail Hak Akses</h2>
                 <p className="text-[11px] text-slate-400 font-semibold mt-0.5">{detailUser.email}</p>
@@ -479,28 +641,32 @@ export default function UserAccessPage() {
               <div className="bg-primary/5 rounded-xl p-3.5 border border-primary/10 flex items-center gap-3">
                 <Shield className="text-primary shrink-0" size={20} />
                 <div>
-                  <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tingkat Hak Akses</h3>
-                  <p className="text-xs font-bold text-primary">
+                  <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tingkat Hak Akses Preset</h3>
+                  <p className="text-xs font-bold text-primary text-emerald-700">
                     {detailUser.role === 'Super Admin' ? 'Akses Penuh (Kelola Seluruh Sistem)' :
-                     detailUser.role === 'Admin' ? 'Akses Tingkat Desa (Kelola Jamaah & Presensi Desa)' :
-                     detailUser.role === 'Moderator' ? 'Akses Tingkat Kelompok (Input & Scan Presensi)' :
+                     detailUser.role === 'Admin' ? 'Akses Tingkat Desa (Kelola Desa)' :
+                     detailUser.role === 'Moderator' ? 'Akses Tingkat Kelompok (Mencatat Presensi)' :
                      'Anggota Biasa (Tanpa Akses Khusus)'}
                   </p>
                 </div>
               </div>
 
               {/* Scope Info */}
-              <div className="border border-slate-100 rounded-xl p-4 bg-slate-50/30 grid grid-cols-2 gap-4">
+              <div className="border border-slate-100 rounded-xl p-4 bg-slate-50/30 flex flex-col gap-3">
                 <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Desa Terpantau</span>
-                  <span className="text-xs font-bold text-slate-700">{detailUser.desa || '-'}</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Desa Terpantau</span>
+                  <span className="text-xs font-bold text-slate-700">
+                    {detailUser.monitor_all_desas 
+                      ? 'Semua Desa (Akses Global)' 
+                      : (detailUser.desas_pantau && detailUser.desas_pantau.length > 0 ? detailUser.desas_pantau.join(', ') : 'Tidak ada')}
+                  </span>
                 </div>
                 <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Kelompok Terpantau</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Kelompok Terpantau</span>
                   <span className="text-xs font-bold text-slate-700">
-                    {detailUser.role === 'Super Admin' ? 'Semua Kelompok' : 
-                     (detailUser.role === 'Admin' || detailUser.role === 'Moderator') ? (detailUser.kelompok || 'Semua Kelompok') : 
-                     '-'}
+                    {detailUser.monitor_all_kelompoks 
+                      ? 'Semua Kelompok (Akses Global)' 
+                      : (detailUser.kelompoks_pantau && detailUser.kelompoks_pantau.length > 0 ? detailUser.kelompoks_pantau.join(', ') : 'Tidak ada')}
                   </span>
                 </div>
               </div>
@@ -509,7 +675,7 @@ export default function UserAccessPage() {
               <div className="flex flex-col gap-4">
                 <h3 className="text-[10px] font-bold text-slate-450 uppercase tracking-wider">Daftar Wewenang Sistem</h3>
                 <div className="flex flex-col gap-4.5">
-                  {getPermissionsList(detailUser.role, detailUser.desa, detailUser.kelompok).map((cat, cIdx) => (
+                  {getPermissionsList(detailUser).map((cat, cIdx) => (
                     <div key={cIdx} className="flex flex-col gap-2">
                       <h4 className="text-[10px] font-extrabold text-slate-400 border-b border-slate-100 pb-1">{cat.category}</h4>
                       <div className="flex flex-col gap-1.5">
@@ -525,11 +691,6 @@ export default function UserAccessPage() {
                                 {item.name}
                               </span>
                             </div>
-                            {item.status && item.scope && (
-                              <span className="text-[8px] font-extrabold bg-slate-100 text-slate-500 py-0.5 px-2 rounded-full shrink-0">
-                                {item.scope}
-                              </span>
-                            )}
                           </div>
                         ))}
                       </div>
@@ -569,8 +730,8 @@ export default function UserAccessPage() {
       {/* Modal: Create/Edit User Access */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-sm p-4 animate-fadeIn" id="user-modal-backdrop">
-          <div className="bg-white rounded-xl border border-slate-100 shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto animate-scaleIn">
-            <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100">
+          <div className="bg-white rounded-xl border border-slate-100 shadow-xl max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden animate-scaleIn">
+            <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 shrink-0">
               <h2 className="text-base font-bold text-slate-850 tracking-tight">
                 {selectedUserId ? 'Ubah Hak Akses User' : 'Tambah User Akses Baru'}
               </h2>
@@ -578,8 +739,10 @@ export default function UserAccessPage() {
                 <X size={18} />
               </button>
             </div>
-            <div className="p-6">
-              <form id="user-access-form" onSubmit={handleUserSubmit} className="flex flex-col gap-4 text-left">
+            
+            <div className="p-6 overflow-y-auto flex-1">
+              <form id="user-access-form" onSubmit={handleUserSubmit} className="flex flex-col gap-5 text-left">
+                {/* Email input */}
                 <div className="flex flex-col gap-2">
                   <label htmlFor="form-user-email" className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Email Akun Google</label>
                   {selectedUserId ? (
@@ -603,10 +766,11 @@ export default function UserAccessPage() {
                   )}
                 </div>
                 
+                {/* Desa & Role select */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="flex flex-col gap-2">
-                    <label htmlFor="form-user-desa" className="text-[10px] font-bold uppercase tracking-wider text-slate-400">DESA</label>
-                    {user.role === 'Super Admin' ? (
+                    <label htmlFor="form-user-desa" className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Desa Utama</label>
+                    {user.monitor_all_desas ? (
                       <select 
                         id="form-user-desa" 
                         className="w-full px-3 py-2.5 rounded-lg border border-slate-200 focus:border-primary outline-none bg-white text-slate-700 cursor-pointer font-semibold text-sm"
@@ -615,6 +779,7 @@ export default function UserAccessPage() {
                           const newDesa = e.target.value;
                           setFormDesa(newDesa);
                           setFormGroup(''); // Reset kelompok selection
+                          syncCheckboxesFromRole(formRole, newDesa, '');
                         }}
                         required
                       >
@@ -641,7 +806,7 @@ export default function UserAccessPage() {
                       onChange={(e) => {
                         const newRole = e.target.value;
                         setFormRole(newRole);
-                        syncCheckboxesFromRole(newRole);
+                        syncCheckboxesFromRole(newRole, formDesa, formGroup);
                       }}
                       required
                     >
@@ -650,92 +815,259 @@ export default function UserAccessPage() {
                   </div>
                 </div>
 
-                {/* Detailed Checkboxes for Super Admin customization */}
-                {user.role === 'Super Admin' && (
-                  <div className="flex flex-col gap-2.5 border border-slate-100 bg-slate-50/40 rounded-xl p-3.5 mt-1">
-                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block mb-1">
-                      Kustomisasi Hak Akses Rinci
-                    </span>
+                {/* Monitored Locations Section (Modern Checkboxes) */}
+                <div className="border border-slate-100 rounded-xl p-4 bg-slate-50/20 flex flex-col gap-4">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block border-b border-slate-100 pb-1.5">
+                    Konfigurasi Wilayah Terpantau
+                  </span>
+
+                  {/* Desas monitored checklist */}
+                  <div className="flex flex-col gap-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-bold text-slate-605">Desa Terpantau</span>
+                      {user.monitor_all_desas && (
+                        <label className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 cursor-pointer select-none">
+                          <input 
+                            type="checkbox" 
+                            className="rounded border-slate-350 text-emerald-600 focus:ring-emerald-500 w-3.5 h-3.5 cursor-pointer"
+                            checked={monitorAllDesas}
+                            onChange={(e) => {
+                              const val = e.target.checked;
+                              setMonitorAllDesas(val);
+                              if (val) setDesasPantau([]);
+                              else setDesasPantau([formDesa]);
+                            }}
+                          />
+                          <span>PANTAU SEMUA DESA</span>
+                        </label>
+                      )}
+                    </div>
                     
-                    <label className="flex items-start gap-2.5 cursor-pointer select-none py-0.5">
-                      <input 
-                        type="checkbox" 
-                        className="mt-0.5 rounded border-slate-350 text-primary focus:ring-primary cursor-pointer w-4 h-4" 
-                        checked={permDatabase}
-                        onChange={(e) => {
-                          const val = e.target.checked;
-                          setPermDatabase(val);
-                          updateRoleFromCheckboxes(val, permPresensi, permScanQr, permUserAccess);
-                        }}
-                      />
-                      <div className="flex flex-col">
-                        <span className="text-xs font-bold text-slate-700">Akses Database Jamaah (CRUD)</span>
-                        <span className="text-[10px] text-slate-400 font-semibold leading-normal">Membaca, menambah, mengubah, dan menghapus data jamaah</span>
+                    {!monitorAllDesas && (
+                      <div className="flex flex-wrap gap-2.5 mt-1 bg-white p-2.5 rounded-lg border border-slate-200 max-h-[100px] overflow-y-auto">
+                        {(user.monitor_all_desas ? desas : (user.desas_pantau || [])).map(dName => {
+                          const isChecked = desasPantau.includes(dName);
+                          return (
+                            <label key={dName} className="flex items-center gap-1.5 text-xs font-semibold text-slate-650 cursor-pointer select-none">
+                              <input 
+                                type="checkbox"
+                                className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4"
+                                checked={isChecked}
+                                onChange={() => {
+                                  if (isChecked) {
+                                    setDesasPantau(prev => prev.filter(x => x !== dName));
+                                  } else {
+                                    setDesasPantau(prev => [...prev, dName]);
+                                  }
+                                }}
+                              />
+                              <span>Desa {dName}</span>
+                            </label>
+                          );
+                        })}
                       </div>
-                    </label>
-
-                    <label className="flex items-start gap-2.5 cursor-pointer select-none py-0.5">
-                      <input 
-                        type="checkbox" 
-                        className="mt-0.5 rounded border-slate-350 text-primary focus:ring-primary cursor-pointer w-4 h-4" 
-                        checked={permPresensi}
-                        onChange={(e) => {
-                          const val = e.target.checked;
-                          setPermPresensi(val);
-                          updateRoleFromCheckboxes(permDatabase, val, permScanQr, permUserAccess);
-                        }}
-                      />
-                      <div className="flex flex-col">
-                        <span className="text-xs font-bold text-slate-700">Akses Presensi & Kehadiran</span>
-                        <span className="text-[10px] text-slate-400 font-semibold leading-normal">Mengisi kehadiran, melihat laporan rekapitulasi, dan menghapus presensi</span>
-                      </div>
-                    </label>
-
-                    <label className="flex items-start gap-2.5 cursor-pointer select-none py-0.5">
-                      <input 
-                        type="checkbox" 
-                        className="mt-0.5 rounded border-slate-350 text-primary focus:ring-primary cursor-pointer w-4 h-4" 
-                        checked={permScanQr}
-                        onChange={(e) => {
-                          const val = e.target.checked;
-                          setPermScanQr(val);
-                          updateRoleFromCheckboxes(permDatabase, permPresensi, val, permUserAccess);
-                        }}
-                      />
-                      <div className="flex flex-col">
-                        <span className="text-xs font-bold text-slate-700">Akses Scan QR Code</span>
-                        <span className="text-[10px] text-slate-400 font-semibold leading-normal">Melakukan scan kartu QR presensi jamaah saat pengajian</span>
-                      </div>
-                    </label>
-
-                    <label className="flex items-start gap-2.5 cursor-pointer select-none py-0.5">
-                      <input 
-                        type="checkbox" 
-                        className="mt-0.5 rounded border-slate-350 text-primary focus:ring-primary cursor-pointer w-4 h-4" 
-                        checked={permUserAccess}
-                        onChange={(e) => {
-                          const val = e.target.checked;
-                          setPermUserAccess(val);
-                          updateRoleFromCheckboxes(permDatabase, permPresensi, permScanQr, val);
-                        }}
-                      />
-                      <div className="flex flex-col">
-                        <span className="text-xs font-bold text-slate-700">Akses Manajemen User & Akses Global</span>
-                        <span className="text-[10px] text-slate-400 font-semibold leading-normal">Mengatur hak akses Google user lain di tingkat global (Super Admin)</span>
-                      </div>
-                    </label>
+                    )}
                   </div>
-                )}
+
+                  {/* Kelompoks monitored checklist */}
+                  <div className="flex flex-col gap-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-bold text-slate-605">Kelompok Terpantau</span>
+                      {user.monitor_all_kelompoks && (
+                        <label className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 cursor-pointer select-none">
+                          <input 
+                            type="checkbox" 
+                            className="rounded border-slate-350 text-emerald-600 focus:ring-emerald-500 w-3.5 h-3.5 cursor-pointer"
+                            checked={monitorAllKelompoks}
+                            onChange={(e) => {
+                              const val = e.target.checked;
+                              setMonitorAllKelompoks(val);
+                              if (val) setKelompoksPantau([]);
+                              else setKelompoksPantau(formGroup ? [formGroup] : []);
+                            }}
+                          />
+                          <span>PANTAU SEMUA KELOMPOK</span>
+                        </label>
+                      )}
+                    </div>
+
+                    {!monitorAllKelompoks && (
+                      <div className="flex flex-wrap gap-2.5 mt-1 bg-white p-2.5 rounded-lg border border-slate-200 max-h-[120px] overflow-y-auto">
+                        {/* We fetch all kelompoks in monitored desas or user's allowed groups */}
+                        {(user.monitor_all_kelompoks 
+                          ? locations.filter(l => monitorAllDesas || desasPantau.includes(l.nama_desa)).flatMap(l => l.kelompoks.map(k => k.nama_kelompok))
+                          : (user.kelompoks_pantau || [])
+                        )
+                        .filter((value, index, self) => self.indexOf(value) === index) // Unique
+                        .sort((a, b) => a.localeCompare(b))
+                        .map(kName => {
+                          const isChecked = kelompoksPantau.includes(kName);
+                          return (
+                            <label key={kName} className="flex items-center gap-1.5 text-xs font-semibold text-slate-655 cursor-pointer select-none">
+                              <input 
+                                type="checkbox"
+                                className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4"
+                                checked={isChecked}
+                                onChange={() => {
+                                  if (isChecked) {
+                                    setKelompoksPantau(prev => prev.filter(x => x !== kName));
+                                  } else {
+                                    setKelompoksPantau(prev => [...prev, kName]);
+                                  }
+                                }}
+                              />
+                              <span>{kName}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* 21 Detailed Permission Custom Checkboxes Grid */}
+                <div className="border border-slate-100 rounded-xl p-4 bg-slate-50/20 flex flex-col gap-4">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block border-b border-slate-100 pb-1.5">
+                    Kustomisasi Hak Akses Fungsional (Rinci)
+                  </span>
+
+                  {/* Database Jamaah Section */}
+                  <div className="flex flex-col gap-2 text-left">
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">1. Database Jamaah</span>
+                    <div className="grid grid-cols-2 gap-2 bg-white p-2.5 rounded-lg border border-slate-200">
+                      <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none">
+                        <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer" checked={canReadJamaah} onChange={(e) => setCanReadJamaah(e.target.checked)} />
+                        <span>Membaca (Read)</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none">
+                        <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer" checked={canCreateJamaah} onChange={(e) => setCanCreateJamaah(e.target.checked)} />
+                        <span>Menambah (Create)</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none">
+                        <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer" checked={canUpdateJamaah} onChange={(e) => setCanUpdateJamaah(e.target.checked)} />
+                        <span>Mengubah (Update)</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none">
+                        <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer" checked={canDeleteJamaah} onChange={(e) => setCanDeleteJamaah(e.target.checked)} />
+                        <span>Menghapus (Delete)</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Unit Keluarga Section */}
+                  <div className="flex flex-col gap-2 text-left">
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">2. Unit Keluarga</span>
+                    <div className="grid grid-cols-2 gap-2 bg-white p-2.5 rounded-lg border border-slate-200">
+                      <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none">
+                        <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer" checked={canReadKeluarga} onChange={(e) => setCanReadKeluarga(e.target.checked)} />
+                        <span>Membaca (Read)</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none">
+                        <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer" checked={canCreateKeluarga} onChange={(e) => setCanCreateKeluarga(e.target.checked)} />
+                        <span>Membuat (Create)</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none">
+                        <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer" checked={canUpdateKeluarga} onChange={(e) => setCanUpdateKeluarga(e.target.checked)} />
+                        <span>Mengubah (Update)</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none">
+                        <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer" checked={canDeleteKeluarga} onChange={(e) => setCanDeleteKeluarga(e.target.checked)} />
+                        <span>Menghapus (Delete)</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Presensi & Kehadiran Section */}
+                  <div className="flex flex-col gap-2 text-left">
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">3. Presensi & Kehadiran</span>
+                    <div className="grid grid-cols-2 gap-2 bg-white p-2.5 rounded-lg border border-slate-200">
+                      <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none">
+                        <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer" checked={canReadKehadiran} onChange={(e) => setCanReadKehadiran(e.target.checked)} />
+                        <span>Read Input</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none">
+                        <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer" checked={canCreateKehadiran} onChange={(e) => setCanCreateKehadiran(e.target.checked)} />
+                        <span>Create Input</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none">
+                        <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer" checked={canUpdateKehadiran} onChange={(e) => setCanUpdateKehadiran(e.target.checked)} />
+                        <span>Update Input</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none">
+                        <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer" checked={canDeleteKehadiran} onChange={(e) => setCanDeleteKehadiran(e.target.checked)} />
+                        <span>Delete Input</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none col-span-2 border-t border-slate-100 pt-1.5 mt-1">
+                        <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer" checked={canReadLaporan} onChange={(e) => setCanReadLaporan(e.target.checked)} />
+                        <span>Laporan Kehadiran (Read)</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* User Access Section */}
+                  <div className="flex flex-col gap-2 text-left">
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">4. User Access Management</span>
+                    <div className="grid grid-cols-2 gap-2 bg-white p-2.5 rounded-lg border border-slate-200">
+                      <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none">
+                        <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer" checked={canReadUser} onChange={(e) => setCanReadUser(e.target.checked)} />
+                        <span>Membaca (Read)</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none">
+                        <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer" checked={canCreateUser} onChange={(e) => setCanCreateUser(e.target.checked)} />
+                        <span>Menambah (Create)</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none">
+                        <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer" checked={canUpdateUser} onChange={(e) => setCanUpdateUser(e.target.checked)} />
+                        <span>Mengubah (Update)</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none">
+                        <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer" checked={canDeleteUser} onChange={(e) => setCanDeleteUser(e.target.checked)} />
+                        <span>Menghapus (Delete)</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Lokasi & Rekam Jejak Section */}
+                  <div className="flex flex-col gap-2 text-left">
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">5. Manajemen Lokasi & Log</span>
+                    <div className="grid grid-cols-2 gap-2 bg-white p-2.5 rounded-lg border border-slate-200">
+                      <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none">
+                        <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer" checked={canReadLokasi} onChange={(e) => setCanReadLokasi(e.target.checked)} />
+                        <span>Read Lokasi</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none">
+                        <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer" checked={canCreateLokasi} onChange={(e) => setCanCreateLokasi(e.target.checked)} />
+                        <span>Create Lokasi</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none">
+                        <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer" checked={canUpdateLokasi} onChange={(e) => setCanUpdateLokasi(e.target.checked)} />
+                        <span>Update Lokasi</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none">
+                        <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer" checked={canDeleteLokasi} onChange={(e) => setCanDeleteLokasi(e.target.checked)} />
+                        <span>Delete Lokasi</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none col-span-2 border-t border-slate-100 pt-1.5 mt-1">
+                        <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer" checked={canReadLogs} onChange={(e) => setCanReadLogs(e.target.checked)} />
+                        <span>Membaca Rekam Jejak (Logs)</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
                 
-                {/* Dynamic Kelompok select, only shown for Moderator and Admin */}
+                {/* Dynamic Kelompok select, only shown for Moderator and Admin presets */}
                 {(formRole === 'Moderator' || formRole === 'Admin') && (
                   <div className="flex flex-col gap-2" id="form-user-group-group">
-                    <label htmlFor="form-user-group" className="text-[10px] font-bold uppercase tracking-wider text-slate-400">KELOMPOK YANG DIAWASI</label>
+                    <label htmlFor="form-user-group" className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Kelompok Utama Pengawasan</label>
                     <select 
                       id="form-user-group" 
                       className="w-full px-3 py-2.5 rounded-lg border border-slate-200 focus:border-primary outline-none bg-white text-slate-700 cursor-pointer font-semibold text-sm"
                       value={formGroup}
-                      onChange={(e) => setFormGroup(e.target.value)}
+                      onChange={(e) => {
+                        const newGrp = e.target.value;
+                        setFormGroup(newGrp);
+                        syncCheckboxesFromRole(formRole, formDesa, newGrp);
+                      }}
                     >
                       <option value="">Semua Kelompok</option>
                       {[...(locations.find(d => d.nama_desa === formDesa)?.kelompoks || [])].sort((a, b) => a.nama_kelompok.localeCompare(b.nama_kelompok)).map(k => (
@@ -745,7 +1077,7 @@ export default function UserAccessPage() {
                   </div>
                 )}
                 
-                <div className="flex justify-end gap-3 border-t border-slate-100 pt-5 mt-4">
+                <div className="flex justify-end gap-3 border-t border-slate-100 pt-5 mt-4 shrink-0">
                   <button type="button" className="py-2.5 px-4 font-bold text-xs bg-white border border-slate-200 hover:bg-slate-50 text-slate-650 rounded-lg transition-all" onClick={() => setIsModalOpen(false)}>Batal</button>
                   <button type="submit" className="py-2.5 px-4 font-bold text-xs bg-primary hover:bg-primary-hover text-white rounded-lg transition-all">Simpan</button>
                 </div>
@@ -773,4 +1105,3 @@ export default function UserAccessPage() {
     </div>
   );
 }
-

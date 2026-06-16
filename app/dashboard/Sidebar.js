@@ -142,7 +142,7 @@ export default function Sidebar({ user }) {
             </Link>
 
             {/* Database Link */}
-            {(role === 'Admin' || role === 'Super Admin') && (
+            {(user.can_read_jamaah || user.can_read_keluarga) && (
               <Link 
                 href="/dashboard/database" 
                 onClick={() => setIsOpen(false)}
@@ -158,7 +158,7 @@ export default function Sidebar({ user }) {
             )}
 
             {/* Attendance Link */}
-            {(role === 'Moderator' || role === 'Admin' || role === 'Super Admin') && (
+            {(user.can_read_kehadiran || user.can_create_kehadiran || user.can_update_kehadiran || user.can_delete_kehadiran || user.can_read_laporan) && (
               <Link 
                 href="/dashboard/presensi" 
                 onClick={() => setIsOpen(false)}
@@ -174,7 +174,7 @@ export default function Sidebar({ user }) {
             )}
 
             {/* User Access Link */}
-            {(role === 'Moderator' || role === 'Admin' || role === 'Super Admin') && (
+            {user.can_read_user && (
               <Link 
                 href="/dashboard/users" 
                 onClick={() => setIsOpen(false)}
@@ -190,7 +190,7 @@ export default function Sidebar({ user }) {
             )}
 
             {/* Lokasi Link */}
-            {(role === 'Admin' || role === 'Super Admin') && (
+            {user.can_read_lokasi && (
               <Link 
                 href="/dashboard/lokasi" 
                 onClick={() => setIsOpen(false)}
@@ -206,7 +206,7 @@ export default function Sidebar({ user }) {
             )}
 
             {/* Logs Link */}
-            {role === 'Super Admin' && (
+            {user.can_read_logs && (
               <Link 
                 href="/dashboard/activity-logs" 
                 onClick={() => setIsOpen(false)}

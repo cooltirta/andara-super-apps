@@ -9,6 +9,10 @@ export async function GET(request) {
     return NextResponse.json({ error: "Tidak terautentikasi" }, { status: 401 });
   }
 
+  if (!user.can_read_laporan) {
+    return NextResponse.json({ error: "Akses ditolak" }, { status: 403 });
+  }
+
   const { searchParams } = new URL(request.url);
   // Ini dapat berisi string YYYY-MM-DD HH:MM:SS atau YYYY-MM-DD
   const startDate = searchParams.get('start_date');
@@ -20,14 +24,6 @@ export async function GET(request) {
 
   if (!startDate || !endDate) {
     return NextResponse.json({ error: "start_date dan end_date wajib diisi" }, { status: 400 });
-  }
-
-  // Terapkan batas hak wewenang user ke filter
-  if (user.role === 'Admin') {
-    filterDesa = user.desa;
-  } else if (user.role === 'Moderator') {
-    filterDesa = user.desa;
-    filterKelompok = user.kelompok;
   }
 
   const kategoriArray = kategoriStr ? kategoriStr.split(',') : [];
@@ -42,14 +38,46 @@ export async function GET(request) {
       let sql = '';
       const params = [];
       
-      if (filterDesa) {
-        sql += ` AND j.desa = $${idx++}`;
-        params.push(filterDesa);
+      // Monitored villages filter logic
+      if (!user.monitor_all_desas) {
+        if (filterDesa) {
+          if (user.desas_pantau && user.desas_pantau.includes(filterDesa)) {
+            sql += ` AND j.desa = $${idx++}`;
+            params.push(filterDesa);
+          } else {
+            sql += " AND j.desa = ANY('{}'::text[])";
+          }
+        } else {
+          sql += ` AND j.desa = ANY($${idx++}::text[])`;
+          params.push(user.desas_pantau || []);
+        }
+      } else {
+        if (filterDesa) {
+          sql += ` AND j.desa = $${idx++}`;
+          params.push(filterDesa);
+        }
       }
-      if (filterKelompok) {
-        sql += ` AND j.kelompok = $${idx++}`;
-        params.push(filterKelompok);
+
+      // Monitored groups filter logic
+      if (!user.monitor_all_kelompoks) {
+        if (filterKelompok) {
+          if (user.kelompoks_pantau && user.kelompoks_pantau.includes(filterKelompok)) {
+            sql += ` AND j.kelompok = $${idx++}`;
+            params.push(filterKelompok);
+          } else {
+            sql += " AND j.kelompok = ANY('{}'::text[])";
+          }
+        } else {
+          sql += ` AND j.kelompok = ANY($${idx++}::text[])`;
+          params.push(user.kelompoks_pantau || []);
+        }
+      } else {
+        if (filterKelompok) {
+          sql += ` AND j.kelompok = $${idx++}`;
+          params.push(filterKelompok);
+        }
       }
+
       if (kategoriArray.length > 0) {
         sql += ` AND j.kategori = ANY($${idx++})`;
         params.push(kategoriArray);

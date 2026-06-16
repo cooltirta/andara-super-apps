@@ -10,8 +10,8 @@ export async function POST(request) {
     return NextResponse.json({ error: "Tidak terautentikasi. Silakan masuk terlebih dahulu." }, { status: 401 });
   }
 
-  if (user.role === 'Member') {
-    return NextResponse.json({ error: "Akses ditolak: Anggota (Member) tidak memiliki wewenang mencatat kehadiran." }, { status: 403 });
+  if (!user.can_create_kehadiran && !user.can_update_kehadiran) {
+    return NextResponse.json({ error: "Akses ditolak: Anda tidak memiliki wewenang mencatat kehadiran." }, { status: 403 });
   }
 
   try {
@@ -30,14 +30,11 @@ export async function POST(request) {
     }
 
     // 2. Cek wewenang pemindai
-    if (user.role === 'Admin') {
-      if (user.desa !== jamaah.desa) {
-        return NextResponse.json({ error: `Akses ditolak: Jamaah berasal dari desa ${jamaah.desa}, sedangkan wilayah wewenang Anda adalah desa ${user.desa}.` }, { status: 403 });
-      }
-    } else if (user.role === 'Moderator') {
-      if (user.desa !== jamaah.desa || user.kelompok !== jamaah.kelompok) {
-        return NextResponse.json({ error: `Akses ditolak: Jamaah berasal dari desa ${jamaah.desa} kelompok ${jamaah.kelompok}, sedangkan wewenang Anda adalah desa ${user.desa} kelompok ${user.kelompok}.` }, { status: 403 });
-      }
+    if (!user.monitor_all_desas && (!user.desas_pantau || !user.desas_pantau.includes(jamaah.desa))) {
+      return NextResponse.json({ error: `Akses ditolak: Jamaah berasal dari desa ${jamaah.desa} yang tidak terpantau oleh Anda.` }, { status: 403 });
+    }
+    if (!user.monitor_all_kelompoks && (!user.kelompoks_pantau || !user.kelompoks_pantau.includes(jamaah.kelompok))) {
+      return NextResponse.json({ error: `Akses ditolak: Jamaah berasal dari kelompok ${jamaah.kelompok} yang tidak terpantau oleh Anda.` }, { status: 403 });
     }
 
     // 3. Catat Kehadiran untuk hari ini

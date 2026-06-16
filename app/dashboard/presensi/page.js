@@ -26,7 +26,8 @@ export default function PresensiPage() {
   const [filterDesa, setFilterDesa] = useState('');
   const [filterKelompok, setFilterKelompok] = useState('');
   const [filterGender, setFilterGender] = useState('');
-  const [filterKategori, setFilterKategori] = useState('');
+  const [filterKategori, setFilterKategori] = useState(['Balita', 'CBR/PAUD', 'Pra Remaja', 'Remaja', 'Pra Nikah', 'Dewasa', 'Lansia']);
+  const [inputStatusPernikahan, setInputStatusPernikahan] = useState(['Belum Menikah', 'Menikah', 'Janda', 'Duda']);
 
   // Laporan Tab States
   const [reportStartDate, setReportStartDate] = useState('');
@@ -60,10 +61,14 @@ export default function PresensiPage() {
       const currentUser = await userRes.json();
       setUser(currentUser);
 
-      if (currentUser.role === 'Member') {
-        showToast("Akses Ditolak: Anggota tidak memiliki wewenang presensi", "error");
+      if (!currentUser.can_read_kehadiran && !currentUser.can_create_kehadiran && !currentUser.can_update_kehadiran && !currentUser.can_delete_kehadiran && !currentUser.can_read_laporan) {
+        showToast("Akses Ditolak: Anda tidak memiliki wewenang presensi", "error");
         setTimeout(() => router.push('/dashboard'), 1500);
         return;
+      }
+
+      if (!currentUser.can_read_kehadiran && !currentUser.can_create_kehadiran && !currentUser.can_update_kehadiran && !currentUser.can_delete_kehadiran && currentUser.can_read_laporan) {
+        setActiveTab('laporan');
       }
 
       const lokasiRes = await fetch('/api/lokasi');
@@ -71,10 +76,18 @@ export default function PresensiPage() {
         setLocations(await lokasiRes.json());
       }
 
-      // Default filters berdasarkan role user
-      if (currentUser.role === 'Admin') {
+      // Default filters berdasarkan monitored locations
+      if (!currentUser.monitor_all_desas && currentUser.desas_pantau && currentUser.desas_pantau.length > 0) {
+        setFilterDesa(currentUser.desas_pantau[0]);
+        setReportDesa(currentUser.desas_pantau[0]);
+      } else if (currentUser.role === 'Admin') {
         setFilterDesa(currentUser.desa);
         setReportDesa(currentUser.desa);
+      }
+      
+      if (!currentUser.monitor_all_kelompoks && currentUser.kelompoks_pantau && currentUser.kelompoks_pantau.length > 0) {
+        setFilterKelompok(currentUser.kelompoks_pantau[0]);
+        setReportKelompok(currentUser.kelompoks_pantau[0]);
       } else if (currentUser.role === 'Moderator') {
         setFilterDesa(currentUser.desa);
         setFilterKelompok(currentUser.kelompok);
@@ -302,8 +315,9 @@ export default function PresensiPage() {
     const matchDesa = filterDesa ? j.desa === filterDesa : true;
     const matchKelompok = filterKelompok ? j.kelompok === filterKelompok : true;
     const matchGender = filterGender ? j.jenis_kelamin === filterGender : true;
-    const matchKategori = filterKategori ? j.kategori === filterKategori : true;
-    return matchName && matchDesa && matchKelompok && matchGender && matchKategori;
+    const matchKategori = filterKategori.includes(j.kategori);
+    const matchStatusPernikahan = inputStatusPernikahan.includes(j.status_pernikahan || 'Belum Menikah');
+    return matchName && matchDesa && matchKelompok && matchGender && matchKategori && matchStatusPernikahan;
   });
 
   return (
@@ -315,11 +329,11 @@ export default function PresensiPage() {
             Kehadiran & Presensi Jamaah
           </h1>
           <p className="text-xs text-slate-400 font-bold mt-1">
-            {user.role === 'Super Admin' 
-              ? 'Akses Global (Seluruh Desa & Kelompok)' 
-              : user.role === 'Admin' 
-                ? `Akses Desa Andara (Desa ${user.desa})` 
-                : `Akses Kelompok (Desa ${user.desa}, Kelompok ${user.kelompok})`
+            {user.monitor_all_desas && user.monitor_all_kelompoks
+              ? 'Akses Terpantau: Seluruh Desa & Kelompok'
+              : `Akses Terpantau: ` +
+                `Desa: ${user.monitor_all_desas ? 'Semua Desa' : (user.desas_pantau && user.desas_pantau.length > 0 ? user.desas_pantau.join(', ') : 'Tidak ada')}, ` +
+                `Kelompok: ${user.monitor_all_kelompoks ? 'Semua Kelompok' : (user.kelompoks_pantau && user.kelompoks_pantau.length > 0 ? user.kelompoks_pantau.join(', ') : 'Tidak ada')}`
             }
           </p>
         </div>
@@ -327,26 +341,30 @@ export default function PresensiPage() {
 
       {/* Tabs Navigation */}
       <div className="flex border-b border-slate-100 mb-6 gap-6">
-        <button 
-          className={`py-3 px-1 font-bold text-sm cursor-pointer border-b-2 transition-all ${
-            activeTab === 'input' 
-              ? 'text-primary border-primary' 
-              : 'text-slate-400 border-transparent hover:text-slate-600'
-          }`} 
-          onClick={() => setActiveTab('input')}
-        >
-          Input Kehadiran
-        </button>
-        <button 
-          className={`py-3 px-1 font-bold text-sm cursor-pointer border-b-2 transition-all ${
-            activeTab === 'laporan' 
-              ? 'text-primary border-primary' 
-              : 'text-slate-400 border-transparent hover:text-slate-600'
-          }`} 
-          onClick={() => setActiveTab('laporan')}
-        >
-          Laporan Kehadiran
-        </button>
+        {(user.can_read_kehadiran || user.can_create_kehadiran || user.can_update_kehadiran || user.can_delete_kehadiran) && (
+          <button 
+            className={`py-3 px-1 font-bold text-sm cursor-pointer border-b-2 transition-all ${
+              activeTab === 'input' 
+                ? 'text-primary border-primary' 
+                : 'text-slate-400 border-transparent hover:text-slate-600'
+            }`} 
+            onClick={() => setActiveTab('input')}
+          >
+            Input Kehadiran
+          </button>
+        )}
+        {user.can_read_laporan && (
+          <button 
+            className={`py-3 px-1 font-bold text-sm cursor-pointer border-b-2 transition-all ${
+              activeTab === 'laporan' 
+                ? 'text-primary border-primary' 
+                : 'text-slate-400 border-transparent hover:text-slate-600'
+            }`} 
+            onClick={() => setActiveTab('laporan')}
+          >
+            Laporan Kehadiran
+          </button>
+        )}
       </div>
 
       {/* ================================================= TAB INPUT ================================================= */}
@@ -386,7 +404,7 @@ export default function PresensiPage() {
               >
                 <RefreshCw size={14} className={loadingInput ? "animate-spin" : ""} />
               </button>
-              {jamaahList.some(j => j.kehadiran_id !== null) && (
+              {user.can_delete_kehadiran && jamaahList.some(j => j.kehadiran_id !== null) && (
                 <button
                   onClick={handleDeleteAttendance}
                   disabled={loadingSubmit}
@@ -396,105 +414,165 @@ export default function PresensiPage() {
                   <span>Hapus Presensi</span>
                 </button>
               )}
-              <button
-                onClick={handleSubmitAttendance}
-                disabled={loadingSubmit || (isBackdate && !attendanceTime)}
-                className={`py-2 px-4 rounded-lg bg-primary hover:bg-primary-hover text-white font-bold text-xs transition-all flex items-center gap-1.5 active:scale-95 ${(loadingSubmit || (isBackdate && !attendanceTime)) ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                <CheckCircle size={14} className={loadingSubmit ? "animate-spin" : ""} />
-                <span>{loadingSubmit ? "Menyimpan..." : "Simpan Kehadiran"}</span>
-              </button>
+              {(user.can_create_kehadiran || user.can_update_kehadiran) && (
+                <button
+                  onClick={handleSubmitAttendance}
+                  disabled={loadingSubmit || (isBackdate && !attendanceTime)}
+                  className={`py-2 px-4 rounded-lg bg-primary hover:bg-primary-hover text-white font-bold text-xs transition-all flex items-center gap-1.5 active:scale-95 ${(loadingSubmit || (isBackdate && !attendanceTime)) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  <CheckCircle size={14} className={loadingSubmit ? "animate-spin" : ""} />
+                  <span>{loadingSubmit ? "Menyimpan..." : "Simpan Kehadiran"}</span>
+                </button>
+              )}
             </div>
           </div>
 
           {/* Saringan Pencarian & Filter */}
-          <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-3 flex flex-wrap items-center gap-3.5">
-            <div className="relative flex-1 min-w-[240px]">
-              <Search className="absolute left-3 top-3 text-slate-400 w-4 h-4" />
-              <input 
-                type="text" 
-                className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-slate-200 focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all outline-none bg-white text-slate-700 text-xs font-semibold" 
-                placeholder="Cari nama jamaah..."
-                value={searchName}
-                onChange={(e) => setSearchName(e.target.value)}
-              />
+          <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-3 flex flex-col gap-3">
+            <div className="flex flex-wrap items-center gap-3.5">
+              <div className="relative flex-1 min-w-[240px]">
+                <Search className="absolute left-3 top-3 text-slate-400 w-4 h-4" />
+                <input 
+                  type="text" 
+                  className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-slate-200 focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all outline-none bg-white text-slate-700 text-xs font-semibold" 
+                  placeholder="Cari nama jamaah..."
+                  value={searchName}
+                  onChange={(e) => setSearchName(e.target.value)}
+                />
+              </div>
+              
+              <div className="flex flex-wrap gap-2">
+                {/* Filter Desa */}
+                {user.monitor_all_desas ? (
+                  <select 
+                    className="px-2.5 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 font-bold text-[10px] cursor-pointer outline-none focus:border-primary"
+                    value={filterDesa}
+                    onChange={(e) => {
+                      setFilterDesa(e.target.value);
+                      setFilterKelompok('');
+                    }}
+                  >
+                    <option value="">Semua Desa</option>
+                    {[...locations].sort((a, b) => a.nama_desa.localeCompare(b.nama_desa)).map(d => (
+                      <option key={d.id} value={d.nama_desa}>{d.nama_desa}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <select 
+                    className="px-2.5 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 font-bold text-[10px] cursor-pointer outline-none focus:border-primary"
+                    value={filterDesa}
+                    onChange={(e) => {
+                      setFilterDesa(e.target.value);
+                      setFilterKelompok('');
+                    }}
+                  >
+                    <option value="">Semua Desa Terpantau</option>
+                    {[...locations].filter(d => (user.desas_pantau || []).includes(d.nama_desa)).sort((a, b) => a.nama_desa.localeCompare(b.nama_desa)).map(d => (
+                      <option key={d.id} value={d.nama_desa}>{d.nama_desa}</option>
+                    ))}
+                  </select>
+                )}
+
+                {/* Filter Kelompok */}
+                {user.monitor_all_kelompoks ? (
+                  <select 
+                    className="px-2.5 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 font-bold text-[10px] cursor-pointer outline-none focus:border-primary"
+                    value={filterKelompok}
+                    onChange={(e) => setFilterKelompok(e.target.value)}
+                  >
+                    <option value="">Semua Kelompok</option>
+                    {(filterDesa 
+                      ? (locations.find(d => d.nama_desa === filterDesa)?.kelompoks || []) 
+                      : locations.flatMap(d => d.kelompoks)
+                    )
+                    .sort((a, b) => a.nama_kelompok.localeCompare(b.nama_kelompok))
+                    .map(k => (
+                      <option key={k.id} value={k.nama_kelompok}>{k.nama_kelompok}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <select 
+                    className="px-2.5 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 font-bold text-[10px] cursor-pointer outline-none focus:border-primary"
+                    value={filterKelompok}
+                    onChange={(e) => setFilterKelompok(e.target.value)}
+                  >
+                    <option value="">Semua Kelompok Terpantau</option>
+                    {(filterDesa 
+                      ? (locations.find(d => d.nama_desa === filterDesa)?.kelompoks || []) 
+                      : locations.flatMap(d => d.kelompoks)
+                    )
+                    .filter(k => (user.kelompoks_pantau || []).includes(k.nama_kelompok))
+                    .sort((a, b) => a.nama_kelompok.localeCompare(b.nama_kelompok))
+                    .map(k => (
+                      <option key={k.id} value={k.nama_kelompok}>{k.nama_kelompok}</option>
+                    ))}
+                  </select>
+                )}
+
+                <select 
+                  className="px-2.5 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 font-bold text-[10px] cursor-pointer outline-none focus:border-primary"
+                  value={filterGender}
+                  onChange={(e) => setFilterGender(e.target.value)}
+                >
+                  <option value="">Semua Gender</option>
+                  <option value="Laki-laki">Laki-laki</option>
+                  <option value="Perempuan">Perempuan</option>
+                </select>
+              </div>
             </div>
-            
-            <div className="flex flex-wrap gap-2">
-              {/* Filter Desa */}
-              {user.role === 'Super Admin' ? (
-                <select 
-                  className="px-2.5 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 font-bold text-[10px] cursor-pointer outline-none focus:border-primary"
-                  value={filterDesa}
-                  onChange={(e) => {
-                    setFilterDesa(e.target.value);
-                    setFilterKelompok('');
-                  }}
-                >
-                  <option value="">Semua Desa</option>
-                  {[...locations].sort((a, b) => a.nama_desa.localeCompare(b.nama_desa)).map(d => (
-                    <option key={d.id} value={d.nama_desa}>{d.nama_desa}</option>
-                  ))}
-                </select>
-              ) : (
-                <input 
-                  type="text" 
-                  className="px-2.5 py-2 rounded-lg border border-slate-200 bg-slate-50 text-slate-400 font-bold text-[10px] cursor-not-allowed outline-none" 
-                  value={`Desa: ${filterDesa}`}
-                  disabled 
-                />
-              )}
 
-              {/* Filter Kelompok */}
-              {user.role === 'Moderator' ? (
-                <input 
-                  type="text" 
-                  className="px-2.5 py-2 rounded-lg border border-slate-200 bg-slate-50 text-slate-400 font-bold text-[10px] cursor-not-allowed outline-none" 
-                  value={`Kelompok: ${filterKelompok}`}
-                  disabled 
-                />
-              ) : (
-                <select 
-                  className="px-2.5 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 font-bold text-[10px] cursor-pointer outline-none focus:border-primary"
-                  value={filterKelompok}
-                  onChange={(e) => setFilterKelompok(e.target.value)}
-                >
-                  <option value="">Semua Kelompok</option>
-                  {(user.role === 'Super Admin'
-                    ? (filterDesa ? (locations.find(d => d.nama_desa === filterDesa)?.kelompoks || []) : locations.flatMap(d => d.kelompoks))
-                    : (locations.find(d => d.nama_desa === user.desa)?.kelompoks || [])
-                  )
-                  .sort((a, b) => a.nama_kelompok.localeCompare(b.nama_kelompok))
-                  .map(k => (
-                    <option key={k.id} value={k.nama_kelompok}>{k.nama_kelompok}</option>
-                  ))}
-                </select>
-              )}
+            {/* Checklist Kategori Jamaah */}
+            <div className="border-t border-slate-100 pt-3 text-left">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Kategori Jamaah</span>
+              <div className="flex flex-wrap gap-x-4 gap-y-2">
+                {['Balita', 'CBR/PAUD', 'Pra Remaja', 'Remaja', 'Pra Nikah', 'Dewasa', 'Lansia'].map(cat => {
+                  const isChecked = filterKategori.includes(cat);
+                  return (
+                    <label key={cat} className="flex items-center gap-2 text-xs font-semibold text-slate-650 cursor-pointer select-none">
+                      <input 
+                        type="checkbox" 
+                        className="rounded border-slate-300 text-primary focus:ring-primary w-4 h-4"
+                        checked={isChecked}
+                        onChange={() => {
+                          if (isChecked) {
+                            setFilterKategori(prev => prev.filter(c => c !== cat));
+                          } else {
+                            setFilterKategori(prev => [...prev, cat]);
+                          }
+                        }}
+                      />
+                      <span>{cat}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
 
-              <select 
-                className="px-2.5 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 font-bold text-[10px] cursor-pointer outline-none focus:border-primary"
-                value={filterGender}
-                onChange={(e) => setFilterGender(e.target.value)}
-              >
-                <option value="">Semua Gender</option>
-                <option value="Laki-laki">Laki-laki</option>
-                <option value="Perempuan">Perempuan</option>
-              </select>
-
-              <select 
-                className="px-2.5 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 font-bold text-[10px] cursor-pointer outline-none focus:border-primary"
-                value={filterKategori}
-                onChange={(e) => setFilterKategori(e.target.value)}
-              >
-                <option value="">Semua Kategori</option>
-                <option value="Balita">Balita</option>
-                <option value="CBR/PAUD">CBR/PAUD</option>
-                <option value="Pra Remaja">Pra Remaja</option>
-                <option value="Remaja">Remaja</option>
-                <option value="Pra Nikah">Pra Nikah</option>
-                <option value="Dewasa">Dewasa</option>
-                <option value="Lansia">Lansia</option>
-              </select>
+            {/* Checklist Status Pernikahan */}
+            <div className="border-t border-slate-100 pt-3 text-left">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Status Pernikahan</span>
+              <div className="flex flex-wrap gap-x-4 gap-y-2">
+                {['Belum Menikah', 'Menikah', 'Janda', 'Duda'].map(status => {
+                  const isChecked = inputStatusPernikahan.includes(status);
+                  return (
+                    <label key={status} className="flex items-center gap-2 text-xs font-semibold text-slate-650 cursor-pointer select-none">
+                      <input 
+                        type="checkbox" 
+                        className="rounded border-slate-300 text-primary focus:ring-primary w-4 h-4"
+                        checked={isChecked}
+                        onChange={() => {
+                          if (isChecked) {
+                            setInputStatusPernikahan(prev => prev.filter(s => s !== status));
+                          } else {
+                            setInputStatusPernikahan(prev => [...prev, status]);
+                          }
+                        }}
+                      />
+                      <span>{status}</span>
+                    </label>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
@@ -533,7 +611,7 @@ export default function PresensiPage() {
                   </thead>
                   <tbody className="divide-y divide-slate-50">
                     {filteredInputList.map(j => {
-                      const isDisabled = !j.can_edit || (isBackdate && !attendanceTime);
+                      const isDisabled = !j.can_edit || (isBackdate && !attendanceTime) || (!user.can_create_kehadiran && !user.can_update_kehadiran);
                       const disabledClass = isDisabled ? 'opacity-50 cursor-not-allowed' : '';
                       const draftItem = attendanceDraft[j.row_key] || { status: 'Tidak Hadir', waktu_presensi: null };
                       const currentStatus = draftItem.status;
@@ -617,7 +695,7 @@ export default function PresensiPage() {
               {/* Mobile Card List View */}
               <div className="block md:hidden divide-y divide-slate-100 bg-white">
                 {filteredInputList.map(j => {
-                  const isDisabled = !j.can_edit || (isBackdate && !attendanceTime);
+                  const isDisabled = !j.can_edit || (isBackdate && !attendanceTime) || (!user.can_create_kehadiran && !user.can_update_kehadiran);
                   const disabledClass = isDisabled ? 'opacity-50 cursor-not-allowed' : '';
                   const draftItem = attendanceDraft[j.row_key] || { status: 'Tidak Hadir', waktu_presensi: null };
                   const currentStatus = draftItem.status;
@@ -703,7 +781,7 @@ export default function PresensiPage() {
       )}
 
       {/* ================================================= TAB LAPORAN ================================================= */}
-      {activeTab === 'laporan' && (
+      {activeTab === 'laporan' && user.can_read_laporan && (
         <div className="flex flex-col gap-6">
           {/* Laporan Filter Bar */}
           <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-5 flex flex-col gap-5">
@@ -740,7 +818,7 @@ export default function PresensiPage() {
               </div>
 
               {/* Filter Desa */}
-              {user.role === 'Super Admin' ? (
+              {user.monitor_all_desas ? (
                 <select 
                   className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 font-bold text-xs cursor-pointer"
                   value={reportDesa}
@@ -754,26 +832,57 @@ export default function PresensiPage() {
                     <option key={d.id} value={d.nama_desa}>{d.nama_desa}</option>
                   ))}
                 </select>
-              ) : null}
+              ) : (
+                <select 
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 font-bold text-xs cursor-pointer"
+                  value={reportDesa}
+                  onChange={(e) => {
+                    setReportDesa(e.target.value);
+                    setReportKelompok('');
+                  }}
+                >
+                  <option value="">Semua Desa Terpantau</option>
+                  {[...locations].filter(d => (user.desas_pantau || []).includes(d.nama_desa)).sort((a, b) => a.nama_desa.localeCompare(b.nama_desa)).map(d => (
+                    <option key={d.id} value={d.nama_desa}>{d.nama_desa}</option>
+                  ))}
+                </select>
+              )}
 
               {/* Filter Kelompok */}
-              {user.role === 'Super Admin' || user.role === 'Admin' ? (
+              {user.monitor_all_kelompoks ? (
                 <select 
                   className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 font-bold text-xs cursor-pointer"
                   value={reportKelompok}
                   onChange={(e) => setReportKelompok(e.target.value)}
                 >
                   <option value="">Semua Kelompok</option>
-                  {(user.role === 'Super Admin'
-                    ? (reportDesa ? (locations.find(d => d.nama_desa === reportDesa)?.kelompoks || []) : locations.flatMap(d => d.kelompoks))
-                    : (locations.find(d => d.nama_desa === user.desa)?.kelompoks || [])
+                  {(reportDesa 
+                    ? (locations.find(d => d.nama_desa === reportDesa)?.kelompoks || []) 
+                    : locations.flatMap(d => d.kelompoks)
                   )
                   .sort((a, b) => a.nama_kelompok.localeCompare(b.nama_kelompok))
                   .map(k => (
                     <option key={k.id} value={k.nama_kelompok}>{k.nama_kelompok}</option>
                   ))}
                 </select>
-              ) : null}
+              ) : (
+                <select 
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 font-bold text-xs cursor-pointer"
+                  value={reportKelompok}
+                  onChange={(e) => setReportKelompok(e.target.value)}
+                >
+                  <option value="">Semua Kelompok Terpantau</option>
+                  {(reportDesa 
+                    ? (locations.find(d => d.nama_desa === reportDesa)?.kelompoks || []) 
+                    : locations.flatMap(d => d.kelompoks)
+                  )
+                  .filter(k => (user.kelompoks_pantau || []).includes(k.nama_kelompok))
+                  .sort((a, b) => a.nama_kelompok.localeCompare(b.nama_kelompok))
+                  .map(k => (
+                    <option key={k.id} value={k.nama_kelompok}>{k.nama_kelompok}</option>
+                  ))}
+                </select>
+              )}
 
               <button 
                 onClick={loadReport} 

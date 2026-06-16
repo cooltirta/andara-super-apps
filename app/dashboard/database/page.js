@@ -89,10 +89,14 @@ export default function DatabasePage() {
       const currentUser = await userRes.json();
       setUser(currentUser);
 
-      if (currentUser.role !== 'Admin' && currentUser.role !== 'Super Admin') {
+      if (!currentUser.can_read_jamaah && !currentUser.can_read_keluarga) {
         showToast("Akses Ditolak: Anda tidak memiliki akses ke Database Jamaah", "error");
         setTimeout(() => router.push('/dashboard'), 1500);
         return;
+      }
+
+      if (!currentUser.can_read_jamaah && currentUser.can_read_keluarga) {
+        setActiveTab('keluarga');
       }
 
       const [jamaahRes, keluargaRes, lokasiRes] = await Promise.all([
@@ -361,7 +365,7 @@ export default function DatabasePage() {
     }
   };
 
-  if (!user || (user.role !== 'Admin' && user.role !== 'Super Admin')) {
+  if (!user || (!user.can_read_jamaah && !user.can_read_keluarga)) {
     return (
       <div className="flex justify-center items-center h-[80vh]">
         <div className="spinner"></div>
@@ -381,7 +385,17 @@ export default function DatabasePage() {
   const associatedJamaahIdsForModal = keluargaList.flatMap(f => f.anggota.map(m => m.jamaah_id));
   const unassociatedJamaahForModal = jamaahList.filter(j => !associatedJamaahIdsForModal.includes(j.id));
 
-  let scopeLabel = user.role === 'Admin' ? ` (Desa ${user.desa})` : '';
+  let scopeLabel = '';
+  if (user) {
+    if (user.monitor_all_desas && user.monitor_all_kelompoks) {
+      scopeLabel = ' (Semua Wilayah)';
+    } else {
+      const monitoredDesas = user.desas_pantau || [];
+      if (monitoredDesas.length > 0) {
+        scopeLabel = ` (Desa: ${monitoredDesas.join(', ')})`;
+      }
+    }
+  }
 
   const filteredKeluarga = keluargaList.filter(f => {
     const searchVal = searchKeluarga.toLowerCase().trim();
@@ -435,41 +449,49 @@ export default function DatabasePage() {
           </p>
         </div>
         <div className="flex items-center gap-2.5">
-          <button id="btn-modal-keluarga" onClick={openKeluargaModal} className="flex items-center gap-2 py-2 px-3.5 font-bold text-xs bg-white border border-slate-200 text-slate-650 hover:bg-slate-50 rounded-lg shadow-sm transition-all">
-            <Home size={14} />
-            <span>Buat Keluarga Baru</span>
-          </button>
-          <button id="btn-modal-jamaah" onClick={() => openJamaahModal()} className="flex items-center gap-2 py-2 px-3.5 font-bold text-xs bg-primary hover:bg-primary-hover text-white rounded-lg shadow-md shadow-primary/10 transition-all">
-            <UserPlus size={14} />
-            <span>Tambah Jamaah</span>
-          </button>
+          {user.can_create_keluarga && (
+            <button id="btn-modal-keluarga" onClick={openKeluargaModal} className="flex items-center gap-2 py-2 px-3.5 font-bold text-xs bg-white border border-slate-200 text-slate-650 hover:bg-slate-50 rounded-lg shadow-sm transition-all">
+              <Home size={14} />
+              <span>Buat Keluarga Baru</span>
+            </button>
+          )}
+          {user.can_create_jamaah && (
+            <button id="btn-modal-jamaah" onClick={() => openJamaahModal()} className="flex items-center gap-2 py-2 px-3.5 font-bold text-xs bg-primary hover:bg-primary-hover text-white rounded-lg shadow-md shadow-primary/10 transition-all">
+              <UserPlus size={14} />
+              <span>Tambah Jamaah</span>
+            </button>
+          )}
         </div>
       </div>
 
       {/* Tabs Menu Navigation */}
       <div className="flex border-b border-slate-100 mb-6 gap-6">
-        <button 
-          className={`py-3 px-1 font-bold text-sm cursor-pointer border-b-2 transition-all ${
-            activeTab === 'jamaah' 
-              ? 'text-primary border-primary' 
-              : 'text-slate-400 border-transparent hover:text-slate-600'
-          }`} 
-          id="tab-jamaah" 
-          onClick={() => setActiveTab('jamaah')}
-        >
-          Daftar Jamaah
-        </button>
-        <button 
-          className={`py-3 px-1 font-bold text-sm cursor-pointer border-b-2 transition-all ${
-            activeTab === 'keluarga' 
-              ? 'text-primary border-primary' 
-              : 'text-slate-400 border-transparent hover:text-slate-600'
-          }`} 
-          id="tab-keluarga" 
-          onClick={() => setActiveTab('keluarga')}
-        >
-          Unit Keluarga
-        </button>
+        {user.can_read_jamaah && (
+          <button 
+            className={`py-3 px-1 font-bold text-sm cursor-pointer border-b-2 transition-all ${
+              activeTab === 'jamaah' 
+                ? 'text-primary border-primary' 
+                : 'text-slate-400 border-transparent hover:text-slate-600'
+            }`} 
+            id="tab-jamaah" 
+            onClick={() => setActiveTab('jamaah')}
+          >
+            Daftar Jamaah
+          </button>
+        )}
+        {user.can_read_keluarga && (
+          <button 
+            className={`py-3 px-1 font-bold text-sm cursor-pointer border-b-2 transition-all ${
+              activeTab === 'keluarga' 
+                ? 'text-primary border-primary' 
+                : 'text-slate-400 border-transparent hover:text-slate-600'
+            }`} 
+            id="tab-keluarga" 
+            onClick={() => setActiveTab('keluarga')}
+          >
+            Unit Keluarga
+          </button>
+        )}
         <button 
           className={`py-3 px-1 font-bold text-sm cursor-pointer border-b-2 transition-all ${
             activeTab === 'statistik' 
@@ -644,12 +666,16 @@ export default function DatabasePage() {
                                <button className="p-1.5 rounded-lg bg-slate-50 hover:bg-teal-550 text-teal-655 hover:text-teal-700 transition-all font-bold text-[10px] cursor-pointer" onClick={() => handleOpenQrModal(j)} title="Cetak Kartu QR">
                                  QR
                                </button>
-                               <button className="p-1.5 rounded-lg bg-slate-50 hover:bg-primary-light text-slate-600 hover:text-primary transition-all cursor-pointer" onClick={() => openJamaahModal(j.id)} title="Edit Data">
-                                 <Edit2 size={13} />
-                               </button>
-                               <button className="p-1.5 rounded-lg bg-red-50 hover:bg-red-500 text-red-500 hover:text-white transition-all cursor-pointer" onClick={() => handleDeleteJamaah(j.id)} title="Hapus Data">
-                                 <Trash2 size={13} />
-                               </button>
+                               {user.can_update_jamaah && (
+                                 <button className="p-1.5 rounded-lg bg-slate-50 hover:bg-primary-light text-slate-600 hover:text-primary transition-all cursor-pointer" onClick={() => openJamaahModal(j.id)} title="Edit Data">
+                                   <Edit2 size={13} />
+                                 </button>
+                               )}
+                               {user.can_delete_jamaah && (
+                                 <button className="p-1.5 rounded-lg bg-red-50 hover:bg-red-500 text-red-500 hover:text-white transition-all cursor-pointer" onClick={() => handleDeleteJamaah(j.id)} title="Hapus Data">
+                                   <Trash2 size={13} />
+                                 </button>
+                               )}
                              </div>
                           </td>
                         </tr>
@@ -721,12 +747,16 @@ export default function DatabasePage() {
                           <button className="py-1.5 px-3 rounded-lg bg-teal-50 hover:bg-teal-500 text-teal-700 hover:text-white border border-teal-100/50 transition-all font-bold text-[10px] cursor-pointer" onClick={() => handleOpenQrModal(j)} title="Cetak Kartu QR">
                             QR Card
                           </button>
-                          <button className="p-2 rounded-lg bg-slate-50 hover:bg-primary-light text-slate-650 hover:text-primary border border-slate-200/50 transition-all cursor-pointer" onClick={() => openJamaahModal(j.id)} title="Edit Data">
-                            <Edit2 size={14} />
-                          </button>
-                          <button className="p-2 rounded-lg bg-red-50 hover:bg-red-500 text-red-550 hover:text-white border border-red-100/30 transition-all cursor-pointer" onClick={() => handleDeleteJamaah(j.id)} title="Hapus Data">
-                            <Trash2 size={14} />
-                          </button>
+                          {user.can_update_jamaah && (
+                            <button className="p-2 rounded-lg bg-slate-50 hover:bg-primary-light text-slate-650 hover:text-primary border border-slate-200/50 transition-all cursor-pointer" onClick={() => openJamaahModal(j.id)} title="Edit Data">
+                              <Edit2 size={14} />
+                            </button>
+                          )}
+                          {user.can_delete_jamaah && (
+                            <button className="p-2 rounded-lg bg-red-50 hover:bg-red-500 text-red-550 hover:text-white border border-red-100/30 transition-all cursor-pointer" onClick={() => handleDeleteJamaah(j.id)} title="Hapus Data">
+                              <Trash2 size={14} />
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -806,9 +836,11 @@ export default function DatabasePage() {
                         {/* Family card Header */}
                         <div className="flex justify-between items-start mb-4 border-b border-slate-100 pb-3">
                           <h4 className="font-bold text-slate-800 text-sm leading-tight">{f.nama_keluarga}</h4>
-                          <button className="text-slate-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-slate-50 transition-all shrink-0 cursor-pointer" onClick={() => handleDeleteKeluarga(f.id)} title="Hapus Unit Keluarga">
-                            <Trash2 size={15} />
-                          </button>
+                          {user.can_delete_keluarga && (
+                            <button className="text-slate-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-slate-50 transition-all shrink-0 cursor-pointer" onClick={() => handleDeleteKeluarga(f.id)} title="Hapus Unit Keluarga">
+                              <Trash2 size={15} />
+                            </button>
+                          )}
                         </div>
                         
                         {/* Members list */}
@@ -837,9 +869,11 @@ export default function DatabasePage() {
                                       <td className="py-2 text-primary font-bold text-[10px] uppercase">{m.kelompok}</td>
                                       <td className="py-2 text-slate-400 text-[10px] font-bold">{m.jenis_anggota}</td>
                                       <td className="py-2 text-right">
-                                        <button className="text-red-500 hover:text-red-700 font-extrabold text-[10px] cursor-pointer" onClick={() => handleRemoveMember(m.anggota_id)} title="Keluarkan dari keluarga">
-                                          Hapus
-                                        </button>
+                                        {user.can_update_keluarga && (
+                                          <button className="text-red-500 hover:text-red-700 font-extrabold text-[10px] cursor-pointer" onClick={() => handleRemoveMember(m.anggota_id)} title="Keluarkan dari keluarga">
+                                            Hapus
+                                          </button>
+                                        )}
                                       </td>
                                     </tr>
                                   );
@@ -851,12 +885,14 @@ export default function DatabasePage() {
                       </div>
                       
                       {/* Actions button */}
-                      <div>
-                        <button className="flex items-center justify-center gap-1.5 w-full py-2 px-3 font-bold text-[10px] bg-slate-50 hover:bg-primary-light text-slate-650 hover:text-primary rounded-lg transition-all border border-slate-100 cursor-pointer" onClick={() => openAddMemberModal(f.id)}>
-                          <Plus size={12} />
-                          <span>Tambah Anggota Keluarga</span>
-                        </button>
-                      </div>
+                      {user.can_update_keluarga && (
+                        <div>
+                          <button className="flex items-center justify-center gap-1.5 w-full py-2 px-3 font-bold text-[10px] bg-slate-50 hover:bg-primary-light text-slate-650 hover:text-primary rounded-lg transition-all border border-slate-100 cursor-pointer" onClick={() => openAddMemberModal(f.id)}>
+                            <Plus size={12} />
+                            <span>Tambah Anggota Keluarga</span>
+                          </button>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -865,6 +901,20 @@ export default function DatabasePage() {
           </>
         ) : (
             <div className="flex flex-col gap-6 animate-fadeIn">
+              {/* Baseline calculation info badge */}
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-start gap-3 text-emerald-850 text-xs font-semibold leading-relaxed">
+                <Info className="w-5 h-5 shrink-0 text-emerald-650 mt-0.5" />
+                <div>
+                  <div className="font-bold text-emerald-950 mb-1">Dasar Perhitungan Statistik:</div>
+                  <p>
+                    {user.monitor_all_desas && user.monitor_all_kelompoks
+                      ? "Statistik mencakup seluruh data jamaah dari semua desa dan kelompok (Semua Terpantau)."
+                      : `Statistik disaring berdasarkan wilayah terpantau Anda: ` +
+                        `Desa: ${user.monitor_all_desas ? 'Semua Desa' : (user.desas_pantau && user.desas_pantau.length > 0 ? user.desas_pantau.join(', ') : 'Tidak ada')}, ` +
+                        `Kelompok: ${user.monitor_all_kelompoks ? 'Semua Kelompok' : (user.kelompoks_pantau && user.kelompoks_pantau.length > 0 ? user.kelompoks_pantau.join(', ') : 'Tidak ada')}.`}
+                  </p>
+                </div>
+              </div>
               {/* Cards Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-5 flex items-center gap-4">

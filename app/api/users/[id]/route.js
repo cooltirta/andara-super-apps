@@ -9,7 +9,7 @@ export async function PUT(request, { params }) {
     return NextResponse.json({ error: "Tidak terautentikasi" }, { status: 401 });
   }
 
-  if (user.role === 'Member') {
+  if (!user.can_update_user) {
     return NextResponse.json({ error: "Akses ditolak" }, { status: 403 });
   }
 
@@ -17,13 +17,9 @@ export async function PUT(request, { params }) {
 
   try {
     const data = await request.json();
-    let role = data.role;
-    let kelompok = data.kelompok;
+    let role = data.role || "Member";
+    let kelompok = data.kelompok || null;
     let desa = data.desa || "Andara";
-
-    if (!role) {
-      return NextResponse.json({ error: "Role wajib dipilih" }, { status: 400 });
-    }
 
     const { rows: targetRows } = await db.query("SELECT * FROM user_profiles WHERE id = $1;", [id]);
     const target = targetRows[0];
@@ -32,29 +28,89 @@ export async function PUT(request, { params }) {
     }
 
     if (target.email === user.email) {
-      return NextResponse.json({ error: "Anda tidak diperbolehkan mengubah role akun Anda sendiri" }, { status: 400 });
+      return NextResponse.json({ error: "Anda tidak diperbolehkan mengubah akses akun Anda sendiri" }, { status: 400 });
     }
 
     if (target.email === "cooltirta@gmail.com") {
-      return NextResponse.json({ error: "Role Super Admin Utama tidak dapat diubah" }, { status: 403 });
+      return NextResponse.json({ error: "Akses Super Admin Utama tidak dapat diubah" }, { status: 403 });
     }
 
-    if (user.role === 'Moderator') {
-      return NextResponse.json({ error: "Moderator tidak diperbolehkan memperbarui data user lain" }, { status: 403 });
-    } else if (user.role === 'Admin') {
-      if (target.desa !== user.desa || ['Admin', 'Super Admin'].includes(target.role)) {
-        return NextResponse.json({ error: "Akses ditolak: User berada di luar wewenang Anda" }, { status: 403 });
+    // Verify updating user's scope for both old (target) and new locations
+    if (!user.monitor_all_desas) {
+      if (!user.desas_pantau || !user.desas_pantau.includes(target.desa)) {
+        return NextResponse.json({ error: `Akses ditolak: User target (Desa '${target.desa}') di luar wilayah terpantau Anda` }, { status: 403 });
       }
-      if (['Admin', 'Super Admin'].includes(role)) {
-        return NextResponse.json({ error: "Admin hanya dapat menetapkan role Member atau Moderator" }, { status: 403 });
+      if (!user.desas_pantau || !user.desas_pantau.includes(desa)) {
+        return NextResponse.json({ error: `Akses ditolak: Desa baru '${desa}' di luar wilayah terpantau Anda` }, { status: 403 });
       }
-      desa = user.desa;
+    }
+    if (!user.monitor_all_kelompoks) {
+      if (target.kelompok && (!user.kelompoks_pantau || !user.kelompoks_pantau.includes(target.kelompok))) {
+        return NextResponse.json({ error: `Akses ditolak: User target (Kelompok '${target.kelompok}') di luar wilayah terpantau Anda` }, { status: 403 });
+      }
+      if (kelompok && (!user.kelompoks_pantau || !user.kelompoks_pantau.includes(kelompok))) {
+        return NextResponse.json({ error: `Akses ditolak: Kelompok baru '${kelompok}' di luar wilayah terpantau Anda` }, { status: 403 });
+      }
     }
 
-    await db.query("UPDATE user_profiles SET role = $1, kelompok = $2, desa = $3 WHERE id = $4;", [
-      role,
-      ['Moderator', 'Admin', 'Member'].includes(role) ? kelompok : null,
-      desa,
+    const monitor_all_desas = !!data.monitor_all_desas;
+    const desas_pantau = data.desas_pantau || [];
+    const monitor_all_kelompoks = !!data.monitor_all_kelompoks;
+    const kelompoks_pantau = data.kelompoks_pantau || [];
+
+    const can_create_jamaah = !!data.can_create_jamaah;
+    const can_read_jamaah = !!data.can_read_jamaah;
+    const can_update_jamaah = !!data.can_update_jamaah;
+    const can_delete_jamaah = !!data.can_delete_jamaah;
+
+    const can_create_keluarga = !!data.can_create_keluarga;
+    const can_read_keluarga = !!data.can_read_keluarga;
+    const can_update_keluarga = !!data.can_update_keluarga;
+    const can_delete_keluarga = !!data.can_delete_keluarga;
+
+    const can_create_kehadiran = !!data.can_create_kehadiran;
+    const can_read_kehadiran = !!data.can_read_kehadiran;
+    const can_update_kehadiran = !!data.can_update_kehadiran;
+    const can_delete_kehadiran = !!data.can_delete_kehadiran;
+
+    const can_read_laporan = !!data.can_read_laporan;
+
+    const can_create_user = !!data.can_create_user;
+    const can_read_user = !!data.can_read_user;
+    const can_update_user = !!data.can_update_user;
+    const can_delete_user = !!data.can_delete_user;
+
+    const can_create_lokasi = !!data.can_create_lokasi;
+    const can_read_lokasi = !!data.can_read_lokasi;
+    const can_update_lokasi = !!data.can_update_lokasi;
+    const can_delete_lokasi = !!data.can_delete_lokasi;
+
+    const can_read_logs = !!data.can_read_logs;
+
+    await db.query(`
+      UPDATE user_profiles SET
+        role = $1, kelompok = $2, desa = $3,
+        monitor_all_desas = $4, desas_pantau = $5,
+        monitor_all_kelompoks = $6, kelompoks_pantau = $7,
+        can_create_jamaah = $8, can_read_jamaah = $9, can_update_jamaah = $10, can_delete_jamaah = $11,
+        can_create_keluarga = $12, can_read_keluarga = $13, can_update_keluarga = $14, can_delete_keluarga = $15,
+        can_create_kehadiran = $16, can_read_kehadiran = $17, can_update_kehadiran = $18, can_delete_kehadiran = $19,
+        can_read_laporan = $20,
+        can_create_user = $21, can_read_user = $22, can_update_user = $23, can_delete_user = $24,
+        can_create_lokasi = $25, can_read_lokasi = $26, can_update_lokasi = $27, can_delete_lokasi = $28,
+        can_read_logs = $29
+      WHERE id = $30;
+    `, [
+      role, kelompok, desa,
+      monitor_all_desas, desas_pantau,
+      monitor_all_kelompoks, kelompoks_pantau,
+      can_create_jamaah, can_read_jamaah, can_update_jamaah, can_delete_jamaah,
+      can_create_keluarga, can_read_keluarga, can_update_keluarga, can_delete_keluarga,
+      can_create_kehadiran, can_read_kehadiran, can_update_kehadiran, can_delete_kehadiran,
+      can_read_laporan,
+      can_create_user, can_read_user, can_update_user, can_delete_user,
+      can_create_lokasi, can_read_lokasi, can_update_lokasi, can_delete_lokasi,
+      can_read_logs,
       id
     ]);
 
@@ -72,7 +128,7 @@ export async function DELETE(request, { params }) {
     return NextResponse.json({ error: "Tidak terautentikasi" }, { status: 401 });
   }
 
-  if (!['Super Admin', 'Admin'].includes(user.role)) {
+  if (!user.can_delete_user) {
     return NextResponse.json({ error: "Akses ditolak" }, { status: 403 });
   }
 
@@ -93,10 +149,12 @@ export async function DELETE(request, { params }) {
       return NextResponse.json({ error: "Akun Super Admin Utama tidak dapat dihapus" }, { status: 403 });
     }
 
-    if (user.role === 'Admin') {
-      if (target.desa !== user.desa || ['Admin', 'Super Admin'].includes(target.role)) {
-        return NextResponse.json({ error: "Akses ditolak: User berada di luar wewenang Anda" }, { status: 403 });
-      }
+    // Verify scope bounds
+    if (!user.monitor_all_desas && (!user.desas_pantau || !user.desas_pantau.includes(target.desa))) {
+      return NextResponse.json({ error: `Akses ditolak: User target (Desa '${target.desa}') di luar wilayah terpantau Anda` }, { status: 403 });
+    }
+    if (target.kelompok && !user.monitor_all_kelompoks && (!user.kelompoks_pantau || !user.kelompoks_pantau.includes(target.kelompok))) {
+      return NextResponse.json({ error: `Akses ditolak: User target (Kelompok '${target.kelompok}') di luar wilayah terpantau Anda` }, { status: 403 });
     }
 
     await db.query("DELETE FROM user_profiles WHERE id = $1;", [id]);
