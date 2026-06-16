@@ -89,22 +89,30 @@ export async function GET(request) {
       return { sql, params, nextIdx: idx };
     }
 
-    // 1. Dapatkan jumlah sesi unik (dikelompokkan per jam untuk menghindari double-count scan instan)
+    // 1. Dapatkan jumlah sesi unik (dihitung sebagai jumlah sesi maksimal per jamaah per hari)
     let dateQuery = `
-      SELECT DISTINCT COALESCE(SUBSTRING(k.waktu_presensi FROM 1 FOR 13), k.tanggal || ' 00') as sesi
-      FROM kehadiran k
-      JOIN jamaah j ON k.jamaah_id = j.id
-      WHERE (
-        (k.waktu_presensi IS NOT NULL AND k.waktu_presensi >= $1 AND k.waktu_presensi <= $2)
-        OR
-        (k.waktu_presensi IS NULL AND k.tanggal >= SUBSTRING($1 FROM 1 FOR 10) AND k.tanggal <= SUBSTRING($2 FROM 1 FOR 10))
-      )
+      WITH ranked_kehadiran AS (
+        SELECT 
+          k.tanggal,
+          ROW_NUMBER() OVER (PARTITION BY k.tanggal, k.jamaah_id ORDER BY k.waktu_presensi ASC, k.id ASC) as rn
+        FROM kehadiran k
+        JOIN jamaah j ON k.jamaah_id = j.id
+        WHERE (
+          (k.waktu_presensi IS NOT NULL AND k.waktu_presensi >= $1 AND k.waktu_presensi <= $2)
+          OR
+          (k.waktu_presensi IS NULL AND k.tanggal >= SUBSTRING($1 FROM 1 FOR 10) AND k.tanggal <= SUBSTRING($2 FROM 1 FOR 10))
+        )
     `;
     const { sql: condSqlDates, params: condParamsDates } = buildConditions(3);
     dateQuery += condSqlDates;
+    dateQuery += `
+      )
+      SELECT COALESCE(COUNT(DISTINCT (tanggal, rn)), 0)::int as total_sessions
+      FROM ranked_kehadiran;
+    `;
     const dateParams = [startDate, endDate, ...condParamsDates];
     const { rows: dates } = await db.query(dateQuery, dateParams);
-    const totalSessions = dates.length;
+    const totalSessions = dates[0]?.total_sessions || 0;
 
     // 2. Dapatkan total agregat Hadir, Ijin, Tidak Hadir (Secara Distinct per Jamaah)
     let statsQuery = `
@@ -214,7 +222,7 @@ export async function GET(request) {
     const groupParams = [startDate, endDate, ...condParamsGroup];
     const { rows: groupStatsList } = await db.query(groupQuery, groupParams);
 
-    // 4. Rekapitulasi per jamaah (tabel detail - dihitung distinct per sesi jam)
+    // 4. Rekapitulasi per jamaah (tabel detail - dihitung berdasarkan total status)
     let jamaahQuery = `
       SELECT 
         j.id as jamaah_id, 
@@ -222,8 +230,8 @@ export async function GET(request) {
         j.desa, 
         j.kelompok, 
         j.jenis_kelamin,
-        COALESCE(COUNT(DISTINCT CASE WHEN k.status = 'Hadir' THEN COALESCE(SUBSTRING(k.waktu_presensi FROM 1 FOR 13), k.tanggal || ' 00') END), 0) as hadir,
-        COALESCE(COUNT(DISTINCT CASE WHEN k.status = 'Ijin' THEN COALESCE(SUBSTRING(k.waktu_presensi FROM 1 FOR 13), k.tanggal || ' 00') END), 0) as ijin
+        COALESCE(SUM(CASE WHEN k.status = 'Hadir' THEN 1 ELSE 0 END), 0) as hadir,
+        COALESCE(SUM(CASE WHEN k.status = 'Ijin' THEN 1 ELSE 0 END), 0) as ijin
       FROM jamaah j
       LEFT JOIN kehadiran k ON j.id = k.jamaah_id 
         AND (
