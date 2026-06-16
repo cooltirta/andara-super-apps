@@ -64,43 +64,46 @@ export async function GET(request) {
       presenceMap[p.jamaah_id].push(p);
     });
 
-    // 3. Bangun daftar baris hasil (setiap jamaah = semua record terdaftar + 1 standby)
+    // Helper local check to avoid N+1 database queries
+    function checkCanModifyAttendanceLocal(jamaah, user) {
+      if (!user) return false;
+      if (!user.can_create_kehadiran && !user.can_update_kehadiran && !user.can_delete_kehadiran) {
+        return false;
+      }
+      if (!user.monitor_all_desas) {
+        if (!user.desas_pantau || !user.desas_pantau.includes(jamaah.desa)) {
+          return false;
+        }
+      }
+      if (!user.monitor_all_kelompoks) {
+        if (!user.kelompoks_pantau || !user.kelompoks_pantau.includes(jamaah.kelompok)) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    // 3. Bangun daftar structured (1 item per jamaah)
     const resultList = [];
     for (const j of jamaahs) {
       const jPresences = presenceMap[j.jamaah_id] || [];
-
-      // A. Masukkan semua record kehadiran yang sudah ada
-      for (const p of jPresences) {
-        const mockPresence = {
-          jamaah_id: j.jamaah_id,
-          recorded_by: p.recorded_by
-        };
-        const canEdit = (await canModifyAttendance(mockPresence, user)) ? 1 : 0;
-        resultList.push({
-          ...j,
+      const canEdit = checkCanModifyAttendanceLocal(j, user) ? 1 : 0;
+      
+      resultList.push({
+        jamaah_id: j.jamaah_id,
+        nama_lengkap: j.nama_lengkap,
+        desa: j.desa,
+        kelompok: j.kelompok,
+        jenis_kelamin: j.jenis_kelamin,
+        kategori: j.kategori,
+        status_pernikahan: j.status_pernikahan,
+        can_edit: canEdit,
+        presences: jPresences.map(p => ({
           kehadiran_id: p.kehadiran_id,
           status: p.status,
           waktu_presensi: p.waktu_presensi,
-          recorded_by: p.recorded_by,
-          can_edit: canEdit,
-          row_key: p.kehadiran_id
-        });
-      }
-
-      // B. Tambahkan 1 baris kosong standby (absen default, waktu kosong)
-      const mockStandby = {
-        jamaah_id: j.jamaah_id,
-        recorded_by: user.email
-      };
-      const canEditStandby = (await canModifyAttendance(mockStandby, user)) ? 1 : 0;
-      resultList.push({
-        ...j,
-        kehadiran_id: null,
-        status: 'Tidak Hadir',
-        waktu_presensi: null,
-        recorded_by: null,
-        can_edit: canEditStandby,
-        row_key: `${j.jamaah_id}_standby`
+          recorded_by: p.recorded_by
+        }))
       });
     }
 

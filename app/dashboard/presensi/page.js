@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Calendar, Search, Users, CheckCircle, AlertTriangle, Info, Clock, Download, RefreshCw, Trash2 } from 'lucide-react';
+import { Calendar, Search, Users, CheckCircle, AlertTriangle, Info, Clock, Download, RefreshCw, Trash2, X } from 'lucide-react';
 
 export default function PresensiPage() {
   const router = useRouter();
@@ -114,7 +114,7 @@ export default function PresensiPage() {
     loadUser();
   }, []);
 
-  // 2. Load Data Kehadiran ketika Tanggal berubah
+  // 2. Load Data Kehadiran ketika Tanggal berubah (Struktur Sesi nested)
   const loadInputAttendance = async () => {
     if (!selectedDate || !user) return;
     setLoadingInput(true);
@@ -126,12 +126,27 @@ export default function PresensiPage() {
 
       const initialDraft = {};
       data.forEach(j => {
-        initialDraft[j.row_key] = {
-          kehadiran_id: j.kehadiran_id,
-          jamaah_id: j.jamaah_id,
-          status: j.status || 'Tidak Hadir',
-          waktu_presensi: j.waktu_presensi || null
-        };
+        if (j.presences && j.presences.length > 0) {
+          j.presences.forEach(p => {
+            initialDraft[p.kehadiran_id] = {
+              kehadiran_id: p.kehadiran_id,
+              jamaah_id: j.jamaah_id,
+              status: p.status,
+              waktu_presensi: p.waktu_presensi,
+              recorded_by: p.recorded_by
+            };
+          });
+        } else {
+          // Add default standby row
+          const standbyKey = `${j.jamaah_id}_standby`;
+          initialDraft[standbyKey] = {
+            kehadiran_id: null,
+            jamaah_id: j.jamaah_id,
+            status: 'Tidak Hadir',
+            waktu_presensi: null,
+            recorded_by: null
+          };
+        }
       });
       setAttendanceDraft(initialDraft);
     } catch (err) {
@@ -165,7 +180,7 @@ export default function PresensiPage() {
   const handleUpdateStatus = (rowKey, status, jamaahId) => {
     setAttendanceDraft(prev => {
       const current = prev[rowKey] || {
-        kehadiran_id: rowKey.endsWith('_standby') ? null : rowKey,
+        kehadiran_id: (rowKey.endsWith('_standby') || rowKey.includes('_new_')) ? null : rowKey,
         jamaah_id: jamaahId,
         status: 'Tidak Hadir',
         waktu_presensi: null
@@ -193,6 +208,30 @@ export default function PresensiPage() {
           waktu_presensi: waktu
         }
       };
+    });
+  };
+
+  // Tambah Sesi Kehadiran Baru untuk Jamaah
+  const handleAddNewPresence = (jamaahId) => {
+    const newKey = `${jamaahId}_new_${Date.now()}`;
+    setAttendanceDraft(prev => ({
+      ...prev,
+      [newKey]: {
+        kehadiran_id: null,
+        jamaah_id: jamaahId,
+        status: 'Tidak Hadir',
+        waktu_presensi: null,
+        recorded_by: user.email
+      }
+    }));
+  };
+
+  // Hapus Draft Sesi Tambahan
+  const handleRemoveDraftRow = (rowKey) => {
+    setAttendanceDraft(prev => {
+      const copy = { ...prev };
+      delete copy[rowKey];
+      return copy;
     });
   };
 
@@ -404,7 +443,7 @@ export default function PresensiPage() {
               >
                 <RefreshCw size={14} className={loadingInput ? "animate-spin" : ""} />
               </button>
-              {user.can_delete_kehadiran && jamaahList.some(j => j.kehadiran_id !== null) && (
+              {user.can_delete_kehadiran && jamaahList.some(j => j.presences && j.presences.length > 0) && (
                 <button
                   onClick={handleDeleteAttendance}
                   disabled={loadingSubmit}
@@ -606,32 +645,17 @@ export default function PresensiPage() {
                       <th className="px-6 py-4">Kelompok</th>
                       <th className="px-6 py-4">Gender</th>
                       <th className="px-6 py-4">Kategori</th>
-                      <th className="px-6 py-4 text-center" style={{ width: '300px' }}>Status Kehadiran</th>
+                      <th className="px-6 py-4 text-center" style={{ width: '340px' }}>Status Kehadiran</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
                     {filteredInputList.map(j => {
-                      const isDisabled = !j.can_edit || (isBackdate && !attendanceTime) || (!user.can_create_kehadiran && !user.can_update_kehadiran);
-                      const disabledClass = isDisabled ? 'opacity-50 cursor-not-allowed' : '';
-                      const draftItem = attendanceDraft[j.row_key] || { status: 'Tidak Hadir', waktu_presensi: null };
-                      const currentStatus = draftItem.status;
-                      const waktuPresensi = draftItem.waktu_presensi;
+                      const draftEntries = Object.entries(attendanceDraft).filter(([key, val]) => val.jamaah_id === j.jamaah_id);
                       
                       return (
-                        <tr key={j.row_key} className="hover:bg-slate-50/50 transition-colors text-xs font-semibold text-slate-650">
+                        <tr key={j.jamaah_id} className="hover:bg-slate-50/50 transition-colors text-xs font-semibold text-slate-650">
                           <td className="px-6 py-4.5 font-bold text-slate-800">
                             <div>{j.nama_lengkap}</div>
-                            {waktuPresensi && (
-                              <div className="text-[10px] text-slate-400 font-bold mt-0.5 flex items-center gap-1">
-                                <Clock size={10} />
-                                <span>{waktuPresensi.split(' ')[1] || waktuPresensi}</span>
-                              </div>
-                            )}
-                            {j.kehadiran_id === null && (
-                              <div className="text-[9px] text-primary/70 font-bold mt-0.5 uppercase tracking-wide">
-                                Standby (Baru)
-                              </div>
-                            )}
                           </td>
                           <td className="px-6 py-4.5 text-primary">{j.desa}</td>
                           <td className="px-6 py-4.5">
@@ -646,43 +670,83 @@ export default function PresensiPage() {
                             </span>
                           </td>
                           <td className="px-6 py-4.5">
-                            <div className="flex justify-center">
-                              {/* 3-State Toggle Group */}
-                              <div className={`flex bg-slate-100 p-1 rounded-lg border border-slate-200/60 w-[260px] ${disabledClass}`}>
+                            <div className="flex flex-col gap-2.5 my-1">
+                              {draftEntries.map(([rowKey, draftItem]) => {
+                                const isDisabled = !j.can_edit || (isBackdate && !attendanceTime) || (!user.can_create_kehadiran && !user.can_update_kehadiran);
+                                const disabledClass = isDisabled ? 'opacity-50 cursor-not-allowed' : '';
+                                const currentStatus = draftItem.status;
+                                const waktuPresensi = draftItem.waktu_presensi;
+                                const isNewRow = rowKey.includes('_new_') || rowKey.endsWith('_standby');
+                                
+                                return (
+                                  <div key={rowKey} className="flex items-center gap-2 justify-center">
+                                    {/* 3-State Toggle Group */}
+                                    <div className={`flex bg-slate-100 p-1 rounded-lg border border-slate-200/60 w-[240px] ${disabledClass}`}>
+                                      <button 
+                                        className={`flex-1 text-center py-1.5 text-[9px] font-extrabold uppercase rounded-md transition-all focus:outline-none ${
+                                          currentStatus === 'Hadir' 
+                                            ? 'bg-pastel-green-solid text-white shadow-sm shadow-pastel-green-solid/20' 
+                                            : 'text-slate-500 hover:text-slate-700'
+                                        }`} 
+                                        disabled={isDisabled}
+                                        onClick={() => handleUpdateStatus(rowKey, 'Hadir', j.jamaah_id)}
+                                      >
+                                        Hadir
+                                      </button>
+                                      <button 
+                                        className={`flex-1 text-center py-1.5 text-[9px] font-extrabold uppercase rounded-md transition-all focus:outline-none ${
+                                          currentStatus === 'Ijin' 
+                                            ? 'bg-pastel-yellow-solid text-pastel-yellow-text shadow-sm shadow-pastel-yellow-solid/20' 
+                                            : 'text-slate-500 hover:text-slate-700'
+                                        }`} 
+                                        disabled={isDisabled}
+                                        onClick={() => handleUpdateStatus(rowKey, 'Ijin', j.jamaah_id)}
+                                      >
+                                        Ijin
+                                      </button>
+                                      <button 
+                                        className={`flex-1 text-center py-1.5 text-[9px] font-extrabold uppercase rounded-md transition-all focus:outline-none ${
+                                          currentStatus === 'Tidak Hadir' 
+                                            ? 'bg-pastel-red-solid text-white shadow-sm shadow-pastel-red-solid/20' 
+                                            : 'text-slate-500 hover:text-slate-700'
+                                        }`} 
+                                        disabled={isDisabled}
+                                        onClick={() => handleUpdateStatus(rowKey, 'Tidak Hadir', j.jamaah_id)}
+                                      >
+                                        Absen
+                                      </button>
+                                    </div>
+
+                                    {/* Timestamp or New Flag */}
+                                    {waktuPresensi ? (
+                                      <span className="text-[10px] text-slate-400 font-bold bg-slate-50 px-2 py-1 rounded border border-slate-100 flex items-center gap-1 shrink-0" title={`Pencatat: ${draftItem.recorded_by || '-'}`}>
+                                        <Clock size={10} />
+                                        <span>{(waktuPresensi.split(' ')[1] || waktuPresensi).substring(0, 5)}</span>
+                                      </span>
+                                    ) : (
+                                      isNewRow && rowKey.includes('_new_') ? (
+                                        <button 
+                                          onClick={() => handleRemoveDraftRow(rowKey)}
+                                          className="p-1 rounded text-red-500 hover:bg-red-50 hover:text-red-700 transition-colors"
+                                          title="Batalkan Sesi Baru"
+                                        >
+                                          <X size={14} />
+                                        </button>
+                                      ) : null
+                                    )}
+                                  </div>
+                                );
+                              })}
+                              
+                              {/* Tambah Kehadiran Button */}
+                              {j.can_edit && (user.can_create_kehadiran || user.can_update_kehadiran) && (
                                 <button 
-                                  className={`flex-1 text-center py-1.5 text-[9px] font-extrabold uppercase rounded-md transition-all focus:outline-none ${
-                                    currentStatus === 'Hadir' 
-                                      ? 'bg-pastel-green-solid text-white shadow-sm shadow-pastel-green-solid/20' 
-                                      : 'text-slate-500 hover:text-slate-700'
-                                  }`} 
-                                  disabled={isDisabled}
-                                  onClick={() => handleUpdateStatus(j.row_key, 'Hadir', j.jamaah_id)}
+                                  onClick={() => handleAddNewPresence(j.jamaah_id)}
+                                  className="self-center text-[9px] font-extrabold uppercase text-primary hover:text-primary-hover flex items-center gap-1 mt-1 transition-colors"
                                 >
-                                  Hadir
+                                  + Tambah Kehadiran
                                 </button>
-                                <button 
-                                  className={`flex-1 text-center py-1.5 text-[9px] font-extrabold uppercase rounded-md transition-all focus:outline-none ${
-                                    currentStatus === 'Ijin' 
-                                      ? 'bg-pastel-yellow-solid text-pastel-yellow-text shadow-sm shadow-pastel-yellow-solid/20' 
-                                      : 'text-slate-500 hover:text-slate-700'
-                                  }`} 
-                                  disabled={isDisabled}
-                                  onClick={() => handleUpdateStatus(j.row_key, 'Ijin', j.jamaah_id)}
-                                >
-                                  Ijin
-                                </button>
-                                <button 
-                                  className={`flex-1 text-center py-1.5 text-[9px] font-extrabold uppercase rounded-md transition-all focus:outline-none ${
-                                    currentStatus === 'Tidak Hadir' 
-                                      ? 'bg-pastel-red-solid text-white shadow-sm shadow-pastel-red-solid/20' 
-                                      : 'text-slate-500 hover:text-slate-700'
-                                  }`} 
-                                  disabled={isDisabled}
-                                  onClick={() => handleUpdateStatus(j.row_key, 'Tidak Hadir', j.jamaah_id)}
-                                >
-                                  Absen
-                                </button>
-                              </div>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -695,33 +759,19 @@ export default function PresensiPage() {
               {/* Mobile Card List View */}
               <div className="block md:hidden divide-y divide-slate-100 bg-white">
                 {filteredInputList.map(j => {
-                  const isDisabled = !j.can_edit || (isBackdate && !attendanceTime) || (!user.can_create_kehadiran && !user.can_update_kehadiran);
-                  const disabledClass = isDisabled ? 'opacity-50 cursor-not-allowed' : '';
-                  const draftItem = attendanceDraft[j.row_key] || { status: 'Tidak Hadir', waktu_presensi: null };
-                  const currentStatus = draftItem.status;
-                  const waktuPresensi = draftItem.waktu_presensi;
+                  const draftEntries = Object.entries(attendanceDraft).filter(([key, val]) => val.jamaah_id === j.jamaah_id);
                   
                   return (
-                    <div key={j.row_key} className="p-4 flex flex-col gap-3.5 hover:bg-slate-50/30 transition-colors">
+                    <div key={j.jamaah_id} className="p-4 flex flex-col gap-3.5 hover:bg-slate-50/30 transition-colors">
                       {/* Name & Badges */}
                       <div className="flex justify-between items-start gap-2">
                         <div className="flex flex-col gap-0.5 min-w-0">
                           <span className="text-sm font-bold text-slate-800 truncate">
                             {j.nama_lengkap}
-                            {waktuPresensi && (
-                              <span className="text-[10px] text-slate-400 font-semibold ml-1.5">
-                                ({waktuPresensi.split(' ')[1] || waktuPresensi})
-                              </span>
-                            )}
                           </span>
                           <span className="text-[10px] text-slate-400 font-semibold">
                             {j.desa} &bull; {j.kelompok}
                           </span>
-                          {j.kehadiran_id === null && (
-                            <span className="text-[8px] text-primary/80 font-bold uppercase tracking-wide mt-0.5">
-                              Standby (Baru)
-                            </span>
-                          )}
                         </div>
                         <div className="flex gap-1.5 shrink-0">
                           <span className="inline-block px-2 py-0.5 rounded-full bg-slate-50 text-slate-500 border border-slate-200/50 font-bold text-[9px] uppercase">
@@ -733,43 +783,85 @@ export default function PresensiPage() {
                         </div>
                       </div>
 
-                      {/* Attendance Buttons */}
-                      <div className="flex justify-center w-full">
-                        <div className={`flex bg-slate-100 p-1 rounded-xl border border-slate-200/60 w-full ${disabledClass}`}>
+                      {/* Attendance Buttons Stack */}
+                      <div className="flex flex-col gap-3 w-full">
+                        {draftEntries.map(([rowKey, draftItem]) => {
+                          const isDisabled = !j.can_edit || (isBackdate && !attendanceTime) || (!user.can_create_kehadiran && !user.can_update_kehadiran);
+                          const disabledClass = isDisabled ? 'opacity-50 cursor-not-allowed' : '';
+                          const currentStatus = draftItem.status;
+                          const waktuPresensi = draftItem.waktu_presensi;
+                          const isNewRow = rowKey.includes('_new_') || rowKey.endsWith('_standby');
+                          
+                          return (
+                            <div key={rowKey} className="flex flex-col gap-1.5 bg-slate-50/40 p-2.5 rounded-xl border border-slate-100">
+                              <div className="flex justify-between items-center text-[9px] font-bold text-slate-400">
+                                <span>
+                                  {waktuPresensi ? (
+                                    <span className="flex items-center gap-1 text-slate-500 font-bold">
+                                      <Clock size={10} />
+                                      <span>Tercatat: {(waktuPresensi.split(' ')[1] || waktuPresensi).substring(0, 5)}</span>
+                                    </span>
+                                  ) : (
+                                    <span className="text-primary/80 font-bold">SESI BARU (STANDBY)</span>
+                                  )}
+                                </span>
+                                {isNewRow && rowKey.includes('_new_') && (
+                                  <button 
+                                    onClick={() => handleRemoveDraftRow(rowKey)}
+                                    className="text-red-500 hover:text-red-700 transition-colors uppercase tracking-wider font-extrabold"
+                                  >
+                                    Hapus Sesi
+                                  </button>
+                                )}
+                              </div>
+                              <div className={`flex bg-slate-100 p-1 rounded-lg border border-slate-200/60 w-full ${disabledClass}`}>
+                                <button 
+                                  className={`flex-1 text-center py-2 text-[10px] font-extrabold uppercase rounded-lg transition-all focus:outline-none ${
+                                    currentStatus === 'Hadir' 
+                                      ? 'bg-pastel-green-solid text-white shadow-sm shadow-pastel-green-solid/20' 
+                                      : 'text-slate-500 hover:text-slate-700'
+                                  }`} 
+                                  disabled={isDisabled}
+                                  onClick={() => handleUpdateStatus(rowKey, 'Hadir', j.jamaah_id)}
+                                >
+                                  Hadir
+                                </button>
+                                <button 
+                                  className={`flex-1 text-center py-2 text-[10px] font-extrabold uppercase rounded-lg transition-all focus:outline-none ${
+                                    currentStatus === 'Ijin' 
+                                      ? 'bg-pastel-yellow-solid text-pastel-yellow-text shadow-sm shadow-pastel-yellow-solid/20' 
+                                      : 'text-slate-500 hover:text-slate-700'
+                                  }`} 
+                                  disabled={isDisabled}
+                                  onClick={() => handleUpdateStatus(rowKey, 'Ijin', j.jamaah_id)}
+                                >
+                                  Ijin
+                                </button>
+                                <button 
+                                  className={`flex-1 text-center py-2 text-[10px] font-extrabold uppercase rounded-lg transition-all focus:outline-none ${
+                                    currentStatus === 'Tidak Hadir' 
+                                      ? 'bg-pastel-red-solid text-white shadow-sm shadow-pastel-red-solid/20' 
+                                      : 'text-slate-500 hover:text-slate-700'
+                                  }`} 
+                                  disabled={isDisabled}
+                                  onClick={() => handleUpdateStatus(rowKey, 'Tidak Hadir', j.jamaah_id)}
+                                >
+                                  Absen
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                        
+                        {/* Tambah Kehadiran Button */}
+                        {j.can_edit && (user.can_create_kehadiran || user.can_update_kehadiran) && (
                           <button 
-                            className={`flex-1 text-center py-2 text-[10px] font-extrabold uppercase rounded-lg transition-all focus:outline-none ${
-                              currentStatus === 'Hadir' 
-                                ? 'bg-pastel-green-solid text-white shadow-sm shadow-pastel-green-solid/20' 
-                                : 'text-slate-500 hover:text-slate-700'
-                            }`} 
-                            disabled={isDisabled}
-                            onClick={() => handleUpdateStatus(j.row_key, 'Hadir', j.jamaah_id)}
+                            onClick={() => handleAddNewPresence(j.jamaah_id)}
+                            className="w-full py-2 bg-slate-50 border border-dashed border-slate-205 text-primary hover:bg-primary-light hover:border-primary font-bold text-[10px] uppercase rounded-xl transition-all flex items-center justify-center gap-1 cursor-pointer"
                           >
-                            Hadir
+                            + Tambah Kehadiran
                           </button>
-                          <button 
-                            className={`flex-1 text-center py-2 text-[10px] font-extrabold uppercase rounded-lg transition-all focus:outline-none ${
-                              currentStatus === 'Ijin' 
-                                ? 'bg-pastel-yellow-solid text-pastel-yellow-text shadow-sm shadow-pastel-yellow-solid/20' 
-                                : 'text-slate-500 hover:text-slate-700'
-                            }`} 
-                            disabled={isDisabled}
-                            onClick={() => handleUpdateStatus(j.row_key, 'Ijin', j.jamaah_id)}
-                          >
-                            Ijin
-                          </button>
-                          <button 
-                            className={`flex-1 text-center py-2 text-[10px] font-extrabold uppercase rounded-lg transition-all focus:outline-none ${
-                              currentStatus === 'Tidak Hadir' 
-                                ? 'bg-pastel-red-solid text-white shadow-sm shadow-pastel-red-solid/20' 
-                                : 'text-slate-500 hover:text-slate-700'
-                            }`} 
-                            disabled={isDisabled}
-                            onClick={() => handleUpdateStatus(j.row_key, 'Tidak Hadir', j.jamaah_id)}
-                          >
-                            Absen
-                          </button>
-                        </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -969,7 +1061,7 @@ export default function PresensiPage() {
                   </div>
                 </div>
 
-                <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-5 flex items-center gap-4">
+                 <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-5 flex items-center gap-4">
                   <div className="w-10 h-10 rounded-lg bg-pastel-green text-pastel-green-text flex items-center justify-center shrink-0">
                     <CheckCircle size={20} />
                   </div>
@@ -977,7 +1069,7 @@ export default function PresensiPage() {
                     <span className="text-xl font-bold text-pastel-green-text">
                       {reportData.stats.total > 0 ? Math.round((reportData.stats.hadir / reportData.stats.total) * 100) : 0}%
                     </span>
-                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Tingkat Kehadiran</span>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Tingkat Kehadiran ({reportData.stats.hadir} Kali)</span>
                   </div>
                 </div>
 
@@ -987,7 +1079,7 @@ export default function PresensiPage() {
                   </div>
                   <div className="flex flex-col">
                     <span className="text-xl font-bold text-pastel-yellow-text">{reportData.stats.ijin} Kali</span>
-                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Jumlah Ijin</span>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Jumlah Ijin (Excused)</span>
                   </div>
                 </div>
 
@@ -997,7 +1089,94 @@ export default function PresensiPage() {
                   </div>
                   <div className="flex flex-col">
                     <span className="text-xl font-bold text-pastel-red-text">{reportData.stats.tidak_hadir} Kali</span>
-                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Jumlah Absen</span>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Jumlah Absen (Tidak Hadir)</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Demographic Distributions */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 text-left">
+                {/* Gender Distribution */}
+                <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-5">
+                  <h3 className="font-bold text-xs text-slate-500 uppercase tracking-wider mb-4 border-b border-slate-50 pb-2">Distribusi Jenis Kelamin</h3>
+                  <div className="flex flex-col gap-4 text-xs font-semibold">
+                    <div className="flex flex-col gap-1.5 p-2.5 bg-slate-50/50 rounded-lg">
+                      <div className="font-bold text-pastel-green-text mb-1">Hadir</div>
+                      <div className="flex justify-between text-slate-600">
+                        <span>Laki-laki: <strong>{reportData.stats.distribusiGender?.Hadir?.Laki || 0}</strong></span>
+                        <span>Perempuan: <strong>{reportData.stats.distribusiGender?.Hadir?.Perempuan || 0}</strong></span>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-1.5 p-2.5 bg-slate-50/50 rounded-lg">
+                      <div className="font-bold text-pastel-yellow-text mb-1">Ijin</div>
+                      <div className="flex justify-between text-slate-600">
+                        <span>Laki-laki: <strong>{reportData.stats.distribusiGender?.Ijin?.Laki || 0}</strong></span>
+                        <span>Perempuan: <strong>{reportData.stats.distribusiGender?.Ijin?.Perempuan || 0}</strong></span>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-1.5 p-2.5 bg-slate-50/50 rounded-lg">
+                      <div className="font-bold text-pastel-red-text mb-1">Absen</div>
+                      <div className="flex justify-between text-slate-600">
+                        <span>Laki-laki: <strong>{reportData.stats.distribusiGender?.TidakHadir?.Laki || 0}</strong></span>
+                        <span>Perempuan: <strong>{reportData.stats.distribusiGender?.TidakHadir?.Perempuan || 0}</strong></span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Kategori Distribution */}
+                <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-5">
+                  <h3 className="font-bold text-xs text-slate-500 uppercase tracking-wider mb-4 border-b border-slate-50 pb-2">Distribusi Kategori Usia</h3>
+                  <div className="flex flex-col gap-3 max-h-[220px] overflow-y-auto pr-1">
+                    {['Hadir', 'Ijin', 'TidakHadir'].map(statusKey => {
+                      const label = statusKey === 'TidakHadir' ? 'Absen' : statusKey;
+                      const colorClass = statusKey === 'Hadir' ? 'text-pastel-green-text' : statusKey === 'Ijin' ? 'text-pastel-yellow-text' : 'text-pastel-red-text';
+                      const catData = reportData.stats.distribusiKategori?.[statusKey] || {};
+                      const entries = Object.entries(catData);
+                      
+                      return (
+                        <div key={statusKey} className="flex flex-col gap-1.5 p-2.5 bg-slate-50/50 rounded-lg text-xs font-semibold">
+                          <div className={`font-bold ${colorClass} mb-1`}>{label}</div>
+                          <div className="flex flex-wrap gap-x-3 gap-y-1 text-slate-600 text-[10px]">
+                            {entries.length > 0 ? (
+                              entries.map(([catName, count]) => (
+                                <span key={catName}>{catName}: <strong>{count}</strong></span>
+                              ))
+                            ) : (
+                              <span className="text-slate-400 italic">Tidak ada data</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Status Pernikahan Distribution */}
+                <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-5">
+                  <h3 className="font-bold text-xs text-slate-500 uppercase tracking-wider mb-4 border-b border-slate-50 pb-2">Distribusi Status Pernikahan</h3>
+                  <div className="flex flex-col gap-3 max-h-[220px] overflow-y-auto pr-1">
+                    {['Hadir', 'Ijin', 'TidakHadir'].map(statusKey => {
+                      const label = statusKey === 'TidakHadir' ? 'Absen' : statusKey;
+                      const colorClass = statusKey === 'Hadir' ? 'text-pastel-green-text' : statusKey === 'Ijin' ? 'text-pastel-yellow-text' : 'text-pastel-red-text';
+                      const marData = reportData.stats.distribusiStatusPernikahan?.[statusKey] || {};
+                      const entries = Object.entries(marData);
+                      
+                      return (
+                        <div key={statusKey} className="flex flex-col gap-1.5 p-2.5 bg-slate-50/50 rounded-lg text-xs font-semibold">
+                          <div className={`font-bold ${colorClass} mb-1`}>{label}</div>
+                          <div className="flex flex-wrap gap-x-3 gap-y-1 text-slate-600 text-[10px]">
+                            {entries.length > 0 ? (
+                              entries.map(([marName, count]) => (
+                                <span key={marName}>{marName}: <strong>{count}</strong></span>
+                              ))
+                            ) : (
+                              <span className="text-slate-400 italic">Tidak ada data</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </div>

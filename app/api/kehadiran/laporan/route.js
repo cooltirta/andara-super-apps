@@ -94,8 +94,11 @@ export async function GET(request) {
       SELECT DISTINCT COALESCE(SUBSTRING(k.waktu_presensi FROM 1 FOR 13), k.tanggal || ' 00') as sesi
       FROM kehadiran k
       JOIN jamaah j ON k.jamaah_id = j.id
-      WHERE COALESCE(k.waktu_presensi, k.tanggal || ' 00:00:00') >= $1 
-        AND COALESCE(k.waktu_presensi, k.tanggal || ' 23:59:59') <= $2
+      WHERE (
+        (k.waktu_presensi IS NOT NULL AND k.waktu_presensi >= $1 AND k.waktu_presensi <= $2)
+        OR
+        (k.waktu_presensi IS NULL AND k.tanggal >= SUBSTRING($1 FROM 1 FOR 10) AND k.tanggal <= SUBSTRING($2 FROM 1 FOR 10))
+      )
     `;
     const { sql: condSqlDates, params: condParamsDates } = buildConditions(3);
     dateQuery += condSqlDates;
@@ -108,28 +111,74 @@ export async function GET(request) {
       WITH status_per_jamaah AS (
         SELECT 
           j.id as jamaah_id,
+          j.jenis_kelamin,
+          j.kategori,
+          j.status_pernikahan,
           MAX(CASE WHEN k.status = 'Hadir' THEN 3 WHEN k.status = 'Ijin' THEN 2 WHEN k.status = 'Tidak Hadir' THEN 1 ELSE 0 END) as max_status_val
         FROM jamaah j
         LEFT JOIN kehadiran k ON j.id = k.jamaah_id 
-          AND COALESCE(k.waktu_presensi, k.tanggal || ' 00:00:00') >= $1 
-          AND COALESCE(k.waktu_presensi, k.tanggal || ' 23:59:59') <= $2
+          AND (
+            (k.waktu_presensi IS NOT NULL AND k.waktu_presensi >= $1 AND k.waktu_presensi <= $2)
+            OR
+            (k.waktu_presensi IS NULL AND k.tanggal >= SUBSTRING($1 FROM 1 FOR 10) AND k.tanggal <= SUBSTRING($2 FROM 1 FOR 10))
+          )
         WHERE j.status_kehidupan = 'Hidup'
     `;
     const { sql: condSqlStats, params: condParamsStats } = buildConditions(3);
     statsQuery += condSqlStats;
     statsQuery += `
-        GROUP BY j.id
+        GROUP BY j.id, j.jenis_kelamin, j.kategori, j.status_pernikahan
       )
       SELECT 
-        COUNT(*) as total,
-        SUM(CASE WHEN max_status_val = 3 THEN 1 ELSE 0 END) as hadir,
-        SUM(CASE WHEN max_status_val = 2 THEN 1 ELSE 0 END) as ijin,
-        SUM(CASE WHEN max_status_val = 1 OR max_status_val = 0 THEN 1 ELSE 0 END) as tidak_hadir
+        jamaah_id,
+        jenis_kelamin,
+        kategori,
+        status_pernikahan,
+        max_status_val
       FROM status_per_jamaah;
     `;
     const statsParams = [startDate, endDate, ...condParamsStats];
     const { rows: statsRows } = await db.query(statsQuery, statsParams);
-    const overallStats = statsRows[0] || { total: 0, hadir: 0, ijin: 0, tidak_hadir: 0 };
+
+    const overallStats = { total: 0, hadir: 0, ijin: 0, tidak_hadir: 0 };
+    const distGender = {
+      Hadir: { Laki: 0, Perempuan: 0 },
+      Ijin: { Laki: 0, Perempuan: 0 },
+      TidakHadir: { Laki: 0, Perempuan: 0 }
+    };
+    const distKategori = {
+      Hadir: {},
+      Ijin: {},
+      TidakHadir: {}
+    };
+    const distStatusPernikahan = {
+      Hadir: {},
+      Ijin: {},
+      TidakHadir: {}
+    };
+
+    statsRows.forEach(row => {
+      overallStats.total++;
+      let statusKey = 'TidakHadir';
+      if (row.max_status_val === 3) {
+        overallStats.hadir++;
+        statusKey = 'Hadir';
+      } else if (row.max_status_val === 2) {
+        overallStats.ijin++;
+        statusKey = 'Ijin';
+      } else {
+        overallStats.tidak_hadir++;
+      }
+
+      const genderKey = row.jenis_kelamin === 'Laki-laki' ? 'Laki' : 'Perempuan';
+      distGender[statusKey][genderKey]++;
+
+      const kat = row.kategori || 'Lainnya';
+      distKategori[statusKey][kat] = (distKategori[statusKey][kat] || 0) + 1;
+
+      const mar = row.status_pernikahan || 'Belum Menikah';
+      distStatusPernikahan[statusKey][mar] = (distStatusPernikahan[statusKey][mar] || 0) + 1;
+    });
 
     // 3. Dapatkan distribusi kehadiran per kelompok (Secara Distinct per Jamaah)
     let groupQuery = `
@@ -140,8 +189,11 @@ export async function GET(request) {
           MAX(CASE WHEN k.status = 'Hadir' THEN 3 WHEN k.status = 'Ijin' THEN 2 WHEN k.status = 'Tidak Hadir' THEN 1 ELSE 0 END) as max_status_val
         FROM jamaah j
         LEFT JOIN kehadiran k ON j.id = k.jamaah_id 
-          AND COALESCE(k.waktu_presensi, k.tanggal || ' 00:00:00') >= $1 
-          AND COALESCE(k.waktu_presensi, k.tanggal || ' 23:59:59') <= $2
+          AND (
+            (k.waktu_presensi IS NOT NULL AND k.waktu_presensi >= $1 AND k.waktu_presensi <= $2)
+            OR
+            (k.waktu_presensi IS NULL AND k.tanggal >= SUBSTRING($1 FROM 1 FOR 10) AND k.tanggal <= SUBSTRING($2 FROM 1 FOR 10))
+          )
         WHERE j.status_kehidupan = 'Hidup'
     `;
     const { sql: condSqlGroup, params: condParamsGroup } = buildConditions(3);
@@ -174,8 +226,11 @@ export async function GET(request) {
         COALESCE(COUNT(DISTINCT CASE WHEN k.status = 'Ijin' THEN COALESCE(SUBSTRING(k.waktu_presensi FROM 1 FOR 13), k.tanggal || ' 00') END), 0) as ijin
       FROM jamaah j
       LEFT JOIN kehadiran k ON j.id = k.jamaah_id 
-        AND COALESCE(k.waktu_presensi, k.tanggal || ' 00:00:00') >= $1 
-        AND COALESCE(k.waktu_presensi, k.tanggal || ' 23:59:59') <= $2
+        AND (
+          (k.waktu_presensi IS NOT NULL AND k.waktu_presensi >= $1 AND k.waktu_presensi <= $2)
+          OR
+          (k.waktu_presensi IS NULL AND k.tanggal >= SUBSTRING($1 FROM 1 FOR 10) AND k.tanggal <= SUBSTRING($2 FROM 1 FOR 10))
+        )
       WHERE j.status_kehidupan = 'Hidup'
     `;
     const { sql: condSqlJamaah, params: condParamsJamaah } = buildConditions(3);
@@ -212,10 +267,13 @@ export async function GET(request) {
     return NextResponse.json({
       totalSessions,
       stats: {
-        hadir: parseNum(overallStats.hadir),
-        ijin: parseNum(overallStats.ijin),
-        tidak_hadir: parseNum(overallStats.tidak_hadir),
-        total: parseNum(overallStats.total)
+        hadir: overallStats.hadir,
+        ijin: overallStats.ijin,
+        tidak_hadir: overallStats.tidak_hadir,
+        total: overallStats.total,
+        distribusiGender: distGender,
+        distribusiKategori: distKategori,
+        distribusiStatusPernikahan: distStatusPernikahan
       },
       distribusiKelompok: parsedGroupStatsList,
       rekapJamaah: parsedJamaahList
