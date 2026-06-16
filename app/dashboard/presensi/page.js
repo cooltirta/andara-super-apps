@@ -18,6 +18,7 @@ export default function PresensiPage() {
   const [loadingInput, setLoadingInput] = useState(false);
   const [loadingSubmit, setLoadingSubmit] = useState(false);
   const [attendanceDraft, setAttendanceDraft] = useState({});
+  const [initialDraftState, setInitialDraftState] = useState({});
   const [locations, setLocations] = useState([]);
   const [toasts, setToasts] = useState([]);
   
@@ -151,6 +152,7 @@ export default function PresensiPage() {
         }
       });
       setAttendanceDraft(initialDraft);
+      setInitialDraftState(JSON.parse(JSON.stringify(initialDraft)));
     } catch (err) {
       console.error(err);
       showToast(err.message, "error");
@@ -285,15 +287,31 @@ export default function PresensiPage() {
 
     setLoadingSubmit(true);
 
-    const kehadiranPayload = Object.keys(attendanceDraft).map(rowKey => {
-      const draftItem = attendanceDraft[rowKey];
-      return {
-        id: draftItem.kehadiran_id || null,
-        jamaah_id: draftItem.jamaah_id,
-        status: draftItem.status,
-        waktu_presensi: draftItem.waktu_presensi
-      };
-    });
+    const kehadiranPayload = Object.keys(attendanceDraft)
+      .filter(rowKey => {
+        const current = attendanceDraft[rowKey];
+        const initial = initialDraftState[rowKey];
+        // If it didn't exist initially and status is still 'Tidak Hadir', no need to send it
+        if (!initial && current.status === 'Tidak Hadir') return false;
+        // If it did exist initially and isDeleted is true, we need to send it to trigger DELETE
+        if (initial && current.isDeleted) return true;
+        // If it didn't exist initially and status is not 'Tidak Hadir', we need to send it to trigger INSERT
+        if (!initial && current.status !== 'Tidak Hadir') return true;
+        // If it did exist initially, compare status, waktu_presensi, or isDeleted
+        if (initial) {
+          return current.status !== initial.status || current.waktu_presensi !== initial.waktu_presensi || current.isDeleted !== initial.isDeleted;
+        }
+        return false;
+      })
+      .map(rowKey => {
+        const draftItem = attendanceDraft[rowKey];
+        return {
+          id: draftItem.kehadiran_id || null,
+          jamaah_id: draftItem.jamaah_id,
+          status: draftItem.status,
+          waktu_presensi: draftItem.waktu_presensi
+        };
+      });
 
     try {
       const res = await fetch('/api/kehadiran', {

@@ -132,6 +132,49 @@ export async function PUT(request) {
       }
 
       try {
+        // 1. Batch load existing presence rows to be updated
+        const existingIds = kehadiran.filter(k => k.id).map(k => k.id);
+        let existingMap = {};
+        if (existingIds.length > 0) {
+          const { rows: existingRows } = await db.query("SELECT * FROM kehadiran WHERE id = ANY($1);", [existingIds]);
+          existingRows.forEach(r => {
+            existingMap[r.id] = r;
+          });
+        }
+
+        // 2. Gather all unique jamaah_ids involved
+        const jamaahIds = [
+          ...kehadiran.map(k => k.jamaah_id),
+          ...Object.values(existingMap).map(e => e.jamaah_id)
+        ];
+        const uniqueJamaahIds = [...new Set(jamaahIds)];
+        let jamaahMap = {};
+        if (uniqueJamaahIds.length > 0) {
+          const { rows: jamaahRows } = await db.query("SELECT id, nama_lengkap, desa, kelompok FROM jamaah WHERE id = ANY($1);", [uniqueJamaahIds]);
+          jamaahRows.forEach(j => {
+            jamaahMap[j.id] = j;
+          });
+        }
+
+        // Local helper for dynamic permission checks
+        function checkCanModifyLocal(jamaah, user) {
+          if (!user) return false;
+          if (!user.can_create_kehadiran && !user.can_update_kehadiran && !user.can_delete_kehadiran) {
+            return false;
+          }
+          if (!user.monitor_all_desas) {
+            if (!user.desas_pantau || !user.desas_pantau.includes(jamaah.desa)) {
+              return false;
+            }
+          }
+          if (!user.monitor_all_kelompoks) {
+            if (!user.kelompoks_pantau || !user.kelompoks_pantau.includes(jamaah.kelompok)) {
+              return false;
+            }
+          }
+          return true;
+        }
+
         await db.query("BEGIN;");
         try {
           for (const item of kehadiran) {
@@ -145,18 +188,16 @@ export async function PUT(request) {
 
             if (id) {
               // Row exists in database
-              const { rows: existingRows } = await db.query("SELECT * FROM kehadiran WHERE id = $1;", [id]);
-              const existing = existingRows[0];
+              const existing = existingMap[id];
 
               if (existing) {
-                if (!(await canModifyAttendance(existing, user))) {
-                  const { rows: jamaahRows } = await db.query("SELECT nama_lengkap FROM jamaah WHERE id = $1;", [jamaah_id]);
-                  const jamaah = jamaahRows[0];
-                  const nameStr = jamaah ? jamaah.nama_lengkap : jamaah_id;
+                const jamaah = jamaahMap[existing.jamaah_id];
+                if (!jamaah || !checkCanModifyLocal(jamaah, user)) {
+                  const nameStr = jamaah ? jamaah.nama_lengkap : (existing.jamaah_id || id);
                   throw new Error(`Akses ditolak: Anda tidak memiliki wewenang untuk mencatat kehadiran jamaah '${nameStr}'.`);
                 }
 
-                 if (status === 'Tidak Hadir') {
+                if (status === 'Tidak Hadir') {
                   if (!user.can_delete_kehadiran) {
                     throw new Error(`Akses ditolak: Anda tidak memiliki wewenang untuk menghapus presensi.`);
                   }
@@ -187,14 +228,8 @@ export async function PUT(request) {
                 if (!user.can_create_kehadiran) {
                   throw new Error(`Akses ditolak: Anda tidak memiliki wewenang untuk membuat presensi baru.`);
                 }
-                const testPresence = {
-                  jamaah_id: jamaah_id,
-                  recorded_by: user.email
-                };
-
-                if (!(await canModifyAttendance(testPresence, user))) {
-                  const { rows: jamaahRows } = await db.query("SELECT nama_lengkap FROM jamaah WHERE id = $1;", [jamaah_id]);
-                  const jamaah = jamaahRows[0];
+                const jamaah = jamaahMap[jamaah_id];
+                if (!jamaah || !checkCanModifyLocal(jamaah, user)) {
                   const nameStr = jamaah ? jamaah.nama_lengkap : jamaah_id;
                   throw new Error(`Akses ditolak: Anda tidak memiliki wewenang untuk mencatat kehadiran jamaah '${nameStr}'.`);
                 }
