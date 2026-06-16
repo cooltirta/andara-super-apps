@@ -27,6 +27,7 @@ export default function PresensiPage() {
   const [filterDesa, setFilterDesa] = useState('');
   const [filterKelompok, setFilterKelompok] = useState('');
   const [filterGender, setFilterGender] = useState('');
+  const [filterPresenceStatus, setFilterPresenceStatus] = useState('');
   const [filterKategori, setFilterKategori] = useState(['Balita', 'CBR/PAUD', 'Pra Remaja', 'Remaja', 'Pra Nikah', 'Dewasa', 'Lansia']);
   const [inputStatusPernikahan, setInputStatusPernikahan] = useState(['Belum Menikah', 'Menikah', 'Janda', 'Duda']);
 
@@ -415,7 +416,29 @@ export default function PresensiPage() {
     const matchGender = filterGender ? j.jenis_kelamin === filterGender : true;
     const matchKategori = filterKategori.includes(j.kategori);
     const matchStatusPernikahan = inputStatusPernikahan.includes(j.status_pernikahan || 'Belum Menikah');
-    return matchName && matchDesa && matchKelompok && matchGender && matchKategori && matchStatusPernikahan;
+    
+    let matchPresence = true;
+    if (filterPresenceStatus) {
+      const entries = Object.values(attendanceDraft).filter(val => val.jamaah_id === j.jamaah_id && !val.isDeleted);
+      let statusVal = 'Tidak Hadir';
+      if (entries.length > 0) {
+        if (entries.some(e => e.status === 'Hadir')) {
+          statusVal = 'Hadir';
+        } else if (entries.some(e => e.status === 'Ijin')) {
+          statusVal = 'Ijin';
+        }
+      }
+      
+      if (filterPresenceStatus === 'Hadir') {
+        matchPresence = statusVal === 'Hadir';
+      } else if (filterPresenceStatus === 'Ijin') {
+        matchPresence = statusVal === 'Ijin';
+      } else if (filterPresenceStatus === 'Absen') {
+        matchPresence = statusVal === 'Tidak Hadir';
+      }
+    }
+
+    return matchName && matchDesa && matchKelompok && matchGender && matchKategori && matchStatusPernikahan && matchPresence;
   });
 
   return (
@@ -608,13 +631,24 @@ export default function PresensiPage() {
                 )}
 
                 <select 
-                  className="px-2.5 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 font-bold text-[10px] cursor-pointer outline-none focus:border-primary"
+                  className="px-2.5 py-2 rounded-lg border border-slate-200 bg-white text-slate-650 font-bold text-[10px] cursor-pointer outline-none focus:border-primary"
                   value={filterGender}
                   onChange={(e) => setFilterGender(e.target.value)}
                 >
                   <option value="">Semua Gender</option>
                   <option value="Laki-laki">Laki-laki</option>
                   <option value="Perempuan">Perempuan</option>
+                </select>
+
+                <select 
+                  className="px-2.5 py-2 rounded-lg border border-slate-200 bg-white text-slate-655 font-bold text-[10px] cursor-pointer outline-none focus:border-primary"
+                  value={filterPresenceStatus}
+                  onChange={(e) => setFilterPresenceStatus(e.target.value)}
+                >
+                  <option value="">Semua Kehadiran</option>
+                  <option value="Hadir">Hadir</option>
+                  <option value="Ijin">Ijin</option>
+                  <option value="Absen">Absen</option>
                 </select>
               </div>
             </div>
