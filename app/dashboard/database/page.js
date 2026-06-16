@@ -422,19 +422,28 @@ export default function DatabasePage() {
   const femaleCount = statsActiveJamaah.filter(j => j.jenis_kelamin === 'Perempuan').length;
   const totalKeluarga = keluargaList.length;
 
-  const getFreq = (list, key) => {
+  const getFreqWithGender = (list, key) => {
     const freq = {};
     list.forEach(j => {
       const val = j[key] || 'Lainnya';
-      freq[val] = (freq[val] || 0) + 1;
+      if (!freq[val]) {
+        freq[val] = { total: 0, Laki: 0, Perempuan: 0 };
+      }
+      freq[val].total += 1;
+      if (j.jenis_kelamin === 'Laki-laki') {
+        freq[val].Laki += 1;
+      } else if (j.jenis_kelamin === 'Perempuan') {
+        freq[val].Perempuan += 1;
+      }
     });
-    return Object.entries(freq).sort((a, b) => b[1] - a[1]);
+    return Object.entries(freq).sort((a, b) => b[1].total - a[1].total);
   };
 
-  const kategoriStats = getFreq(statsActiveJamaah, 'kategori');
-  const kelompokStats = getFreq(statsActiveJamaah, 'kelompok');
-  const desaStats = getFreq(statsActiveJamaah, 'desa');
-  const pendidikanStats = getFreq(statsActiveJamaah, 'pendidikan_terakhir');
+  const kategoriStats = getFreqWithGender(statsActiveJamaah, 'kategori');
+  const kelompokStats = getFreqWithGender(statsActiveJamaah, 'kelompok');
+  const desaStats = getFreqWithGender(statsActiveJamaah, 'desa');
+  const pendidikanStats = getFreqWithGender(statsActiveJamaah, 'pendidikan_terakhir');
+  const statusPernikahanStats = getFreqWithGender(statsActiveJamaah, 'status_pernikahan');
 
   return (
     <div className="font-sans text-slate-800">
@@ -968,13 +977,13 @@ export default function DatabasePage() {
                 <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-5">
                   <h3 className="font-bold text-xs text-slate-500 uppercase tracking-wider mb-4 border-b border-slate-50 pb-2">Distribusi Kategori Usia</h3>
                   <div className="flex flex-col gap-3">
-                    {kategoriStats.map(([kategori, count]) => {
-                      const pct = totalActive > 0 ? Math.round((count / totalActive) * 100) : 0;
+                    {kategoriStats.map(([kategori, data]) => {
+                      const pct = totalActive > 0 ? Math.round((data.total / totalActive) * 100) : 0;
                       return (
                         <div key={kategori} className="flex flex-col gap-1">
                           <div className="flex justify-between text-xs font-bold text-slate-700">
-                            <span>{kategori}</span>
-                            <span>{count} orang ({pct}%)</span>
+                            <span>{kategori} <span className="text-[9px] text-slate-400 font-bold ml-1.5">(L: {data.Laki} | P: {data.Perempuan})</span></span>
+                            <span>{data.total} orang ({pct}%)</span>
                           </div>
                           <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
                             <div className="bg-primary h-full rounded-full transition-all" style={{ width: `${pct}%` }}></div>
@@ -989,13 +998,13 @@ export default function DatabasePage() {
                 <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-5">
                   <h3 className="font-bold text-xs text-slate-500 uppercase tracking-wider mb-4 border-b border-slate-50 pb-2">Distribusi Pendidikan Terakhir</h3>
                   <div className="flex flex-col gap-3">
-                    {pendidikanStats.map(([edu, count]) => {
-                      const pct = totalActive > 0 ? Math.round((count / totalActive) * 100) : 0;
+                    {pendidikanStats.map(([edu, data]) => {
+                      const pct = totalActive > 0 ? Math.round((data.total / totalActive) * 100) : 0;
                       return (
                         <div key={edu} className="flex flex-col gap-1">
                           <div className="flex justify-between text-xs font-bold text-slate-700">
-                            <span>{edu}</span>
-                            <span>{count} orang ({pct}%)</span>
+                            <span>{edu} <span className="text-[9px] text-slate-400 font-bold ml-1.5">(L: {data.Laki} | P: {data.Perempuan})</span></span>
+                            <span>{data.total} orang ({pct}%)</span>
                           </div>
                           <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
                             <div className="bg-teal-500 h-full rounded-full transition-all" style={{ width: `${pct}%` }}></div>
@@ -1010,13 +1019,13 @@ export default function DatabasePage() {
                 <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-5">
                   <h3 className="font-bold text-xs text-slate-500 uppercase tracking-wider mb-4 border-b border-slate-50 pb-2">Distribusi Per Kelompok</h3>
                   <div className="flex flex-col gap-3">
-                    {kelompokStats.map(([kel, count]) => {
-                      const pct = totalActive > 0 ? Math.round((count / totalActive) * 100) : 0;
+                    {kelompokStats.map(([kel, data]) => {
+                      const pct = totalActive > 0 ? Math.round((data.total / totalActive) * 100) : 0;
                       return (
                         <div key={kel} className="flex flex-col gap-1">
                           <div className="flex justify-between text-xs font-bold text-slate-700">
-                            <span>{kel}</span>
-                            <span>{count} orang ({pct}%)</span>
+                            <span>{kel} <span className="text-[9px] text-slate-400 font-bold ml-1.5">(L: {data.Laki} | P: {data.Perempuan})</span></span>
+                            <span>{data.total} orang ({pct}%)</span>
                           </div>
                           <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
                             <div className="bg-primary-hover h-full rounded-full transition-all" style={{ width: `${pct}%` }}></div>
@@ -1027,22 +1036,43 @@ export default function DatabasePage() {
                   </div>
                 </div>
 
-                {/* Desa & Goldar Distribution */}
+                {/* Desa, Status Pernikahan & Goldar Distribution */}
                 <div className="flex flex-col gap-6">
                   {/* Desa Stats */}
                   <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-5 flex-1">
-                    <h3 className="font-bold text-xs text-slate-500 uppercase tracking-wider mb-4 border-b border-slate-50 pb-2">Distribusi Per Wilayah Desa</h3>
+                    <h3 className="font-bold text-xs text-slate-500 uppercase tracking-wider mb-4 border-b border-slate-50 pb-2">DISTRIBUSI PER DESA</h3>
                     <div className="flex flex-col gap-3">
-                      {desaStats.map(([ds, count]) => {
-                        const pct = totalActive > 0 ? Math.round((count / totalActive) * 100) : 0;
+                      {desaStats.map(([ds, data]) => {
+                        const pct = totalActive > 0 ? Math.round((data.total / totalActive) * 100) : 0;
                         return (
                           <div key={ds} className="flex flex-col gap-1">
                             <div className="flex justify-between text-xs font-bold text-slate-700">
-                              <span>Desa {ds}</span>
-                              <span>{count} orang ({pct}%)</span>
+                              <span>Desa {ds} <span className="text-[9px] text-slate-400 font-bold ml-1.5">(L: {data.Laki} | P: {data.Perempuan})</span></span>
+                              <span>{data.total} orang ({pct}%)</span>
                             </div>
                             <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
                               <div className="bg-emerald-600 h-full rounded-full transition-all" style={{ width: `${pct}%` }}></div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Status Pernikahan Stats */}
+                  <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-5 flex-1">
+                    <h3 className="font-bold text-xs text-slate-500 uppercase tracking-wider mb-4 border-b border-slate-50 pb-2">Distribusi Status Pernikahan</h3>
+                    <div className="flex flex-col gap-3">
+                      {statusPernikahanStats.map(([status, data]) => {
+                        const pct = totalActive > 0 ? Math.round((data.total / totalActive) * 100) : 0;
+                        return (
+                          <div key={status} className="flex flex-col gap-1">
+                            <div className="flex justify-between text-xs font-bold text-slate-700">
+                              <span>{status} <span className="text-[9px] text-slate-400 font-bold ml-1.5">(L: {data.Laki} | P: {data.Perempuan})</span></span>
+                              <span>{data.total} orang ({pct}%)</span>
+                            </div>
+                            <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                              <div className="bg-sky-500 h-full rounded-full transition-all" style={{ width: `${pct}%` }}></div>
                             </div>
                           </div>
                         );
@@ -1056,12 +1086,17 @@ export default function DatabasePage() {
                     <div className="grid grid-cols-5 gap-2 text-center">
                       {['A', 'B', 'AB', 'O', 'Tidak Diketahui'].map(type => {
                         const count = statsActiveJamaah.filter(j => j.golongan_darah === type).length;
+                        const males = statsActiveJamaah.filter(j => j.golongan_darah === type && j.jenis_kelamin === 'Laki-laki').length;
+                        const females = statsActiveJamaah.filter(j => j.golongan_darah === type && j.jenis_kelamin === 'Perempuan').length;
                         const pct = totalActive > 0 ? Math.round((count / totalActive) * 100) : 0;
                         return (
-                          <div key={type} className="border border-slate-100 rounded-xl p-3 bg-slate-50/30">
+                          <div key={type} className="border border-slate-100 rounded-xl p-3 bg-slate-50/30 flex flex-col items-center">
                             <span className="text-[10px] font-black text-slate-500 block mb-1 truncate" title={type}>{type === 'Tidak Diketahui' ? 'N/A' : type}</span>
                             <span className="text-lg font-bold text-slate-800 block">{count}</span>
                             <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mt-1">({pct}%)</span>
+                            <span className="text-[9px] font-semibold text-slate-500 mt-1.5 block border-t border-slate-200/60 pt-1 w-full text-center">
+                              L: {males} | P: {females}
+                            </span>
                           </div>
                         );
                       })}
