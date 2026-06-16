@@ -24,6 +24,10 @@ export default function DatabasePage() {
   const [filterKeluargaDesa, setFilterKeluargaDesa] = useState('');
   const [filterKeluargaKelompok, setFilterKeluargaKelompok] = useState('');
 
+  // Statistik Filters
+  const [filterStatsDesa, setFilterStatsDesa] = useState('');
+  const [filterStatsKelompok, setFilterStatsKelompok] = useState('');
+
   // Modals state
   const [isJamaahModalOpen, setIsJamaahModalOpen] = useState(false);
   const [selectedJamaahId, setSelectedJamaahId] = useState(null); // null means ADD, otherwise EDIT
@@ -415,12 +419,58 @@ export default function DatabasePage() {
     return matchesSearch && matchesDesa && matchesKelompok;
   });
 
+  // Available Desas for statistics filter based on user permissions/monitored scope
+  const availableDesas = (() => {
+    if (!user) return [];
+    if (user.monitor_all_desas) {
+      return [...locations].map(d => d.nama_desa).sort((a, b) => a.localeCompare(b));
+    }
+    return [...(user.desas_pantau || [])].sort((a, b) => a.localeCompare(b));
+  })();
+
+  // Available Kelompoks for statistics filter based on selected desa & user permissions/monitored scope
+  const availableKelompoks = (() => {
+    if (!user) return [];
+    
+    // Find all groups that the user is allowed to monitor in general
+    let allowedKelompoks = [];
+    if (user.monitor_all_kelompoks) {
+      allowedKelompoks = locations
+        .filter(d => user.monitor_all_desas || (user.desas_pantau || []).includes(d.nama_desa))
+        .flatMap(d => d.kelompoks.map(k => k.nama_kelompok));
+    } else {
+      allowedKelompoks = user.kelompoks_pantau || [];
+    }
+
+    // If filterStatsDesa is selected, filter by that village
+    if (filterStatsDesa) {
+      const desaObj = locations.find(d => d.nama_desa === filterStatsDesa);
+      const kelompoksInDesa = desaObj ? (desaObj.kelompoks || []).map(k => k.nama_kelompok) : [];
+      return allowedKelompoks.filter(k => kelompoksInDesa.includes(k)).sort((a, b) => a.localeCompare(b));
+    }
+
+    // Otherwise (no village selected), return all allowed groups
+    return [...new Set(allowedKelompoks)].sort((a, b) => a.localeCompare(b));
+  })();
+
   // Statistik Calculations
-  const statsActiveJamaah = jamaahList.filter(j => j.status_kehidupan === 'Hidup');
+  const statsActiveJamaah = jamaahList.filter(j => {
+    if (j.status_kehidupan !== 'Hidup') return false;
+    if (filterStatsDesa && j.desa !== filterStatsDesa) return false;
+    if (filterStatsKelompok && j.kelompok !== filterStatsKelompok) return false;
+    return true;
+  });
   const totalActive = statsActiveJamaah.length;
   const maleCount = statsActiveJamaah.filter(j => j.jenis_kelamin === 'Laki-laki').length;
   const femaleCount = statsActiveJamaah.filter(j => j.jenis_kelamin === 'Perempuan').length;
-  const totalKeluarga = keluargaList.length;
+  
+  const statsActiveKeluarga = keluargaList.filter(f => {
+    if (filterStatsDesa && !f.anggota.some(m => m.desa === filterStatsDesa)) return false;
+    if (filterStatsKelompok && !f.anggota.some(m => m.kelompok === filterStatsKelompok)) return false;
+    return true;
+  });
+  const totalKeluarga = statsActiveKeluarga.length;
+
 
   const getFreqWithGender = (list, key) => {
     const freq = {};
@@ -922,6 +972,38 @@ export default function DatabasePage() {
                         `Desa: ${user.monitor_all_desas ? 'Semua Desa' : (user.desas_pantau && user.desas_pantau.length > 0 ? user.desas_pantau.join(', ') : 'Tidak ada')}, ` +
                         `Kelompok: ${user.monitor_all_kelompoks ? 'Semua Kelompok' : (user.kelompoks_pantau && user.kelompoks_pantau.length > 0 ? user.kelompoks_pantau.join(', ') : 'Tidak ada')}.`}
                   </p>
+                </div>
+              </div>
+
+              {/* Statistik Filters Dropdown */}
+              <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-3 flex flex-wrap items-center gap-3.5" id="stats-filters-section">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Filter Wilayah Statistik</span>
+                <div className="flex flex-wrap gap-2 sm:ml-auto">
+                  <select 
+                    id="stats-filter-desa" 
+                    className="px-2.5 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 font-bold text-[10px] cursor-pointer outline-none focus:border-primary"
+                    value={filterStatsDesa}
+                    onChange={(e) => {
+                      setFilterStatsDesa(e.target.value);
+                      setFilterStatsKelompok(''); // Reset kelompok when desa changes
+                    }}
+                  >
+                    <option value="">Semua Desa Terpantau</option>
+                    {availableDesas.map(desaName => (
+                      <option key={desaName} value={desaName}>{desaName}</option>
+                    ))}
+                  </select>
+                  <select 
+                    id="stats-filter-kelompok" 
+                    className="px-2.5 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 font-bold text-[10px] cursor-pointer outline-none focus:border-primary"
+                    value={filterStatsKelompok}
+                    onChange={(e) => setFilterStatsKelompok(e.target.value)}
+                  >
+                    <option value="">Semua Kelompok Terpantau</option>
+                    {availableKelompoks.map(kelompokName => (
+                      <option key={kelompokName} value={kelompokName}>{kelompokName}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
               {/* Cards Grid */}
