@@ -70,6 +70,7 @@ export async function POST(request) {
     let kategori = data.kategori || "Dewasa";
     let tanggal_lahir = data.tanggal_lahir || null;
     let status_pernikahan = data.status_pernikahan || "Belum Menikah";
+    let rfid = data.rfid ? data.rfid.trim() : null;
 
     // Validate monitored locations
     if (!user.monitor_all_desas && (!user.desas_pantau || !user.desas_pantau.includes(desa))) {
@@ -87,6 +88,13 @@ export async function POST(request) {
       return NextResponse.json({ error: "Kategori tidak valid" }, { status: 400 });
     }
 
+    if (rfid) {
+      const { rows: existRfid } = await db.query("SELECT id, nama_lengkap FROM jamaah WHERE rfid = $1;", [rfid]);
+      if (existRfid.length > 0) {
+        return NextResponse.json({ error: `Kartu RFID sudah terdaftar pada jamaah '${existRfid[0].nama_lengkap}'.` }, { status: 400 });
+      }
+    }
+
     if (pendidikan_terakhir === "Tidak Sekolah") {
       tanggal_lulus = null;
     }
@@ -98,9 +106,9 @@ export async function POST(request) {
     try {
       // 1. Insert Jamaah
       await db.query(`
-        INSERT INTO jamaah (id, nama_lengkap, jenis_kelamin, tempat_lahir, status_kehidupan, golongan_darah, kelompok, pendidikan_terakhir, tanggal_lulus_pendidikan_terakhir, desa, kategori, tanggal_lahir, status_pernikahan)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13);
-      `, [jamaah_id, nama_lengkap, jenis_kelamin, tempat_lahir, status_kehidupan, golongan_darah, kelompok, pendidikan_terakhir, tanggal_lulus, desa, kategori, tanggal_lahir, status_pernikahan]);
+        INSERT INTO jamaah (id, nama_lengkap, jenis_kelamin, tempat_lahir, status_kehidupan, golongan_darah, kelompok, pendidikan_terakhir, tanggal_lulus_pendidikan_terakhir, desa, kategori, tanggal_lahir, status_pernikahan, rfid)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14);
+      `, [jamaah_id, nama_lengkap, jenis_kelamin, tempat_lahir, status_kehidupan, golongan_darah, kelompok, pendidikan_terakhir, tanggal_lulus, desa, kategori, tanggal_lahir, status_pernikahan, rfid]);
 
       // 2. Fetch distinct dates from kehadiran to sync this new jamaah with past dates
       const { rows: datesRows } = await db.query("SELECT DISTINCT tanggal, recorded_by FROM kehadiran WHERE tanggal IS NOT NULL;");

@@ -18,6 +18,7 @@ export default function DatabasePage() {
   const [filterGender, setFilterGender] = useState('');
   const [filterBlood, setFilterBlood] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [filterMarital, setFilterMarital] = useState('');
   
   // Keluarga Filters
   const [searchKeluarga, setSearchKeluarga] = useState('');
@@ -56,6 +57,20 @@ export default function DatabasePage() {
   // QR Modal state
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const [selectedQrJamaah, setSelectedQrJamaah] = useState(null);
+
+  // RFID Modal state
+  const [isRfidModalOpen, setIsRfidModalOpen] = useState(false);
+  const [selectedRfidJamaah, setSelectedRfidJamaah] = useState(null);
+  const [rfidInputMode, setRfidInputMode] = useState('view'); // 'view' or 'scan'
+  const [rfidValue, setRfidValue] = useState('');
+  const [rfidManualInput, setRfidManualInput] = useState(false);
+  const [rfidSaving, setRfidSaving] = useState(false);
+
+  // CSV Import Modal state
+  const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
+  const [csvPreview, setCsvPreview] = useState([]);
+  const [csvParsedRows, setCsvParsedRows] = useState([]);
+  const [importingCsv, setImportingCsv] = useState(false);
 
   // Toasts
   const [toasts, setToasts] = useState([]);
@@ -187,6 +202,191 @@ export default function DatabasePage() {
   const handleCloseQrModal = () => {
     setIsQrModalOpen(false);
     setSelectedQrJamaah(null);
+  };
+
+  const openRfidModal = (jamaah) => {
+    setSelectedRfidJamaah(jamaah);
+    setRfidValue(jamaah.rfid || '');
+    setRfidInputMode(jamaah.rfid ? 'view' : 'scan');
+    setRfidManualInput(false);
+    setIsRfidModalOpen(true);
+  };
+
+  const closeRfidModal = () => {
+    setIsRfidModalOpen(false);
+    setSelectedRfidJamaah(null);
+    setRfidValue('');
+    setRfidInputMode('view');
+    setRfidManualInput(false);
+  };
+
+  const handleSaveRfid = async (rfidValToSave) => {
+    if (!selectedRfidJamaah) return;
+    setRfidSaving(true);
+    try {
+      const res = await fetch(`/api/jamaah/${selectedRfidJamaah.id}/rfid`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rfid: rfidValToSave })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(data.message, "success");
+        closeRfidModal();
+        loadData();
+      } else {
+        showToast(data.error, "error");
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("Gagal menyimpan RFID", "error");
+    } finally {
+      setRfidSaving(false);
+    }
+  };
+
+  const openCsvModal = () => {
+    setCsvPreview([]);
+    setCsvParsedRows([]);
+    setIsCsvModalOpen(true);
+  };
+
+  const closeCsvModal = () => {
+    setIsCsvModalOpen(false);
+    setCsvPreview([]);
+    setCsvParsedRows([]);
+  };
+
+  const handleCsvFileChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target.result;
+      const parsed = parseCsvString(text);
+      if (parsed.length < 2) {
+        showToast("File CSV kosong atau hanya memiliki header", "error");
+        return;
+      }
+      
+      const headers = parsed[0].map(h => h.trim().toUpperCase());
+      const nameIdx = headers.indexOf('NAMA LENGKAP') !== -1 ? headers.indexOf('NAMA LENGKAP') : (headers.indexOf('NAMA') !== -1 ? headers.indexOf('NAMA') : headers.indexOf('NAMA_LENGKAP'));
+      const genderIdx = headers.indexOf('JENIS KELAMIN') !== -1 ? headers.indexOf('JENIS KELAMIN') : (headers.indexOf('GENDER') !== -1 ? headers.indexOf('GENDER') : headers.indexOf('JENIS_KELAMIN'));
+      
+      if (nameIdx === -1) {
+        showToast("CSV harus memiliki minimal kolom 'Nama Lengkap' atau 'Nama'", "error");
+        return;
+      }
+      
+      const maritalIdx = headers.indexOf('STATUS PERNIKAHAN') !== -1 ? headers.indexOf('STATUS PERNIKAHAN') : headers.indexOf('STATUS_PERNIKAHAN');
+      const birthPlaceIdx = headers.indexOf('TEMPAT LAHIR') !== -1 ? headers.indexOf('TEMPAT LAHIR') : headers.indexOf('TEMPAT_LAHIR');
+      const birthDateIdx = headers.indexOf('TANGGAL LAHIR') !== -1 ? headers.indexOf('TANGGAL LAHIR') : headers.indexOf('TANGGAL_LAHIR');
+      const lifeIdx = headers.indexOf('STATUS KEHIDUPAN') !== -1 ? headers.indexOf('STATUS KEHIDUPAN') : headers.indexOf('STATUS_KEHIDUPAN');
+      const bloodIdx = headers.indexOf('GOLONGAN DARAH') !== -1 ? headers.indexOf('GOLONGAN DARAH') : (headers.indexOf('GOL. DARAH') !== -1 ? headers.indexOf('GOL. DARAH') : headers.indexOf('GOLONGAN_DARAH'));
+      const categoryIdx = headers.indexOf('KATEGORI') !== -1 ? headers.indexOf('KATEGORI') : headers.indexOf('KATEGORI');
+      const eduIdx = headers.indexOf('PENDIDIKAN TERAKHIR') !== -1 ? headers.indexOf('PENDIDIKAN TERAKHIR') : headers.indexOf('PENDIDIKAN_TERAKHIR');
+      const gradIdx = headers.indexOf('TANGGAL LULUS') !== -1 ? headers.indexOf('TANGGAL LULUS') : headers.indexOf('TANGGAL_LULUS');
+      const rfidIdx = headers.indexOf('RFID') !== -1 ? headers.indexOf('RFID') : headers.indexOf('CARD_ID');
+      const desaIdx = headers.indexOf('DESA') !== -1 ? headers.indexOf('DESA') : headers.indexOf('DESA');
+      const kelompokIdx = headers.indexOf('KELOMPOK') !== -1 ? headers.indexOf('KELOMPOK') : headers.indexOf('KELOMPOK');
+
+      const rowsToImport = [];
+      const previewRows = [];
+
+      for (let i = 1; i < parsed.length; i++) {
+        const cols = parsed[i];
+        if (cols.length === 0 || !cols[nameIdx]) continue;
+        
+        const rowData = {
+          nama_lengkap: cols[nameIdx] ? cols[nameIdx].trim() : '',
+          jenis_kelamin: genderIdx !== -1 && cols[genderIdx] ? cols[genderIdx].trim() : '',
+          status_pernikahan: maritalIdx !== -1 && cols[maritalIdx] ? cols[maritalIdx].trim() : '',
+          tempat_lahir: birthPlaceIdx !== -1 && cols[birthPlaceIdx] ? cols[birthPlaceIdx].trim() : '',
+          tanggal_lahir: birthDateIdx !== -1 && cols[birthDateIdx] ? cols[birthDateIdx].trim() : '',
+          status_kehidupan: lifeIdx !== -1 && cols[lifeIdx] ? cols[lifeIdx].trim() : '',
+          golongan_darah: bloodIdx !== -1 && cols[bloodIdx] ? cols[bloodIdx].trim() : '',
+          kategori: categoryIdx !== -1 && cols[categoryIdx] ? cols[categoryIdx].trim() : '',
+          pendidikan_terakhir: eduIdx !== -1 && cols[eduIdx] ? cols[eduIdx].trim() : '',
+          tanggal_lulus_pendidikan_terakhir: gradIdx !== -1 && cols[gradIdx] ? cols[gradIdx].trim() : '',
+          rfid: rfidIdx !== -1 && cols[rfidIdx] ? cols[rfidIdx].trim() : '',
+          desa: desaIdx !== -1 && cols[desaIdx] ? cols[desaIdx].trim() : '',
+          kelompok: kelompokIdx !== -1 && cols[kelompokIdx] ? cols[kelompokIdx].trim() : ''
+        };
+
+        if (rowData.nama_lengkap) {
+          rowsToImport.push(rowData);
+          if (previewRows.length < 5) {
+            previewRows.push(rowData);
+          }
+        }
+      }
+
+      setCsvParsedRows(rowsToImport);
+      setCsvPreview(previewRows);
+    };
+    reader.readAsText(file);
+  };
+
+  const handleConfirmImport = async () => {
+    if (csvParsedRows.length === 0) return;
+    setImportingCsv(true);
+    try {
+      const res = await fetch('/api/jamaah/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rows: csvParsedRows })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(data.message, "success");
+        if (data.errors && data.errors.length > 0) {
+          console.warn("Import warnings:", data.errors);
+        }
+        closeCsvModal();
+        loadData();
+      } else {
+        showToast(data.error, "error");
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("Gagal mengimpor CSV", "error");
+    } finally {
+      setImportingCsv(false);
+    }
+  };
+
+  const parseCsvString = (text) => {
+    const lines = [];
+    let row = [""];
+    let inQuotes = false;
+    
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      const next = text[i+1];
+      if (c === '"') {
+        if (inQuotes && next === '"') {
+          row[row.length - 1] += '"';
+          i++;
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if (c === ',' && !inQuotes) {
+        row.push("");
+      } else if ((c === '\r' || c === '\n') && !inQuotes) {
+        if (c === '\r' && next === '\n') {
+          i++;
+        }
+        lines.push(row);
+        row = [""];
+      } else {
+        row[row.length - 1] += c;
+      }
+    }
+    if (row.length > 1 || row[0] !== "") {
+      lines.push(row);
+    }
+    return lines;
   };
 
   const handleJamaahSubmit = async (e) => {
@@ -383,7 +583,12 @@ export default function DatabasePage() {
     const matchGender = filterGender ? j.jenis_kelamin === filterGender : true;
     const matchBlood = filterBlood ? j.golongan_darah === filterBlood : true;
     const matchStatus = filterStatus ? j.status_kehidupan === filterStatus : true;
-    return matchName && matchKelompok && matchGender && matchBlood && matchStatus;
+    const matchMarital = filterMarital 
+      ? (filterMarital === 'Janda/Duda' 
+          ? (j.status_pernikahan === 'Janda' || j.status_pernikahan === 'Duda') 
+          : j.status_pernikahan === filterMarital)
+      : true;
+    return matchName && matchKelompok && matchGender && matchBlood && matchStatus && matchMarital;
   });
 
   const associatedJamaahIdsForModal = keluargaList.flatMap(f => f.anggota.map(m => m.jamaah_id));
@@ -515,6 +720,12 @@ export default function DatabasePage() {
             </button>
           )}
           {user.can_create_jamaah && (
+            <button id="btn-modal-csv" onClick={openCsvModal} className="flex items-center gap-2 py-2 px-3.5 font-bold text-xs bg-white border border-slate-200 text-slate-650 hover:bg-slate-50 rounded-lg shadow-sm transition-all cursor-pointer">
+              <Download size={14} />
+              <span>Upload CSV</span>
+            </button>
+          )}
+          {user.can_create_jamaah && (
             <button id="btn-modal-jamaah" onClick={() => openJamaahModal()} className="flex items-center gap-2 py-2 px-3.5 font-bold text-xs bg-primary hover:bg-primary-hover text-white rounded-lg shadow-md shadow-primary/10 transition-all">
               <UserPlus size={14} />
               <span>Tambah Jamaah</span>
@@ -625,9 +836,20 @@ export default function DatabasePage() {
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
             >
-              <option value="">Semua Status</option>
+              <option value="">Semua Status Kehidupan</option>
               <option value="Hidup">Hidup</option>
               <option value="Meninggal">Meninggal</option>
+            </select>
+            <select 
+              id="filter-marital" 
+              className="px-2.5 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 font-bold text-[10px] cursor-pointer outline-none focus:border-primary"
+              value={filterMarital}
+              onChange={(e) => setFilterMarital(e.target.value)}
+            >
+              <option value="">Semua Status Pernikahan</option>
+              <option value="Belum Menikah">Belum Menikah</option>
+              <option value="Menikah">Menikah</option>
+              <option value="Janda/Duda">Janda/Duda</option>
             </select>
           </div>
         </div>
@@ -653,7 +875,8 @@ export default function DatabasePage() {
                   <thead>
                     <tr className="bg-slate-50/50 border-b border-slate-150 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                       <th className="px-6 py-4">Nama Lengkap</th>
-                      <th className="px-6 py-4">Gender & Status</th>
+                      <th className="px-6 py-4">Gender</th>
+                      <th className="px-6 py-4">Status Pernikahan</th>
                       <th className="px-6 py-4">Lahir</th>
                       <th className="px-6 py-4">Desa</th>
                       <th className="px-6 py-4">Kelompok</th>
@@ -678,13 +901,11 @@ export default function DatabasePage() {
                               </div>
                             )}
                           </td>
+                          <td className="px-6 py-4 font-bold text-slate-700">{j.jenis_kelamin}</td>
                           <td className="px-6 py-4 leading-tight">
-                            <div className="font-bold text-slate-700">{j.jenis_kelamin}</div>
-                            {j.status_pernikahan && (
-                              <div className="text-[10px] text-slate-400 font-bold mt-0.5">
-                                {j.status_pernikahan}
-                              </div>
-                            )}
+                            <span className="inline-block px-2 py-0.5 rounded bg-slate-100 text-slate-650 font-bold text-[10px]">
+                              {j.status_pernikahan || 'Belum Menikah'}
+                            </span>
                           </td>
                           <td className="px-6 py-4 leading-tight">
                             <div className="font-bold text-slate-700">{j.tempat_lahir || '-'}</div>
@@ -725,6 +946,19 @@ export default function DatabasePage() {
                                <button className="p-1.5 rounded-lg bg-slate-50 hover:bg-teal-550 text-teal-655 hover:text-teal-700 transition-all font-bold text-[10px] cursor-pointer" onClick={() => handleOpenQrModal(j)} title="Cetak Kartu QR">
                                  QR
                                </button>
+                               {user.can_update_jamaah && (
+                                 <button 
+                                    className={`p-1.5 rounded-lg border transition-all font-bold text-[10px] cursor-pointer ${
+                                      j.rfid 
+                                        ? 'bg-emerald-50 text-emerald-600 border-emerald-200/80 hover:bg-emerald-500 hover:text-white' 
+                                        : 'bg-slate-50 text-slate-400 border-slate-200/60 hover:bg-slate-200 hover:text-slate-700'
+                                    }`}
+                                    onClick={() => openRfidModal(j)} 
+                                    title={j.rfid ? `Update RFID (${j.rfid})` : "Registrasi RFID"}
+                                  >
+                                    RFID
+                                  </button>
+                               )}
                                {user.can_update_jamaah && (
                                  <button className="p-1.5 rounded-lg bg-slate-50 hover:bg-primary-light text-slate-600 hover:text-primary transition-all cursor-pointer" onClick={() => openJamaahModal(j.id)} title="Edit Data">
                                    <Edit2 size={13} />
@@ -803,9 +1037,22 @@ export default function DatabasePage() {
                           Lahir: {j.tempat_lahir || '-'}{j.tanggal_lahir ? ` (${new Date(j.tanggal_lahir).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })})` : ''} &bull; {j.status_pernikahan || 'Belum Menikah'}
                         </span>
                         <div className="flex gap-2">
-                          <button className="py-1.5 px-3 rounded-lg bg-teal-50 hover:bg-teal-500 text-teal-700 hover:text-white border border-teal-100/50 transition-all font-bold text-[10px] cursor-pointer" onClick={() => handleOpenQrModal(j)} title="Cetak Kartu QR">
+                          <button className="py-1.5 px-3 rounded-lg bg-teal-50 hover:bg-teal-550 text-teal-755 hover:text-teal-700 transition-all font-bold text-[10px] cursor-pointer" onClick={() => handleOpenQrModal(j)} title="Cetak Kartu QR">
                             QR Card
                           </button>
+                          {user.can_update_jamaah && (
+                            <button 
+                              className={`py-1.5 px-3 rounded-lg border transition-all font-bold text-[10px] cursor-pointer ${
+                                j.rfid 
+                                  ? 'bg-emerald-50 text-emerald-600 border-emerald-150 hover:bg-emerald-500 hover:text-white' 
+                                  : 'bg-slate-50 text-slate-400 border-slate-200/50 hover:bg-slate-200 hover:text-slate-700'
+                              }`} 
+                              onClick={() => openRfidModal(j)} 
+                              title={j.rfid ? `Update RFID (${j.rfid})` : "Registrasi RFID"}
+                            >
+                              RFID
+                            </button>
+                          )}
                           {user.can_update_jamaah && (
                             <button className="p-2 rounded-lg bg-slate-50 hover:bg-primary-light text-slate-650 hover:text-primary border border-slate-200/50 transition-all cursor-pointer" onClick={() => openJamaahModal(j.id)} title="Edit Data">
                               <Edit2 size={14} />
@@ -1627,6 +1874,250 @@ export default function DatabasePage() {
               }
             }
           `}} />
+        </div>
+      )}
+
+      {/* 5. RFID Registration Modal */}
+      {isRfidModalOpen && selectedRfidJamaah && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-sm p-4 animate-fadeIn">
+          <div className="bg-white rounded-xl border border-slate-100 shadow-xl max-w-md w-full animate-scaleIn overflow-hidden">
+            {/* Header */}
+            <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100">
+              <h2 className="text-base font-bold text-slate-800 tracking-tight">Registrasi Kartu RFID</h2>
+              <button className="p-1 rounded-lg text-slate-400 hover:bg-slate-50 hover:text-slate-700 transition-colors" onClick={closeRfidModal}>
+                <X size={18} />
+              </button>
+            </div>
+            
+            {/* Body */}
+            <div className="p-6 text-center">
+              <div className="mb-4">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">NAMA JAMAAH</span>
+                <h3 className="text-base font-black text-slate-800 mt-0.5">{selectedRfidJamaah.nama_lengkap}</h3>
+                <span className="text-[10px] font-bold text-primary block mt-0.5">{selectedRfidJamaah.kelompok} &bull; {selectedRfidJamaah.desa}</span>
+              </div>
+
+              {rfidInputMode === 'view' ? (
+                <div className="flex flex-col items-center gap-4 py-3 animate-fadeIn">
+                  <div className="bg-emerald-50 text-emerald-600 px-5 py-3.5 rounded-2xl border border-emerald-100 inline-flex flex-col items-center gap-1 shadow-sm">
+                    <span className="text-[9px] font-extrabold text-emerald-500 uppercase tracking-widest">KARTU RFID AKTIF</span>
+                    <span className="text-base font-mono font-black tracking-wider">{selectedRfidJamaah.rfid}</span>
+                  </div>
+                  
+                  <div className="flex gap-2 w-full mt-2">
+                    <button 
+                      type="button" 
+                      onClick={() => handleSaveRfid(null)}
+                      disabled={rfidSaving}
+                      className="flex-1 py-2.5 font-bold text-xs bg-red-50 hover:bg-red-100 text-red-650 rounded-xl transition-all border border-red-150 cursor-pointer"
+                    >
+                      Lepas Kartu
+                    </button>
+                    <button 
+                      type="button" 
+                      onClick={() => {
+                        setRfidValue('');
+                        setRfidInputMode('scan');
+                      }}
+                      className="flex-1 py-2.5 font-bold text-xs bg-primary hover:bg-primary-hover text-white rounded-xl shadow-md shadow-primary/10 transition-all cursor-pointer"
+                    >
+                      Ganti Kartu
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-4 py-1 animate-fadeIn">
+                  <div className="flex flex-col items-center gap-2 mb-2">
+                    <div className="w-12 h-12 rounded-full bg-primary-light text-primary flex items-center justify-center animate-pulse">
+                      <Download size={22} className="rotate-180" />
+                    </div>
+                    <p className="text-xs font-bold text-slate-655">Silakan tap kartu RFID pada Reader Anda...</p>
+                    <p className="text-[10px] text-slate-400 font-semibold">Biarkan kursor fokus pada kotak input di bawah.</p>
+                  </div>
+
+                  <form 
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      if (rfidValue.trim()) {
+                        const dup = jamaahList.find(x => x.rfid === rfidValue.trim() && x.id !== selectedRfidJamaah.id);
+                        if (dup) {
+                          showToast(`Gagal: RFID sudah terikat dengan nama '${dup.nama_lengkap}' dari kelompok '${dup.kelompok}'.`, "error");
+                        } else {
+                          handleSaveRfid(rfidValue.trim());
+                        }
+                      }
+                    }}
+                    className="w-full text-left flex flex-col gap-3"
+                  >
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">ID KARTU (RFID UID)</label>
+                      <input 
+                        type="text"
+                        autoFocus
+                        value={rfidValue}
+                        onChange={(e) => setRfidValue(e.target.value)}
+                        placeholder="Menunggu pembaca kartu..."
+                        className="w-full text-center font-mono text-sm font-black tracking-wider px-3 py-2.5 rounded-lg border border-slate-200 focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all outline-none bg-slate-50"
+                        id="rfid-input-capture"
+                        readOnly={!rfidManualInput}
+                      />
+                    </div>
+
+                    {rfidValue && jamaahList.find(x => x.rfid === rfidValue.trim() && x.id !== selectedRfidJamaah.id) && (
+                      <div className="bg-red-50 border border-red-150 rounded-xl p-3 text-left text-[11px] font-semibold text-red-650 flex gap-2">
+                        <AlertTriangle size={16} className="text-red-500 shrink-0 mt-0.5" />
+                        <div>
+                          <span>Kartu ini sudah terikat dengan:</span>
+                          <span className="block font-bold mt-0.5 text-red-800">
+                            {(() => {
+                              const dup = jamaahList.find(x => x.rfid === rfidValue.trim() && x.id !== selectedRfidJamaah.id);
+                              return `${dup.nama_lengkap} (Kelompok: ${dup.kelompok})`;
+                            })()}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex justify-between items-center mt-1">
+                      <button 
+                        type="button" 
+                        onClick={() => setRfidManualInput(!rfidManualInput)}
+                        className="text-[10px] text-primary font-black hover:underline cursor-pointer"
+                      >
+                        {rfidManualInput ? "Gunakan Tap Sensor" : "Ketik Manual ID Kartu"}
+                      </button>
+                    </div>
+
+                    <div className="flex gap-2.5 border-t border-slate-100 pt-4 mt-2">
+                      <button 
+                        type="button" 
+                        className="flex-1 py-2 px-4 font-bold text-xs bg-white border border-slate-200 hover:bg-slate-50 text-slate-650 rounded-lg transition-all cursor-pointer" 
+                        onClick={() => {
+                          if (selectedRfidJamaah.rfid) {
+                            setRfidInputMode('view');
+                            setRfidValue(selectedRfidJamaah.rfid);
+                          } else {
+                            closeRfidModal();
+                          }
+                        }}
+                      >
+                        Batal
+                      </button>
+                      <button 
+                        type="submit" 
+                        disabled={rfidSaving || !rfidValue.trim() || !!jamaahList.find(x => x.rfid === rfidValue.trim() && x.id !== selectedRfidJamaah.id)}
+                        className={`flex-1 py-2 px-4 font-bold text-xs bg-primary hover:bg-primary-hover text-white rounded-lg shadow-md shadow-primary/10 transition-all cursor-pointer ${
+                          (rfidSaving || !rfidValue.trim() || !!jamaahList.find(x => x.rfid === rfidValue.trim() && x.id !== selectedRfidJamaah.id)) ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
+                      >
+                        {rfidSaving ? "Menyimpan..." : "Simpan RFID"}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 6. Bulk CSV Upload Modal */}
+      {isCsvModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-sm p-4 animate-fadeIn">
+          <div className="bg-white rounded-xl border border-slate-100 shadow-xl max-w-2xl w-full animate-scaleIn overflow-hidden">
+            {/* Header */}
+            <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100">
+              <h2 className="text-base font-bold text-slate-800 tracking-tight">Unggah Data Massal (Bulk CSV)</h2>
+              <button className="p-1 rounded-lg text-slate-400 hover:bg-slate-50 hover:text-slate-700 transition-colors" onClick={closeCsvModal}>
+                <X size={18} />
+              </button>
+            </div>
+            
+            {/* Body */}
+            <div className="p-6 flex flex-col gap-5">
+              <div className="bg-slate-50 border border-slate-150 rounded-xl p-4 text-[11px] font-semibold text-slate-600 leading-relaxed text-left">
+                <p className="font-extrabold text-xs text-slate-750 mb-1">Panduan Format Kolom CSV:</p>
+                <ul className="list-disc pl-4 flex flex-col gap-0.5">
+                  <li>Kolom wajib: <span className="text-red-650 font-bold">Nama Lengkap</span> (atau <span className="font-bold text-slate-700">Nama</span>).</li>
+                  <li>Kolom opsional: <span className="font-bold text-slate-700">Jenis Kelamin</span> (L/P), <span className="font-bold text-slate-700">Status Pernikahan</span>, <span className="font-bold text-slate-700">Golongan Darah</span>, <span className="font-bold text-slate-700">Kategori</span> (Balita/Remaja/Dewasa/Lansia), <span className="font-bold text-slate-700">Pendidikan Terakhir</span>, <span className="font-bold text-slate-700">RFID</span>, <span className="font-bold text-slate-700">Desa</span>, <span className="font-bold text-slate-700">Kelompok</span>.</li>
+                  <li>Nilai default otomatis jika dikosongkan:
+                    <ul className="list-disc pl-4 font-bold text-primary flex flex-wrap gap-x-4 mt-0.5">
+                      <li>Status Pernikahan: Belum Menikah</li>
+                      <li>Gol. Darah: Tidak Diketahui</li>
+                      <li>Status Kehidupan: Hidup</li>
+                      <li>Kategori: Dewasa</li>
+                      <li>Pendidikan: Tidak Sekolah</li>
+                    </ul>
+                  </li>
+                </ul>
+              </div>
+
+              {/* Upload Drop Zone */}
+              <div className="border-2 border-dashed border-slate-200 rounded-xl p-6 text-center hover:border-primary transition-all cursor-pointer relative bg-slate-50/50">
+                <input 
+                  type="file"
+                  accept=".csv"
+                  onChange={handleCsvFileChange}
+                  className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                />
+                <div className="flex flex-col items-center gap-2">
+                  <Download className="w-8 h-8 text-slate-400 rotate-180" />
+                  <span className="text-xs font-bold text-slate-700">Pilih atau seret file CSV ke sini</span>
+                  <span className="text-[10px] text-slate-400 font-semibold">Format file wajib CSV sahaja &bull; Ukuran maks 5MB</span>
+                </div>
+              </div>
+
+              {/* Preview Table */}
+              {csvPreview.length > 0 && (
+                <div className="flex flex-col gap-2 text-left">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Pratinjau Data ({csvParsedRows.length} Jamaah Terdeteksi)</span>
+                  <div className="border border-slate-150 rounded-xl overflow-hidden max-h-[160px] overflow-y-auto">
+                    <table className="w-full text-left border-collapse text-[10px] font-semibold text-slate-600">
+                      <thead className="bg-slate-50 border-b border-slate-100 sticky top-0">
+                        <tr className="font-bold text-slate-400 uppercase tracking-widest text-[8.5px] border-b border-slate-150 bg-slate-100">
+                          <th className="px-4 py-2">Nama Lengkap</th>
+                          <th className="px-4 py-2">Gender</th>
+                          <th className="px-4 py-2">Status Nikah</th>
+                          <th className="px-4 py-2">Gol. Darah</th>
+                          <th className="px-4 py-2">Kategori</th>
+                          <th className="px-4 py-2">Desa & Kelompok</th>
+                          <th className="px-4 py-2">RFID</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-50">
+                        {csvPreview.map((row, idx) => (
+                          <tr key={idx} className="hover:bg-slate-50/30">
+                            <td className="px-4 py-2 font-bold text-slate-800">{row.nama_lengkap}</td>
+                            <td className="px-4 py-2">{row.jenis_kelamin || '-'}</td>
+                            <td className="px-4 py-2">{row.status_pernikahan || '-'}</td>
+                            <td className="px-4 py-2">{row.golongan_darah || '-'}</td>
+                            <td className="px-4 py-2">{row.kategori || '-'}</td>
+                            <td className="px-4 py-2">{row.desa ? `${row.desa} (${row.kelompok || ''})` : '-'}</td>
+                            <td className="px-4 py-2 font-mono">{row.rfid || '-'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex justify-end gap-2.5 border-t border-slate-100 pt-4 mt-2">
+                <button type="button" className="py-2 px-4 font-bold text-xs bg-white border border-slate-200 hover:bg-slate-50 text-slate-650 rounded-lg transition-all cursor-pointer" onClick={closeCsvModal}>Batal</button>
+                <button 
+                  type="button" 
+                  disabled={importingCsv || csvParsedRows.length === 0}
+                  onClick={handleConfirmImport}
+                  className={`py-2 px-4 font-bold text-xs bg-primary hover:bg-primary-hover text-white rounded-lg shadow-md shadow-primary/10 transition-all cursor-pointer ${
+                    (importingCsv || csvParsedRows.length === 0) ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                >
+                  {importingCsv ? "Mengimpor..." : `Konfirmasi Import (${csvParsedRows.length} Jamaah)`}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

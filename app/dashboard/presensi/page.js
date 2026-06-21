@@ -458,6 +458,15 @@ export default function PresensiPage() {
             }
           </p>
         </div>
+        {(user.can_create_kehadiran || user.can_update_kehadiran) && (
+          <button 
+            onClick={() => router.push('/dashboard/presensi/rfid')}
+            className="flex items-center gap-2 py-2 px-3.5 font-bold text-xs bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-md shadow-emerald-600/10 transition-all cursor-pointer"
+          >
+            <RefreshCw size={14} className="rotate-90" />
+            <span>Mode Kiosk RFID</span>
+          </button>
+        )}
       </div>
 
       {/* Tabs Navigation */}
