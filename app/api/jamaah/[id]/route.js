@@ -44,6 +44,13 @@ export async function PUT(request, { params }) {
     let tanggal_lahir = data.tanggal_lahir || null;
     let status_pernikahan = data.status_pernikahan || "Belum Menikah";
 
+    // New Fields (with fallback to original if undefined in payload)
+    let status_haji = data.status_haji !== undefined ? data.status_haji : (orig.status_haji || "Belum Haji");
+    let tanggal_keberangkatan_haji = data.tanggal_keberangkatan_haji !== undefined ? data.tanggal_keberangkatan_haji : (orig.tanggal_keberangkatan_haji || null);
+    let suku = data.suku !== undefined ? data.suku : (orig.suku || null);
+    let preferensi_pasangan = data.preferensi_pasangan !== undefined ? data.preferensi_pasangan : (orig.preferensi_pasangan || null);
+    let foto_url = data.foto_url !== undefined ? data.foto_url : (orig.foto_url || null);
+
     // Validate new location changes
     if (!user.monitor_all_desas && (!user.desas_pantau || !user.desas_pantau.includes(desa))) {
       return NextResponse.json({ error: `Akses ditolak: Desa baru '${desa}' di luar desa terpantau Anda` }, { status: 403 });
@@ -60,6 +67,10 @@ export async function PUT(request, { params }) {
       return NextResponse.json({ error: "Kategori tidak valid" }, { status: 400 });
     }
 
+    if (status_haji && !['Belum Haji', 'Sudah Haji', 'Sudah Porsi'].includes(status_haji)) {
+      return NextResponse.json({ error: "Status haji tidak valid" }, { status: 400 });
+    }
+
     if (pendidikan_terakhir === "Tidak Sekolah") {
       tanggal_lulus = null;
     }
@@ -69,9 +80,9 @@ export async function PUT(request, { params }) {
       // 1. Update the jamaah record
       await db.query(`
         UPDATE jamaah 
-        SET nama_lengkap = $1, jenis_kelamin = $2, tempat_lahir = $3, status_kehidupan = $4, golongan_darah = $5, kelompok = $6, pendidikan_terakhir = $7, tanggal_lulus_pendidikan_terakhir = $8, desa = $9, kategori = $10, tanggal_lahir = $11, status_pernikahan = $12
-        WHERE id = $13;
-      `, [nama_lengkap, jenis_kelamin, tempat_lahir, status_kehidupan, golongan_darah, kelompok, pendidikan_terakhir, tanggal_lulus, desa, kategori, tanggal_lahir, status_pernikahan, id]);
+        SET nama_lengkap = $1, jenis_kelamin = $2, tempat_lahir = $3, status_kehidupan = $4, golongan_darah = $5, kelompok = $6, pendidikan_terakhir = $7, tanggal_lulus_pendidikan_terakhir = $8, desa = $9, kategori = $10, tanggal_lahir = $11, status_pernikahan = $12, status_haji = $13, tanggal_keberangkatan_haji = $14, suku = $15, preferensi_pasangan = $16, foto_url = $17
+        WHERE id = $18;
+      `, [nama_lengkap, jenis_kelamin, tempat_lahir, status_kehidupan, golongan_darah, kelompok, pendidikan_terakhir, tanggal_lulus, desa, kategori, tanggal_lahir, status_pernikahan, status_haji, tanggal_keberangkatan_haji, suku, preferensi_pasangan, foto_url, id]);
 
       // 2. Business logic: transition wives to 'Janda' or husband to 'Duda' if status_kehidupan becomes 'Meninggal'
       if (status_kehidupan === 'Meninggal' && orig.status_kehidupan !== 'Meninggal') {

@@ -72,6 +72,15 @@ export default function DatabasePage() {
   const [csvParsedRows, setCsvParsedRows] = useState([]);
   const [importingCsv, setImportingCsv] = useState(false);
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
+
+  // Reset pagination to page 1 on filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchName, filterKelompok, filterGender, filterBlood, filterStatus, filterMarital, rowsPerPage]);
+
   // Toasts
   const [toasts, setToasts] = useState([]);
 
@@ -591,6 +600,13 @@ export default function DatabasePage() {
     return matchName && matchKelompok && matchGender && matchBlood && matchStatus && matchMarital;
   });
 
+  const totalRows = filteredJamaah.length;
+  const totalPages = rowsPerPage === 'Semua' ? 1 : Math.ceil(totalRows / rowsPerPage);
+  const displayPage = Math.min(currentPage, totalPages || 1);
+  const paginatedJamaah = rowsPerPage === 'Semua' 
+    ? filteredJamaah 
+    : filteredJamaah.slice((displayPage - 1) * rowsPerPage, displayPage * rowsPerPage);
+
   const associatedJamaahIdsForModal = keluargaList.flatMap(f => f.anggota.map(m => m.jamaah_id));
   const unassociatedJamaahForModal = jamaahList.filter(j => !associatedJamaahIdsForModal.includes(j.id));
 
@@ -889,7 +905,7 @@ export default function DatabasePage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
-                    {filteredJamaah.map(j => {
+                    {paginatedJamaah.map(j => {
                       const isAlive = j.status_kehidupan === 'Hidup';
                       return (
                         <tr key={j.id} id={`row-jamaah-${j.id}`} className="hover:bg-slate-50/50 transition-colors text-xs font-semibold text-slate-650">
@@ -980,7 +996,7 @@ export default function DatabasePage() {
 
               {/* Mobile Card List View */}
               <div className="block md:hidden divide-y divide-slate-100 bg-white">
-                {filteredJamaah.map(j => {
+                {paginatedJamaah.map(j => {
                   const isAlive = j.status_kehidupan === 'Hidup';
                   return (
                     <div key={j.id} className="p-4 flex flex-col gap-3 hover:bg-slate-50/30 transition-colors">
@@ -1068,6 +1084,52 @@ export default function DatabasePage() {
                     </div>
                   );
                 })}
+              </div>
+
+              {/* Pagination Controls */}
+              <div className="bg-slate-50/50 border-t border-slate-150 px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-semibold text-slate-500">
+                <div className="flex items-center gap-2">
+                  <span>Tampilkan</span>
+                  <select 
+                    value={rowsPerPage} 
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setRowsPerPage(val === 'Semua' ? 'Semua' : parseInt(val, 10));
+                    }}
+                    className="bg-white border border-slate-200 text-slate-700 px-2 py-1.5 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary text-xs cursor-pointer"
+                  >
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                    <option value="Semua">Semua</option>
+                  </select>
+                  <span>baris dari {totalRows} jamaah</span>
+                </div>
+
+                {rowsPerPage !== 'Semua' && totalPages > 1 && (
+                  <div className="flex items-center gap-1">
+                    <button 
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      disabled={displayPage === 1}
+                      className="px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-650 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
+                    >
+                      Sebelumnya
+                    </button>
+                    
+                    <span className="px-3 text-slate-500 font-bold">
+                      Halaman {displayPage} dari {totalPages}
+                    </span>
+
+                    <button 
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      disabled={displayPage === totalPages}
+                      className="px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-650 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
+                    >
+                      Selanjutnya
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )

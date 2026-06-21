@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Users, ClipboardCheck, ShieldCheck, LogOut, Menu, X, Bell, History, MapPin } from 'lucide-react';
+import { LayoutDashboard, Users, ClipboardCheck, ShieldCheck, LogOut, Menu, X, Bell, History, MapPin, Compass, Heart, Package, Calendar } from 'lucide-react';
 
 export default function Sidebar({ user }) {
   const pathname = usePathname();
@@ -213,13 +213,79 @@ export default function Sidebar({ user }) {
                 className={`flex items-center gap-3 px-4 py-2.5 rounded-3xl font-semibold text-sm transition-all duration-150 ${
                   pathname === '/dashboard/activity-logs' 
                     ? 'bg-primary-light text-primary font-bold shadow-sm' 
-                    : 'text-slate-600 hover:text-primary hover:bg-slate-50'
+                    : 'text-slate-650 hover:text-primary hover:bg-slate-50'
                 }`}
               >
                 <History size={18} />
                 <span>Rekam Jejak</span>
               </Link>
             )}
+
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-3 mt-4 mb-2 block">
+              Tim & Layanan SB
+            </span>
+
+            {/* Tim Haji Link */}
+            {user.can_read_jamaah && (
+              <Link 
+                href="/dashboard/haji" 
+                onClick={() => setIsOpen(false)}
+                className={`flex items-center gap-3 px-4 py-2.5 rounded-3xl font-semibold text-sm transition-all duration-150 ${
+                  pathname === '/dashboard/haji' 
+                    ? 'bg-primary-light text-primary font-bold shadow-sm' 
+                    : 'text-slate-650 hover:text-primary hover:bg-slate-50'
+                }`}
+              >
+                <Compass size={18} />
+                <span>Tim Haji</span>
+              </Link>
+            )}
+
+            {/* Tim PNKB Link */}
+            {user.can_read_jamaah && (
+              <Link 
+                href="/dashboard/pnkb" 
+                onClick={() => setIsOpen(false)}
+                className={`flex items-center gap-3 px-4 py-2.5 rounded-3xl font-semibold text-sm transition-all duration-150 ${
+                  pathname === '/dashboard/pnkb' 
+                    ? 'bg-primary-light text-primary font-bold shadow-sm' 
+                    : 'text-slate-650 hover:text-primary hover:bg-slate-50'
+                }`}
+              >
+                <Heart size={18} />
+                <span>Tim PNKB</span>
+              </Link>
+            )}
+
+            {/* Benda Sabilillah Link */}
+            {user.role !== 'Member' && (
+              <Link 
+                href="/dashboard/sabilillah" 
+                onClick={() => setIsOpen(false)}
+                className={`flex items-center gap-3 px-4 py-2.5 rounded-3xl font-semibold text-sm transition-all duration-150 ${
+                  pathname === '/dashboard/sabilillah' 
+                    ? 'bg-primary-light text-primary font-bold shadow-sm' 
+                    : 'text-slate-650 hover:text-primary hover:bg-slate-50'
+                }`}
+              >
+                <Package size={18} />
+                <span>Benda Sabilillah</span>
+              </Link>
+            )}
+
+            {/* Kalender Link */}
+            <Link 
+              href="/dashboard/kalender" 
+              onClick={() => setIsOpen(false)}
+              className={`flex items-center gap-3 px-4 py-2.5 rounded-3xl font-semibold text-sm transition-all duration-150 ${
+                pathname === '/dashboard/kalender' 
+                  ? 'bg-primary-light text-primary font-bold shadow-sm' 
+                  : 'text-slate-650 hover:text-primary hover:bg-slate-50'
+              }`}
+            >
+              <Calendar size={18} />
+              <span>Kalender</span>
+            </Link>
           </nav>
         </div>
 
