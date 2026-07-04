@@ -64,7 +64,7 @@ export default function TimPnkbPage() {
         setLocations(locData);
       }
 
-      const jamRes = await fetch('/api/jamaah');
+      const jamRes = await fetch('/api/jamaah?include_photo=true&single_only=true');
       if (jamRes.ok) {
         const jamData = await jamRes.json();
         setJamaahList(jamData);

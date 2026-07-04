@@ -4,7 +4,7 @@ import { getCurrentUser } from '@/lib/auth';
 import crypto from 'crypto';
 import { logActivity } from '@/lib/activity';
 
-export async function GET() {
+export async function GET(request) {
   const user = await getCurrentUser();
   if (!user) {
     return NextResponse.json({ error: "Tidak terautentikasi" }, { status: 401 });
@@ -17,27 +17,53 @@ export async function GET() {
   try {
     await logActivity(user.email, 'VISIT', 'PAGE', 'DATABASE_JAMAAH', 'Mengakses halaman Database Jamaah');
     
+    const { searchParams } = new URL(request.url);
+    const includePhoto = searchParams.get('include_photo') === 'true';
+    const singleOnly = searchParams.get('single_only') === 'true';
+
+    let selectClause = `
+      j.id, j.nama_lengkap, j.jenis_kelamin, j.tempat_lahir, j.status_kehidupan, 
+      j.golongan_darah, j.kelompok, j.pendidikan_terakhir, j.tanggal_lulus_pendidikan_terakhir, 
+      j.desa, j.kategori, j.tanggal_lahir, j.status_pernikahan, j.rfid, 
+      j.status_haji, j.tanggal_keberangkatan_haji, j.suku, j.preferensi_pasangan
+    `;
+    
+    if (includePhoto) {
+      selectClause += `, j.foto_url`;
+    } else {
+      selectClause += `, NULL as foto_url`;
+    }
+
     let baseQuery = `
-      SELECT j.*, ak.jenis_anggota, ak.keluarga_id, k.nama_keluarga
+      SELECT ${selectClause}, ak.jenis_anggota, ak.keluarga_id, k.nama_keluarga
       FROM jamaah j
       LEFT JOIN anggota_keluarga ak ON j.id = ak.jamaah_id
       LEFT JOIN keluarga k ON ak.keluarga_id = k.id
     `;
+    
     const params = [];
     let paramIdx = 1;
+    const whereClauses = [];
 
-    if (user.monitor_all_desas && user.monitor_all_kelompoks) {
-      baseQuery += ` ORDER BY j.desa ASC, j.kelompok ASC, j.nama_lengkap ASC;`;
-    } else if (!user.monitor_all_desas && user.monitor_all_kelompoks) {
-      baseQuery += ` WHERE j.desa = ANY($${paramIdx++}::text[]) ORDER BY j.desa ASC, j.kelompok ASC, j.nama_lengkap ASC;`;
-      params.push(user.desas_pantau || []);
-    } else if (user.monitor_all_desas && !user.monitor_all_kelompoks) {
-      baseQuery += ` WHERE j.kelompok = ANY($${paramIdx++}::text[]) ORDER BY j.desa ASC, j.kelompok ASC, j.nama_lengkap ASC;`;
-      params.push(user.kelompoks_pantau || []);
-    } else {
-      baseQuery += ` WHERE j.desa = ANY($${paramIdx++}::text[]) AND j.kelompok = ANY($${paramIdx++}::text[]) ORDER BY j.desa ASC, j.kelompok ASC, j.nama_lengkap ASC;`;
-      params.push(user.desas_pantau || [], user.kelompoks_pantau || []);
+    if (singleOnly) {
+      whereClauses.push(`j.status_pernikahan IN ('Belum Menikah', 'Janda', 'Duda')`);
+      whereClauses.push(`j.status_kehidupan = 'Hidup'`);
     }
+
+    if (!user.monitor_all_desas) {
+      whereClauses.push(`j.desa = ANY($${paramIdx++}::text[])`);
+      params.push(user.desas_pantau || []);
+    }
+    if (!user.monitor_all_kelompoks) {
+      whereClauses.push(`j.kelompok = ANY($${paramIdx++}::text[])`);
+      params.push(user.kelompoks_pantau || []);
+    }
+
+    if (whereClauses.length > 0) {
+      baseQuery += ` WHERE ${whereClauses.join(" AND ")}`;
+    }
+
+    baseQuery += ` ORDER BY j.desa ASC, j.kelompok ASC, j.nama_lengkap ASC;`;
 
     const { rows } = await db.query(baseQuery, params);
     return NextResponse.json(rows);
