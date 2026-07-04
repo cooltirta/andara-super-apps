@@ -890,58 +890,58 @@ export default function DatabasePage() {
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-slate-50/50 border-b border-slate-150 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                      <th className="px-6 py-4">Nama Lengkap</th>
-                      <th className="px-6 py-4">Gender</th>
-                      <th className="px-6 py-4">Status Pernikahan</th>
-                      <th className="px-6 py-4">Lahir</th>
-                      <th className="px-6 py-4">Desa</th>
-                      <th className="px-6 py-4">Kelompok</th>
-                      <th className="px-6 py-4">Kategori</th>
-                      <th className="px-6 py-4">Status</th>
-                      <th className="px-6 py-4 text-center">Gol. Darah</th>
-                      <th className="px-6 py-4">Pendidikan</th>
-                      <th className="px-6 py-4">Hub. Keluarga</th>
-                      <th className="px-6 py-4 text-center">Aksi</th>
-                    </tr>
+                       <th className="px-6 py-4">Nama Lengkap</th>
+                       <th className="px-6 py-4">Lahir</th>
+                       <th className="px-6 py-4">Lokasi</th>
+                       <th className="px-6 py-4">Status</th>
+                       <th className="px-6 py-4 text-center">Gol. Darah</th>
+                       <th className="px-6 py-4">Pendidikan</th>
+                       <th className="px-6 py-4">Hub. Keluarga</th>
+                       <th className="px-6 py-4 text-center">Aksi</th>
+                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
                     {paginatedJamaah.map(j => {
                       const isAlive = j.status_kehidupan === 'Hidup';
                       return (
                         <tr key={j.id} id={`row-jamaah-${j.id}`} className="hover:bg-slate-50/50 transition-colors text-xs font-semibold text-slate-650">
-                          <td className="px-6 py-4 leading-tight">
-                            <div className="font-bold text-slate-800">{j.nama_lengkap}</div>
-                            {isAlive && j.tanggal_lahir && (
-                              <div className="text-[10px] text-slate-400 font-bold mt-0.5">
-                                Usia: {calculateAge(j.tanggal_lahir)}
-                              </div>
-                            )}
-                          </td>
-                          <td className="px-6 py-4 font-bold text-slate-700">{j.jenis_kelamin}</td>
-                          <td className="px-6 py-4 leading-tight">
-                            <span className="inline-block px-2 py-0.5 rounded bg-slate-100 text-slate-650 font-bold text-[10px]">
-                              {j.status_pernikahan || 'Belum Menikah'}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 leading-tight">
-                            <div className="font-bold text-slate-700">{j.tempat_lahir || '-'}</div>
-                            {j.tanggal_lahir && (
-                              <div className="text-[10px] text-slate-400 font-bold mt-0.5">
-                                {new Date(j.tanggal_lahir).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
-                              </div>
-                            )}
-                          </td>
-                          <td className="px-6 py-4 text-primary font-bold">{j.desa}</td>
-                          <td className="px-6 py-4">
-                            <span className="inline-block px-2 py-0.5 rounded bg-primary-light text-primary font-bold text-[10px] uppercase">
-                              {j.kelompok}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4">
-                            <span className="inline-block px-2 py-0.5 rounded bg-slate-100 text-slate-600 font-bold text-[10px]">
-                              {j.kategori}
-                            </span>
-                          </td>
+                           <td className="px-6 py-4 leading-tight">
+                             <div className="font-bold text-slate-800 text-sm">{j.nama_lengkap}</div>
+                             
+                             {/* Badge Row inside Name column */}
+                             <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                               {isAlive && j.tanggal_lahir && (
+                                 <span className="text-[9.5px] text-slate-500 font-bold bg-slate-100 px-1.5 py-0.5 rounded">
+                                   Usia: {calculateAge(j.tanggal_lahir)}
+                                 </span>
+                               )}
+                               <span className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded ${
+                                 j.jenis_kelamin === 'Laki-laki' 
+                                   ? 'bg-blue-50 text-blue-600 border border-blue-100/50' 
+                                   : 'bg-pink-50 text-pink-600 border border-pink-100/50'
+                               }`}>
+                                 {j.jenis_kelamin === 'Laki-laki' ? 'L' : 'P'}
+                               </span>
+                               <span className="text-[9.5px] font-bold bg-teal-50 text-teal-700 border border-teal-100/50 px-1.5 py-0.5 rounded">
+                                 {j.kategori}
+                               </span>
+                               <span className="text-[9.5px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100/50 px-1.5 py-0.5 rounded">
+                                 {j.status_pernikahan || 'Belum Menikah'}
+                               </span>
+                             </div>
+                           </td>
+                           <td className="px-6 py-4 leading-tight">
+                             <div className="font-bold text-slate-700">{j.tempat_lahir || '-'}</div>
+                             {j.tanggal_lahir && (
+                               <div className="text-[10px] text-slate-400 font-bold mt-0.5">
+                                 {new Date(j.tanggal_lahir).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                               </div>
+                             )}
+                           </td>
+                           <td className="px-6 py-4 leading-tight">
+                             <div className="font-bold text-slate-800">{j.desa}</div>
+                             <div className="text-[10px] text-primary font-bold mt-0.5 uppercase">{j.kelompok}</div>
+                           </td>
                           <td className="px-6 py-4">
                             <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${
                               isAlive ? 'bg-pastel-green text-pastel-green-text' : 'bg-pastel-red text-pastel-red-text'
