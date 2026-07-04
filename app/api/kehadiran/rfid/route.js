@@ -31,7 +31,7 @@ async function processRfidPresence(rfidValue, user) {
   
   const jamaah = jamaahRows[0];
   if (!jamaah) {
-    return { error: `Kartu RFID '${cleanRfid}' tidak terdaftar atau jamaah sudah meninggal`, status: 404 };
+    return { error: `Kartu RFID '${cleanRfid}' tidak terdaftar`, status: 404 };
   }
 
   // 2. Jika dipanggil dari browser (ada user session), lakukan validasi scope wewenang
@@ -70,12 +70,12 @@ async function processRfidPresence(rfidValue, user) {
     const diffMs = Math.abs(dateObj.getTime() - lastTapTime.getTime());
     const diffMin = diffMs / 60000;
 
-    if (diffMin < 10) {
-      // Cooldown aktif (kurang dari 10 menit): Kembalikan sukses khusus tanpa menulis ulang ke DB
+    if (diffMin < 30) {
+      // Cooldown aktif (kurang dari 30 menit): Kembalikan sukses khusus tanpa menulis ulang ke DB
       return {
         success: true,
         alreadyLogged: true,
-        message: `Sudah tap kehadiran baru-baru ini (${Math.round(diffMin)} menit yang lalu). Menunggu cooldown 10 menit selesai.`,
+        message: `Sudah tap kehadiran baru-baru ini (${Math.round(diffMin)} menit yang lalu). Menunggu cooldown 30 menit selesai.`,
         jamaah: {
           nama_lengkap: jamaah.nama_lengkap,
           desa: jamaah.desa,

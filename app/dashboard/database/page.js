@@ -2052,15 +2052,7 @@ export default function DatabasePage() {
                       </div>
                     )}
 
-                    <div className="flex justify-between items-center mt-1">
-                      <button 
-                        type="button" 
-                        onClick={() => setRfidManualInput(!rfidManualInput)}
-                        className="text-[10px] text-primary font-black hover:underline cursor-pointer"
-                      >
-                        {rfidManualInput ? "Gunakan Tap Sensor" : "Ketik Manual ID Kartu"}
-                      </button>
-                    </div>
+
 
                     <div className="flex gap-2.5 border-t border-slate-100 pt-4 mt-2">
                       <button 

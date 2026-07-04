@@ -187,10 +187,11 @@ export default function RfidKioskPage() {
         setScannedJamaah(data.jamaah);
         
         if (data.alreadyLogged) {
-          // Cooldown active
-          setStatus('cooldown');
-          setStatusMessage(data.message || 'Sudah melakukan tap absensi baru-baru ini.');
-          playChime('cooldown');
+          // Cooldown active - treat as success UI with specific wording
+          setStatus('success');
+          const lastTime = data.waktu_presensi ? data.waktu_presensi.split(' ')[1].substring(0, 5) : '';
+          setStatusMessage(`${data.jamaah.nama_lengkap} sudah hadir di jam ${lastTime}`);
+          playChime('success');
         } else {
           // Success present logged
           setStatus('success');
@@ -344,7 +345,7 @@ export default function RfidKioskPage() {
 
           {/* Status Message */}
           <div className="flex flex-col gap-2 w-full px-4">
-            <h3 className="text-lg font-black tracking-tight leading-snug">
+            <h3 className="text-lg font-black tracking-tight leading-snug text-white">
               {statusMessage}
             </h3>
             
