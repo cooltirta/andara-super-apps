@@ -13,8 +13,7 @@ export default function LoginPage() {
   useEffect(() => {
     const isDev = process.env.NODE_ENV === 'development';
     const isPreview = process.env.NEXT_PUBLIC_VERCEL_ENV === 'preview';
-    const hasBypassParam = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('bypass') === 'true';
-    if (isDev || isPreview || hasBypassParam) {
+    if (isDev || isPreview) {
       setShowBypass(true);
     }
   }, []);
