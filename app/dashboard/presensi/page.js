@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Calendar, Search, Users, CheckCircle, AlertTriangle, Info, Clock, Download, RefreshCw, Trash2, X } from 'lucide-react';
+import { Calendar, Search, Users, CheckCircle, AlertTriangle, Info, Clock, Download, RefreshCw, Trash2, X, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function PresensiPage() {
   const router = useRouter();
@@ -42,6 +42,12 @@ export default function PresensiPage() {
   const [reportKelompok, setReportKelompok] = useState('');
   const [reportData, setReportData] = useState(null);
   const [loadingReport, setLoadingReport] = useState(false);
+
+  // Calendar States
+  const [calYear, setCalYear] = useState(new Date().getFullYear());
+  const [calMonth, setCalMonth] = useState(new Date().getMonth());
+  const [calSessions, setCalSessions] = useState({});
+  const [loadingCal, setLoadingCal] = useState(false);
 
   // Helper Toast
   const showToast = (message, type = 'info') => {
@@ -399,6 +405,83 @@ export default function PresensiPage() {
       loadReport();
     }
   }, [activeTab, user]);
+
+  const fetchCalendarSessions = async () => {
+    if (!user) return;
+    
+    const firstDay = new Date(calYear, calMonth, 1);
+    const dayOfWeek = firstDay.getDay();
+    const daysToSub = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    const startOfGrid = new Date(calYear, calMonth, 1);
+    startOfGrid.setDate(startOfGrid.getDate() - daysToSub);
+
+    const lastDay = new Date(calYear, calMonth + 1, 0);
+    const endDayOfWeek = lastDay.getDay();
+    const daysToAdd = endDayOfWeek === 0 ? 0 : 7 - endDayOfWeek;
+    const endOfGrid = new Date(calYear, calMonth + 1, 0);
+    endOfGrid.setDate(endOfGrid.getDate() + daysToAdd);
+
+    const pad = (n) => n.toString().padStart(2, '0');
+    const startStr = `${startOfGrid.getFullYear()}-${pad(startOfGrid.getMonth() + 1)}-${pad(startOfGrid.getDate())}`;
+    const endStr = `${endOfGrid.getFullYear()}-${pad(endOfGrid.getMonth() + 1)}-${pad(endOfGrid.getDate())}`;
+
+    setLoadingCal(true);
+    try {
+      const kategoriParam = reportKategori.join(',');
+      const maritalParam = reportStatusPernikahan.join(',');
+      const res = await fetch(`/api/kehadiran/sesi-kalender?start=${startStr}&end=${endStr}&desa=${reportDesa}&kelompok=${reportKelompok}&kategori=${encodeURIComponent(kategoriParam)}&status_pernikahan=${encodeURIComponent(maritalParam)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setCalSessions(data);
+      }
+    } catch (err) {
+      console.error("Gagal mengambil sesi kalender:", err);
+    } finally {
+      setLoadingCal(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'laporan') {
+      fetchCalendarSessions();
+    }
+  }, [activeTab, calYear, calMonth, reportDesa, reportKelompok, reportKategori, reportStatusPernikahan, user]);
+
+  const getCalendarDays = () => {
+    const days = [];
+    const firstDay = new Date(calYear, calMonth, 1);
+    const dayOfWeek = firstDay.getDay();
+    const daysToSub = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    
+    const startDate = new Date(calYear, calMonth, 1);
+    startDate.setDate(startDate.getDate() - daysToSub);
+
+    for (let i = 0; i < 42; i++) {
+      const tempDate = new Date(startDate);
+      tempDate.setDate(startDate.getDate() + i);
+      days.push(tempDate);
+    }
+    return days;
+  };
+
+  const formatDateLocal = (dateObj) => {
+    const pad = (n) => n.toString().padStart(2, '0');
+    return `${dateObj.getFullYear()}-${pad(dateObj.getMonth() + 1)}-${pad(dateObj.getDate())}`;
+  };
+
+  const handleCalendarDayClick = (dateStr) => {
+    if (!reportStartDate || (reportStartDate && reportEndDate && reportStartDate !== reportEndDate)) {
+      setReportStartDate(dateStr);
+      setReportEndDate(dateStr);
+    } else {
+      if (dateStr >= reportStartDate) {
+        setReportEndDate(dateStr);
+      } else {
+        setReportStartDate(dateStr);
+        setReportEndDate(dateStr);
+      }
+    }
+  };
 
   if (!user) {
     return (
@@ -997,35 +1080,144 @@ export default function PresensiPage() {
       {/* ================================================= TAB LAPORAN ================================================= */}
       {activeTab === 'laporan' && user.can_read_laporan && (
         <div className="flex flex-col gap-6">
+          {/* Custom Calendar Card */}
+          <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-5 flex flex-col gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex flex-col gap-1">
+                <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                  <Calendar size={18} className="text-primary" />
+                  Kalender Overview Kehadiran & Pemilihan Range
+                </h2>
+                <p className="text-[11px] text-slate-400 font-semibold">
+                  Klik tanggal awal kemudian tanggal akhir untuk memilih rentang laporan. Angka kecil di bawah tanggal menunjukkan jumlah maksimal sesi pengajian pada tanggal tersebut.
+                </p>
+              </div>
+              <div className="flex items-center justify-between sm:justify-end gap-2 border border-slate-150 p-1.5 rounded-xl bg-slate-50/50 self-start">
+                <button 
+                  onClick={() => {
+                    if (calMonth === 0) {
+                      setCalMonth(11);
+                      setCalYear(prev => prev - 1);
+                    } else {
+                      setCalMonth(prev => prev - 1);
+                    }
+                  }}
+                  className="p-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-500 cursor-pointer shadow-sm"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <span className="text-xs font-bold text-slate-700 min-w-[110px] text-center uppercase tracking-wider">
+                  {new Date(calYear, calMonth).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
+                </span>
+                <button 
+                  onClick={() => {
+                    if (calMonth === 11) {
+                      setCalMonth(0);
+                      setCalYear(prev => prev + 1);
+                    } else {
+                      setCalMonth(prev => prev + 1);
+                    }
+                  }}
+                  className="p-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-500 cursor-pointer shadow-sm"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            </div>
+
+            {/* Calendar Grid */}
+            <div className="border border-slate-150 rounded-xl overflow-hidden shadow-inner">
+              {/* Weekdays */}
+              <div className="grid grid-cols-7 bg-slate-50 border-b border-slate-150 text-center py-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                <div>Sen</div>
+                <div>Sel</div>
+                <div>Rab</div>
+                <div>Kam</div>
+                <div>Jum</div>
+                <div>Sab</div>
+                <div>Min</div>
+              </div>
+
+              {/* Days Grid */}
+              <div className="grid grid-cols-7 bg-slate-150 gap-[1px]">
+                {getCalendarDays().map((date, idx) => {
+                  const dateStr = formatDateLocal(date);
+                  const isCurrentMonth = date.getMonth() === calMonth;
+                  const isStart = dateStr === reportStartDate;
+                  const isEnd = dateStr === reportEndDate;
+                  const isInRange = reportStartDate && reportEndDate && dateStr > reportStartDate && dateStr < reportEndDate;
+                  const sessionsCount = calSessions[dateStr] || 0;
+
+                  return (
+                    <div 
+                      key={idx}
+                      onClick={() => handleCalendarDayClick(dateStr)}
+                      className={`min-h-[64px] p-2 flex flex-col justify-between cursor-pointer transition-all ${
+                        !isCurrentMonth ? 'bg-slate-50/50 text-slate-350' : 'bg-white text-slate-700'
+                      } ${
+                        isStart || isEnd 
+                          ? '!bg-primary !text-white font-bold' 
+                          : isInRange 
+                            ? '!bg-primary-light !text-primary font-bold' 
+                            : 'hover:bg-slate-50/60'
+                      }`}
+                    >
+                      <div className="flex justify-between items-start">
+                        <span className="text-xs font-bold">{date.getDate()}</span>
+                        {/* Session Badge */}
+                        {sessionsCount > 0 && (
+                          <span className={`text-[8.5px] px-1.5 py-0.5 rounded-full font-bold ${
+                            isStart || isEnd
+                              ? 'bg-white/20 text-white'
+                              : 'bg-emerald-50 text-emerald-600 border border-emerald-100/50 shadow-sm'
+                          }`}>
+                            {sessionsCount} Sesi
+                          </span>
+                        )}
+                      </div>
+                      
+                      {/* Range Label indicator inside box */}
+                      <div className="text-[7.5px] font-bold uppercase tracking-wider text-right opacity-80 mt-1">
+                        {isStart && isEnd ? 'Mulai & Selesai' : isStart ? 'Mulai' : isEnd ? 'Selesai' : ''}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
           {/* Laporan Filter Bar */}
           <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-5 flex flex-col gap-5">
             <div className="flex flex-wrap items-center gap-5">
-              <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
-                <span className="uppercase tracking-wider">Mulai:</span>
-                <input 
-                  type="date" 
-                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 font-semibold text-xs" 
-                  value={reportStartDate}
-                  onChange={(e) => setReportStartDate(e.target.value)}
-                />
+              
+              {/* Selected Range Display */}
+              <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200/60 text-xs font-bold text-slate-650">
+                <span className="uppercase tracking-wider text-slate-400 text-[10px]">Rentang Terpilih:</span>
+                <span className="text-slate-800 font-extrabold text-xs">
+                  {reportStartDate ? new Date(reportStartDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
+                </span>
+                <span className="text-slate-400 font-normal">&rarr;</span>
+                <span className="text-slate-800 font-extrabold text-xs">
+                  {reportEndDate ? new Date(reportEndDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
+                </span>
+              </div>
+
+              {/* Time Inputs */}
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-650">
+                <span className="uppercase tracking-wider text-slate-400 text-[10px]">Waktu Mulai:</span>
                 <input 
                   type="time" 
-                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 font-semibold text-xs cursor-pointer" 
+                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-750 font-semibold text-xs cursor-pointer focus:border-primary focus:outline-none" 
                   value={reportStartTime}
                   onChange={(e) => setReportStartTime(e.target.value)}
                 />
               </div>
-              <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
-                <span className="uppercase tracking-wider">Selesai:</span>
-                <input 
-                  type="date" 
-                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 font-semibold text-xs" 
-                  value={reportEndDate}
-                  onChange={(e) => setReportEndDate(e.target.value)}
-                />
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-650">
+                <span className="uppercase tracking-wider text-slate-400 text-[10px]">Waktu Selesai:</span>
                 <input 
                   type="time" 
-                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 font-semibold text-xs cursor-pointer" 
+                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-750 font-semibold text-xs cursor-pointer focus:border-primary focus:outline-none" 
                   value={reportEndTime}
                   onChange={(e) => setReportEndTime(e.target.value)}
                 />
