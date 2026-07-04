@@ -101,7 +101,7 @@ async function processRfidPresence(rfidValue, user) {
     const newPresenceId = crypto.randomUUID();
     await db.query(`
       INSERT INTO kehadiran (id, jamaah_id, tanggal, waktu_presensi, status, recorded_by)
-      VALUES ($1, $2, $3, $4, 'Hadir', $5);
+      VALUES ($1, $2, $3, $4, $5, $6);
     `, [newPresenceId, jamaah.id, dateStr, timeStr, 'Hadir', recorder]);
   }
 

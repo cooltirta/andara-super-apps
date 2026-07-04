@@ -81,6 +81,18 @@ export default function DatabasePage() {
     setCurrentPage(1);
   }, [searchName, filterKelompok, filterGender, filterBlood, filterStatus, filterMarital, rowsPerPage]);
 
+  // Focus RFID input capture when scan mode is activated
+  useEffect(() => {
+    if (isRfidModalOpen && rfidInputMode === 'scan') {
+      setTimeout(() => {
+        const inputEl = document.getElementById('rfid-input-capture');
+        if (inputEl) {
+          inputEl.focus();
+        }
+      }, 300);
+    }
+  }, [isRfidModalOpen, rfidInputMode]);
+
   // Toasts
   const [toasts, setToasts] = useState([]);
 
@@ -1969,7 +1981,7 @@ export default function DatabasePage() {
                   <div className="flex gap-2 w-full mt-2">
                     <button 
                       type="button" 
-                      onClick={() => handleSaveRfid(null)}
+                      onClick={() => handleSaveRfid('')}
                       disabled={rfidSaving}
                       className="flex-1 py-2.5 font-bold text-xs bg-red-50 hover:bg-red-100 text-red-650 rounded-xl transition-all border border-red-150 cursor-pointer"
                     >
@@ -2021,7 +2033,7 @@ export default function DatabasePage() {
                         placeholder="Menunggu pembaca kartu..."
                         className="w-full text-center font-mono text-sm font-black tracking-wider px-3 py-2.5 rounded-lg border border-slate-200 focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all outline-none bg-slate-50"
                         id="rfid-input-capture"
-                        readOnly={!rfidManualInput}
+                        readOnly={false}
                       />
                     </div>
 
