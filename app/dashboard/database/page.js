@@ -6,6 +6,18 @@ import { Users, Home, UserPlus, Search, Edit2, Trash2, X, Plus, AlertTriangle, C
 
 export default function DatabasePage() {
   const router = useRouter();
+  
+  const formatJamaahName = (name) => {
+    if (!name) return "";
+    const words = name.trim().split(/\s+/);
+    if (words.length <= 3) {
+      return name.toUpperCase();
+    }
+    const firstThree = words.slice(0, 3);
+    const remaining = words.slice(3).map(w => `${w[0]}.`);
+    return [...firstThree, ...remaining].join(" ").toUpperCase();
+  };
+
   const [user, setUser] = useState(null);
   const [activeTab, setActiveTab] = useState('jamaah'); // 'jamaah' or 'keluarga'
   const [jamaahList, setJamaahList] = useState([]);
@@ -1941,61 +1953,94 @@ export default function DatabasePage() {
             
             {/* Body */}
             <div className="p-6 flex flex-col items-center gap-6">
-              {/* Card Container for Printing */}
-              <div 
-                id="print-card-area" 
-                className="w-[380px] h-[240px] bg-gradient-to-br from-teal-800 to-emerald-950 text-white rounded-2xl p-5 flex flex-col justify-between shadow-md relative overflow-hidden border border-teal-700/30 print:shadow-none print:border print:rounded-2xl"
-              >
-                {/* Decorative circles */}
-                <div className="absolute -right-10 -top-10 w-32 h-32 rounded-full bg-white/5 pointer-events-none"></div>
-                <div className="absolute -left-10 -bottom-10 w-24 h-24 rounded-full bg-white/5 pointer-events-none"></div>
-                
-                {/* Card Top */}
-                <div className="flex justify-between items-start border-b border-white/10 pb-3 z-10">
-                  <div className="text-left">
-                    <h3 className="text-sm font-extrabold tracking-tight uppercase text-teal-300">KARTU PRESENSI JAMAAH</h3>
+              {/* Card Container Wrapper (380x240 on screen, hides overflow) */}
+              <div className="w-[380px] h-[240px] relative overflow-hidden rounded-2xl shadow-lg border border-slate-100/50 print:overflow-visible print:border-none print:shadow-none">
+                <div 
+                  id="print-card-area"
+                  style={{
+                    width: '1011px',
+                    height: '639px',
+                    backgroundImage: "url('/front-static.png')",
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                    transform: 'scale(0.3758)', // 380 / 1011
+                    transformOrigin: 'top left',
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    fontFamily: "'Cinzel', serif",
+                    color: '#EBDCB9',
+                  }}
+                  className="rounded-[40px] overflow-hidden relative select-none print:rounded-none"
+                >
+                  {/* Nama Jamaah (2-line layout, size 21.7 pt -> 90.4 px, left 66px, top 250px) */}
+                  <div 
+                    style={{
+                      position: 'absolute',
+                      left: '66px',
+                      top: '235px',
+                      width: '560px',
+                      fontSize: '90.4px',
+                      lineHeight: '1.1',
+                      fontWeight: '700',
+                      textTransform: 'uppercase',
+                      textAlign: 'left',
+                      wordWrap: 'break-word',
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {formatJamaahName(selectedQrJamaah.nama_lengkap)}
                   </div>
-                  <div className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center text-xs font-black">
-                    A
+
+                  {/* Nama Kelompok (size 10.7 pt -> 44.6 px, left 66px, top 495px) */}
+                  <div 
+                    style={{
+                      position: 'absolute',
+                      left: '66px',
+                      top: '495px',
+                      width: '560px',
+                      fontSize: '44.6px',
+                      lineHeight: '1.2',
+                      fontWeight: '700',
+                      textTransform: 'uppercase',
+                      textAlign: 'left',
+                    }}
+                  >
+                    {selectedQrJamaah.kelompok ? selectedQrJamaah.kelompok.replace(/^Kelompok\s+/i, '') : ''}
                   </div>
-                </div>
- 
-                {/* Card Middle (Info & QR) */}
-                <div className="flex justify-between items-center my-auto gap-4 z-10">
-                  {/* Left: Info */}
-                  <div className="text-left flex flex-col gap-2 min-w-0">
-                    <div className="mb-1">
-                      <span className="text-sm font-black truncate block text-white max-w-[210px]">{selectedQrJamaah.nama_lengkap}</span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                      <div>
-                        <span className="text-[6px] font-bold text-teal-300 uppercase tracking-wider block">Desa</span>
-                        <span className="text-[9px] font-bold text-white truncate block">{selectedQrJamaah.desa}</span>
-                      </div>
-                      <div>
-                        <span className="text-[6px] font-bold text-teal-300 uppercase tracking-wider block">Kelompok</span>
-                        <span className="text-[9px] font-bold text-white truncate block">{selectedQrJamaah.kelompok}</span>
-                      </div>
-                    </div>
-                  </div>
- 
-                  {/* Right: QR Code */}
-                  <div className="bg-white p-1.5 rounded-lg shrink-0 shadow-sm">
+
+                  {/* QR Code Container (Right side, center vertically) */}
+                  <div 
+                    style={{
+                      position: 'absolute',
+                      right: '66px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      backgroundColor: '#ffffff',
+                      padding: '20px',
+                      borderRadius: '24px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.15)',
+                    }}
+                  >
                     <img 
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=${encodeURIComponent(
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(
                         typeof window !== 'undefined' 
                           ? `${window.location.origin}/status/${selectedQrJamaah.id}`
                           : `http://localhost:3000/status/${selectedQrJamaah.id}`
                       )}`} 
                       alt="QR Code" 
-                      className="w-[90px] h-[90px]"
+                      style={{
+                        width: '210px',
+                        height: '210px',
+                      }}
                     />
                   </div>
-                </div>
- 
-                {/* Card Footer */}
-                <div className="text-center text-[7.5px] font-extrabold text-teal-300 border-t border-white/10 pt-2.5 z-10 uppercase tracking-widest">
-                  Harap Dibawa Saat Pengajian
                 </div>
               </div>
  
@@ -2017,6 +2062,7 @@ export default function DatabasePage() {
           
           {/* Printable CSS Override */}
           <style dangerouslySetInnerHTML={{__html: `
+            @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700&display=swap');
             @media print {
               body * {
                 visibility: hidden !important;
@@ -2030,10 +2076,15 @@ export default function DatabasePage() {
                 position: fixed !important;
                 left: 50% !important;
                 top: 50% !important;
-                transform: translate(-50%, -50%) scale(1.3) !important;
+                transform: translate(-50%, -50%) scale(1.0) !important;
+                width: 1011px !important;
+                height: 639px !important;
                 margin: 0 !important;
                 box-shadow: none !important;
-                border: 1px solid #115e59 !important;
+                border: none !important;
+                background-image: url('/front-static.png') !important;
+                background-size: cover !important;
+                background-position: center !important;
               }
             }
           `}} />
