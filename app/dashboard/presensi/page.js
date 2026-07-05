@@ -85,6 +85,26 @@ export default function PresensiPage() {
     return ['Belum Menikah', 'Menikah', 'Duda', 'Janda'];
   };
 
+  const getAvailableKategoris = (selectedStatuses) => {
+    const hasAdultStatuses = selectedStatuses.some(s => ['Menikah', 'Janda', 'Duda'].includes(s));
+    if (hasAdultStatuses) {
+      return ['Dewasa', 'Lansia'];
+    }
+    return ['Balita', 'CBR/PAUD', 'Pra Remaja', 'Remaja', 'Pra Nikah', 'Dewasa', 'Lansia'];
+  };
+
+  // Sync Input Tab Kategori filter when Status Pernikahan changes
+  useEffect(() => {
+    const available = getAvailableKategoris(inputStatusPernikahan);
+    setFilterKategori(prev => prev.filter(c => available.includes(c)));
+  }, [inputStatusPernikahan]);
+
+  // Sync Laporan Tab Kategori filter when Status Pernikahan changes
+  useEffect(() => {
+    const available = getAvailableKategoris(reportStatusPernikahan);
+    setReportKategori(prev => prev.filter(c => available.includes(c)));
+  }, [reportStatusPernikahan]);
+
   // Sync Input Tab Kelompok filter when Desa filter changes
   useEffect(() => {
     if (filterDesas.length > 0) {
@@ -1003,7 +1023,7 @@ export default function PresensiPage() {
 
                   <MultiSelectDropdown
                     label="Kategori Jamaah"
-                    options={['Balita', 'CBR/PAUD', 'Pra Remaja', 'Remaja', 'Pra Nikah', 'Dewasa', 'Lansia']}
+                    options={getAvailableKategoris(inputStatusPernikahan)}
                     selected={filterKategori}
                     onChange={setFilterKategori}
                     placeholder="Pilih Kategori..."
@@ -1853,7 +1873,7 @@ export default function PresensiPage() {
 
                   <MultiSelectDropdown
                     label="Kategori Jamaah"
-                    options={['Balita', 'CBR/PAUD', 'Pra Remaja', 'Remaja', 'Pra Nikah', 'Dewasa', 'Lansia']}
+                    options={getAvailableKategoris(reportStatusPernikahan)}
                     selected={reportKategori}
                     onChange={setReportKategori}
                     placeholder="Pilih Kategori..."
