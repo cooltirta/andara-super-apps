@@ -1973,23 +1973,19 @@ export default function DatabasePage() {
                   }}
                   className="rounded-[40px] overflow-hidden relative select-none print:rounded-none"
                 >
-                  {/* Nama Jamaah (2-line layout, size 21.7 pt -> 90.4 px, left 66px, top 250px) */}
+                  {/* Nama Jamaah (2-line layout, size 21.7 pt -> 90.4 px, left 66px, top 130px) */}
                   <div 
                     style={{
                       position: 'absolute',
                       left: '66px',
-                      top: '235px',
-                      width: '560px',
+                      top: '130px',
+                      width: '880px',
                       fontSize: '90.4px',
                       lineHeight: '1.1',
-                      fontWeight: '700',
+                      fontWeight: '400',
                       textTransform: 'uppercase',
                       textAlign: 'left',
                       wordWrap: 'break-word',
-                      display: '-webkit-box',
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: 'vertical',
-                      overflow: 'hidden',
                     }}
                   >
                     {formatJamaahName(selectedQrJamaah.nama_lengkap)}
@@ -2004,7 +2000,7 @@ export default function DatabasePage() {
                       width: '560px',
                       fontSize: '44.6px',
                       lineHeight: '1.2',
-                      fontWeight: '700',
+                      fontWeight: '400',
                       textTransform: 'uppercase',
                       textAlign: 'left',
                     }}
@@ -2012,20 +2008,21 @@ export default function DatabasePage() {
                     {selectedQrJamaah.kelompok ? selectedQrJamaah.kelompok.replace(/^Kelompok\s+/i, '') : ''}
                   </div>
 
-                  {/* QR Code Container (Right side, center vertically) */}
+                  {/* QR Code Container (Right side, bottom-aligned, 1/3 card height) */}
                   <div 
                     style={{
                       position: 'absolute',
                       right: '66px',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
+                      bottom: '60px',
                       backgroundColor: '#ffffff',
-                      padding: '20px',
-                      borderRadius: '24px',
+                      padding: '16px',
+                      borderRadius: '20px',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.15)',
+                      width: '213px',
+                      height: '213px',
                     }}
                   >
                     <img 
@@ -2036,8 +2033,8 @@ export default function DatabasePage() {
                       )}`} 
                       alt="QR Code" 
                       style={{
-                        width: '210px',
-                        height: '210px',
+                        width: '181px',
+                        height: '181px',
                       }}
                     />
                   </div>
