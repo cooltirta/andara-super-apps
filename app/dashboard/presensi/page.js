@@ -46,7 +46,7 @@ export default function PresensiPage() {
   const [filterGenders, setFilterGenders] = useState(['Laki-laki', 'Perempuan']);
   const [filterPresenceStatus, setFilterPresenceStatus] = useState('');
   const [filterKategori, setFilterKategori] = useState(['Balita', 'CBR/PAUD', 'Pra Remaja', 'Remaja', 'Pra Nikah', 'Dewasa', 'Lansia']);
-  const [inputStatusPernikahan, setInputStatusPernikahan] = useState(['Belum Menikah', 'Menikah', 'Janda', 'Duda']);
+  const [inputStatusPernikahan, setInputStatusPernikahan] = useState(['Belum Menikah', 'Menikah', 'Janda/Duda']);
 
   // Laporan Tab States
   const [reportStartDate, setReportStartDate] = useState('');
@@ -54,7 +54,7 @@ export default function PresensiPage() {
   const [reportDesas, setReportDesas] = useState([]);
   const [reportKelompoks, setReportKelompoks] = useState([]);
   const [reportGenders, setReportGenders] = useState(['Laki-laki', 'Perempuan']);
-  const [reportStatusPernikahan, setReportStatusPernikahan] = useState(['Belum Menikah', 'Menikah', 'Janda', 'Duda']);
+  const [reportStatusPernikahan, setReportStatusPernikahan] = useState(['Belum Menikah', 'Menikah', 'Janda/Duda']);
   const [reportKategori, setReportKategori] = useState(['Balita', 'CBR/PAUD', 'Pra Remaja', 'Remaja', 'Pra Nikah', 'Dewasa', 'Lansia']);
   const [selectedReportSessionIds, setSelectedReportSessionIds] = useState([]);
   const [reportData, setReportData] = useState(null);
@@ -72,21 +72,11 @@ export default function PresensiPage() {
       return ['Belum Menikah'];
     }
 
-    const isFemaleOnly = selectedGenders.includes('Perempuan') && !selectedGenders.includes('Laki-laki');
-    const isMaleOnly = selectedGenders.includes('Laki-laki') && !selectedGenders.includes('Perempuan');
-
-    if (isFemaleOnly) {
-      return ['Belum Menikah', 'Menikah', 'Janda'];
-    }
-    if (isMaleOnly) {
-      return ['Belum Menikah', 'Menikah', 'Duda'];
-    }
-
-    return ['Belum Menikah', 'Menikah', 'Duda', 'Janda'];
+    return ['Belum Menikah', 'Menikah', 'Janda/Duda'];
   };
 
   const getAvailableKategoris = (selectedStatuses) => {
-    const hasAdultStatuses = selectedStatuses.some(s => ['Menikah', 'Janda', 'Duda'].includes(s));
+    const hasAdultStatuses = selectedStatuses.some(s => ['Menikah', 'Janda/Duda'].includes(s));
     if (hasAdultStatuses) {
       return ['Dewasa', 'Lansia'];
     }
@@ -739,7 +729,12 @@ export default function PresensiPage() {
     const matchKelompok = filterKelompoks.length === 0 || filterKelompoks.includes(j.kelompok);
     const matchGender = filterGenders.length === 0 || filterGenders.includes(j.jenis_kelamin);
     const matchKategori = filterKategori.includes(j.kategori);
-    const matchStatusPernikahan = inputStatusPernikahan.includes(j.status_pernikahan || 'Belum Menikah');
+    const matchStatusPernikahan = inputStatusPernikahan.some(status => {
+      if (status === 'Janda/Duda') {
+        return j.status_pernikahan === 'Janda' || j.status_pernikahan === 'Duda';
+      }
+      return (j.status_pernikahan || 'Belum Menikah') === status;
+    });
     
     let matchPresence = true;
     if (filterPresenceStatus) {

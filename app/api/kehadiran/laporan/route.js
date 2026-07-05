@@ -104,8 +104,16 @@ export async function GET(request) {
 
     // Filter Status Pernikahan
     if (maritalStatusesArray.length > 0) {
+      const mappedStatuses = [];
+      maritalStatusesArray.forEach(s => {
+        if (s === 'Janda/Duda') {
+          mappedStatuses.push('Janda', 'Duda');
+        } else {
+          mappedStatuses.push(s);
+        }
+      });
       jamaahQuery += ` AND status_pernikahan = ANY($${paramIdx++})`;
-      jamaahParams.push(maritalStatusesArray);
+      jamaahParams.push(mappedStatuses);
     }
 
     // Filter Kategori
