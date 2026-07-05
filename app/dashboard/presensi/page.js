@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Calendar, Search, Users, CheckCircle, AlertTriangle, Info, Clock, Download, RefreshCw, Trash2, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, Search, Users, CheckCircle, AlertTriangle, Info, Clock, Download, RefreshCw, Trash2, X, ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react';
 
 export default function PresensiPage() {
   const router = useRouter();
@@ -59,6 +59,7 @@ export default function PresensiPage() {
   const [selectedReportSessionIds, setSelectedReportSessionIds] = useState([]);
   const [reportData, setReportData] = useState(null);
   const [loadingReport, setLoadingReport] = useState(false);
+  const [showReportFilters, setShowReportFilters] = useState(true);
 
   // Calendar States
   const [calYear, setCalYear] = useState(new Date().getFullYear());
@@ -453,6 +454,7 @@ export default function PresensiPage() {
       if (!res.ok) throw new Error("Gagal memuat laporan kehadiran");
       const data = await res.json();
       setReportData(data);
+      setShowReportFilters(false);
       showToast("Laporan berhasil dimuat", "success");
     } catch (err) {
       console.error(err);
@@ -726,7 +728,7 @@ export default function PresensiPage() {
             Input Kehadiran
           </button>
         )}
-        {(user.can_create_kehadiran || user.can_update_kehadiran || user.can_delete_kehadiran) && (
+        {(user.can_read_kehadiran || user.can_create_kehadiran || user.can_update_kehadiran || user.can_delete_kehadiran) && (
           <button 
             className={`py-3 px-1 font-bold text-sm cursor-pointer border-b-2 transition-all ${
               activeTab === 'sesi' 
@@ -1295,7 +1297,7 @@ export default function PresensiPage() {
       )}
 
       {/* ================================================= TAB SESI ================================================= */}
-      {activeTab === 'sesi' && (user.can_create_kehadiran || user.can_update_kehadiran || user.can_delete_kehadiran) && (
+      {activeTab === 'sesi' && (user.can_read_kehadiran || user.can_create_kehadiran || user.can_update_kehadiran || user.can_delete_kehadiran) && (
         <div className="flex flex-col gap-6">
           {/* Header Panel */}
           <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-5 flex items-center justify-between">
@@ -1767,310 +1769,205 @@ export default function PresensiPage() {
 
           {/* Laporan Filter Bar */}
           <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-5 flex flex-col gap-5 text-left text-xs font-bold text-slate-700">
-            {/* Range and Actions */}
-            <div className="flex flex-wrap items-center justify-between gap-5 border-b border-slate-50 pb-4">
-              <div className="flex items-center gap-2 bg-slate-50 px-3.5 py-2 rounded-xl border border-slate-200/60 font-bold text-slate-650">
-                <span className="uppercase tracking-wider text-slate-400 text-[10px] font-extrabold">Rentang Terpilih:</span>
-                <span className="text-slate-800 font-black text-xs">
-                  {reportStartDate ? new Date(reportStartDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
-                </span>
-                <span className="text-slate-400 font-normal">&rarr;</span>
-                <span className="text-slate-800 font-black text-xs">
-                  {reportEndDate ? new Date(reportEndDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
-                </span>
+            {/* Header & Collapsible Toggle */}
+            <div className="flex flex-wrap items-center justify-between gap-5 pb-1">
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowReportFilters(!showReportFilters)}
+                  className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-500 cursor-pointer transition-all flex items-center justify-center"
+                  title={showReportFilters ? "Sembunyikan Kriteria" : "Tampilkan Kriteria"}
+                >
+                  {showReportFilters ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                </button>
+                <div className="flex flex-col">
+                  <span className="text-xs font-black text-slate-800 uppercase tracking-wider">Kriteria & Saringan Laporan</span>
+                  <span className="text-[10px] text-slate-450 font-bold mt-0.5">
+                    {showReportFilters ? "Pilih kriteria demografis jamaah dan tentukan sesi pengajian yang dianalisis" : "Kriteria disembunyikan. Gunakan tombol di sebelah kiri untuk melihat/mengubah"}
+                  </span>
+                </div>
               </div>
 
-              <button 
-                onClick={loadReport} 
-                className="py-2.5 px-5 font-bold text-xs bg-primary hover:bg-primary-hover text-white rounded-lg transition-all shadow-md shadow-primary/10 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                disabled={loadingReport || !reportStartDate || !reportEndDate || selectedReportSessionIds.length === 0}
-              >
-                {loadingReport ? "Memuat..." : "Tampilkan Laporan Kehadiran"}
-              </button>
-            </div>
-
-            {/* Checklists Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {/* Left Column: Desa & Kelompok Checklists */}
-              <div className="flex flex-col gap-4">
-                {/* Desas Checklist */}
-                <div className="flex flex-col gap-1.5">
-                  <div className="flex justify-between items-center">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Target Desa</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const allDesas = locations.map(d => d.nama_desa);
-                        if (reportDesas.length === allDesas.length) {
-                          setReportDesas([]);
-                        } else {
-                          setReportDesas(allDesas);
-                        }
-                      }}
-                      className="text-[10px] text-primary hover:underline font-extrabold cursor-pointer"
-                    >
-                      {reportDesas.length === locations.length ? "Hapus Semua" : "Pilih Semua"}
-                    </button>
-                  </div>
-                  <div className="p-3 border border-slate-200 rounded-lg max-h-24 overflow-y-auto flex flex-wrap gap-2.5 bg-slate-50/50">
-                    {locations.map(d => (
-                      <label key={d.id} className="flex items-center gap-1.5 cursor-pointer font-semibold text-slate-650">
-                        <input 
-                          type="checkbox"
-                          checked={reportDesas.includes(d.nama_desa)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setReportDesas(prev => [...prev, d.nama_desa]);
-                            } else {
-                              setReportDesas(prev => prev.filter(v => v !== d.nama_desa));
-                            }
-                          }}
-                        />
-                        <span>{d.nama_desa}</span>
-                      </label>
-                    ))}
-                  </div>
+              <div className="flex items-center gap-3.5 ml-auto">
+                <div className="flex items-center gap-2 bg-slate-50 px-3.5 py-2 rounded-xl border border-slate-200/60 font-bold text-slate-650">
+                  <span className="uppercase tracking-wider text-slate-450 text-[10px] font-extrabold">Rentang Terpilih:</span>
+                  <span className="text-slate-800 font-black text-xs">
+                    {reportStartDate ? new Date(reportStartDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
+                  </span>
+                  <span className="text-slate-450 font-normal">&rarr;</span>
+                  <span className="text-slate-800 font-black text-xs">
+                    {reportEndDate ? new Date(reportEndDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
+                  </span>
                 </div>
 
-                {/* Kelompoks Checklist (Grouped by Desa) */}
-                <div className="flex flex-col gap-1.5">
-                  <div className="flex justify-between items-center">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Target Kelompok</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const allKelompoks = locations.flatMap(d => d.kelompoks.map(k => k.nama_kelompok));
-                        if (reportKelompoks.length === allKelompoks.length) {
-                          setReportKelompoks([]);
-                        } else {
-                          setReportKelompoks(allKelompoks);
-                        }
-                      }}
-                      className="text-[10px] text-primary hover:underline font-extrabold cursor-pointer"
-                    >
-                      {reportKelompoks.length === locations.flatMap(d => d.kelompoks).length ? "Hapus Semua" : "Pilih Semua"}
-                    </button>
-                  </div>
-                  <div className="p-3 border border-slate-200 rounded-lg max-h-40 overflow-y-auto flex flex-col gap-3 bg-slate-50/50">
-                    {locations.map(d => (
-                      <div key={d.id} className="flex flex-col gap-1">
-                        <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">{d.nama_desa}</span>
-                        <div className="flex flex-wrap gap-2.5 pl-1">
-                          {d.kelompoks.map(k => (
-                            <label key={k.id} className="flex items-center gap-1.5 cursor-pointer font-semibold text-slate-650">
-                              <input 
-                                type="checkbox"
-                                checked={reportKelompoks.includes(k.nama_kelompok)}
-                                onChange={(e) => {
-                                  if (e.target.checked) {
-                                    setReportKelompoks(prev => [...prev, k.nama_kelompok]);
+                <button 
+                  onClick={loadReport} 
+                  className="py-2.5 px-5 font-bold text-xs bg-primary hover:bg-primary-hover text-white rounded-lg transition-all shadow-md shadow-primary/10 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  disabled={loadingReport || !reportStartDate || !reportEndDate || selectedReportSessionIds.length === 0}
+                >
+                  {loadingReport ? "Memuat..." : "Tampilkan Laporan"}
+                </button>
+              </div>
+            </div>
+
+            {showReportFilters && (
+              <>
+                {/* Dropdowns Row */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 border-t border-slate-50 pt-4">
+                  <MultiSelectDropdown
+                    label="Target Desa"
+                    options={locations.map(d => d.nama_desa)}
+                    selected={reportDesas}
+                    onChange={setReportDesas}
+                    placeholder="Pilih Desa..."
+                    allLabel="Semua Desa"
+                    badgeCountLabel="Desa Terpilih"
+                  />
+
+                  <GroupedMultiSelectDropdown
+                    label="Target Kelompok"
+                    groupedOptions={locations.map(d => ({
+                      desa: d.nama_desa,
+                      kelompoks: d.kelompoks.map(k => k.nama_kelompok)
+                    }))}
+                    selected={reportKelompoks}
+                    onChange={setReportKelompoks}
+                    placeholder="Pilih Kelompok..."
+                  />
+
+                  <MultiSelectDropdown
+                    label="Jenis Kelamin"
+                    options={['Laki-laki', 'Perempuan']}
+                    selected={reportGenders}
+                    onChange={setReportGenders}
+                    placeholder="Pilih Gender..."
+                    allLabel="Semua Gender"
+                    badgeCountLabel="Gender Terpilih"
+                  />
+
+                  <MultiSelectDropdown
+                    label="Status Pernikahan"
+                    options={['Belum Menikah', 'Menikah', 'Janda', 'Duda']}
+                    selected={reportStatusPernikahan}
+                    onChange={setReportStatusPernikahan}
+                    placeholder="Pilih Status..."
+                    allLabel="Semua Status"
+                    badgeCountLabel="Status Terpilih"
+                  />
+
+                  <MultiSelectDropdown
+                    label="Kategori Jamaah"
+                    options={['Balita', 'CBR/PAUD', 'Pra Remaja', 'Remaja', 'Pra Nikah', 'Dewasa', 'Lansia']}
+                    selected={reportKategori}
+                    onChange={setReportKategori}
+                    placeholder="Pilih Kategori..."
+                    allLabel="Semua Kategori"
+                    badgeCountLabel="Kategori Terpilih"
+                  />
+                </div>
+
+                {/* Review Sesi Panel (Inclusion / Exclusion Checkboxes) */}
+                {reportStartDate && reportEndDate && (
+                  <div className="border-t border-slate-100 pt-4 flex flex-col gap-2">
+                    {(() => {
+                      const matchingSessionsInRange = sessions.filter(s => {
+                        const inDateRange = s.tanggal >= reportStartDate && s.tanggal <= reportEndDate;
+                        if (!inDateRange) return false;
+
+                        const matchesDesa = reportDesas.length === 0 || s.desas.some(d => reportDesas.includes(d));
+                        const matchesKelompok = reportKelompoks.length === 0 || s.kelompoks.some(k => reportKelompoks.includes(k));
+                        const matchesGender = reportGenders.length === 0 || s.genders.some(g => reportGenders.includes(g));
+                        const matchesMarital = reportStatusPernikahan.length === 0 || s.marital_statuses.some(m => reportStatusPernikahan.includes(m));
+                        const matchesKategori = reportKategori.length === 0 || s.kategoris.some(kat => reportKategori.includes(kat));
+
+                        return matchesDesa && matchesKelompok && matchesGender && matchesMarital && matchesKategori;
+                      });
+
+                      return (
+                        <>
+                          <div className="flex justify-between items-center">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                              Review Sesi Pengajian ({matchingSessionsInRange.length} Sesi Cocok)
+                            </span>
+                            {matchingSessionsInRange.length > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const matchIds = matchingSessionsInRange.map(s => s.id);
+                                  const allChecked = matchIds.every(id => selectedReportSessionIds.includes(id));
+                                  if (allChecked) {
+                                    setSelectedReportSessionIds(prev => prev.filter(id => !matchIds.includes(id)));
                                   } else {
-                                    setReportKelompoks(prev => prev.filter(v => v !== k.nama_kelompok));
+                                    setSelectedReportSessionIds(prev => {
+                                      const union = new Set([...prev, ...matchIds]);
+                                      return Array.from(union);
+                                    });
                                   }
                                 }}
-                              />
-                              <span>{k.nama_kelompok}</span>
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Right Column: Gender, Marital, and Kategori Checklists */}
-              <div className="flex flex-col gap-4">
-                {/* Gender & Marital Status Checklists Grid */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex flex-col gap-1.5">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Jenis Kelamin</span>
-                    <div className="p-3 border border-slate-200 rounded-lg flex flex-col gap-2 bg-slate-50/50">
-                      {['Laki-laki', 'Perempuan'].map(g => (
-                        <label key={g} className="flex items-center gap-1.5 cursor-pointer font-semibold text-slate-650">
-                          <input 
-                            type="checkbox"
-                            checked={reportGenders.includes(g)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                  setReportGenders(prev => [...prev, g]);
-                              } else {
-                                  setReportGenders(prev => prev.filter(v => v !== g));
-                              }
-                            }}
-                          />
-                          <span>{g}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-1.5">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status Pernikahan</span>
-                    <div className="p-3 border border-slate-200 rounded-lg flex flex-col gap-2 bg-slate-50/50">
-                      {['Belum Menikah', 'Menikah', 'Janda', 'Duda'].map(m => (
-                        <label key={m} className="flex items-center gap-1.5 cursor-pointer font-semibold text-slate-650">
-                          <input 
-                            type="checkbox"
-                            checked={reportStatusPernikahan.includes(m)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                  setReportStatusPernikahan(prev => [...prev, m]);
-                              } else {
-                                  setReportStatusPernikahan(prev => prev.filter(v => v !== m));
-                              }
-                            }}
-                          />
-                          <span>{m}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Kategori Checklist */}
-                <div className="flex flex-col gap-1.5">
-                  <div className="flex justify-between items-center">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Kategori Jamaah</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const allKats = ['Balita', 'CBR/PAUD', 'Pra Remaja', 'Remaja', 'Pra Nikah', 'Dewasa', 'Lansia'];
-                        if (reportKategori.length === allKats.length) {
-                          setReportKategori([]);
-                        } else {
-                          setReportKategori(allKats);
-                        }
-                      }}
-                      className="text-[10px] text-primary hover:underline font-extrabold cursor-pointer"
-                    >
-                      {reportKategori.length === 7 ? "Hapus Semua" : "Pilih Semua"}
-                    </button>
-                  </div>
-                  <div className="p-3 border border-slate-200 rounded-lg flex flex-wrap gap-2.5 bg-slate-50/50">
-                    {['Balita', 'CBR/PAUD', 'Pra Remaja', 'Remaja', 'Pra Nikah', 'Dewasa', 'Lansia'].map(k => (
-                      <label key={k} className="flex items-center gap-1.5 cursor-pointer font-semibold text-slate-650">
-                        <input 
-                          type="checkbox"
-                          checked={reportKategori.includes(k)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setReportKategori(prev => [...prev, k]);
-                            } else {
-                              setReportKategori(prev => prev.filter(v => v !== k));
-                            }
-                          }}
-                        />
-                        <span>{k}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Review Sesi Panel (Inclusion / Exclusion Checkboxes) */}
-            {reportStartDate && reportEndDate && (
-              <div className="border-t border-slate-100 pt-4 flex flex-col gap-2">
-                {(() => {
-                  const matchingSessionsInRange = sessions.filter(s => {
-                    const inDateRange = s.tanggal >= reportStartDate && s.tanggal <= reportEndDate;
-                    if (!inDateRange) return false;
-
-                    const matchesDesa = reportDesas.length === 0 || s.desas.some(d => reportDesas.includes(d));
-                    const matchesKelompok = reportKelompoks.length === 0 || s.kelompoks.some(k => reportKelompoks.includes(k));
-                    const matchesGender = reportGenders.length === 0 || s.genders.some(g => reportGenders.includes(g));
-                    const matchesMarital = reportStatusPernikahan.length === 0 || s.marital_statuses.some(m => reportStatusPernikahan.includes(m));
-                    const matchesKategori = reportKategori.length === 0 || s.kategoris.some(kat => reportKategori.includes(kat));
-
-                    return matchesDesa && matchesKelompok && matchesGender && matchesMarital && matchesKategori;
-                  });
-
-                  return (
-                    <>
-                      <div className="flex justify-between items-center">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                          Review Sesi Pengajian ({matchingSessionsInRange.length} Sesi Cocok)
-                        </span>
-                        {matchingSessionsInRange.length > 0 && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const matchIds = matchingSessionsInRange.map(s => s.id);
-                              const allChecked = matchIds.every(id => selectedReportSessionIds.includes(id));
-                              if (allChecked) {
-                                // Uncheck all matching
-                                setSelectedReportSessionIds(prev => prev.filter(id => !matchIds.includes(id)));
-                              } else {
-                                // Check all matching
-                                setSelectedReportSessionIds(prev => {
-                                  const union = new Set([...prev, ...matchIds]);
-                                  return Array.from(union);
-                                });
-                              }
-                            }}
-                            className="text-[10px] text-primary hover:underline font-extrabold cursor-pointer"
-                          >
-                            {matchingSessionsInRange.every(s => selectedReportSessionIds.includes(s.id)) ? "Sembunyikan Semua Sesi" : "Ikutkan Semua Sesi"}
-                          </button>
-                        )}
-                      </div>
-
-                      {matchingSessionsInRange.length === 0 ? (
-                        <div className="p-3 bg-slate-50 border border-dashed border-slate-200 rounded-xl text-center text-slate-400 text-xs font-semibold">
-                          Tidak ditemukan sesi pengajian yang cocok dengan filter demografis dan wilayah terpilih.
-                        </div>
-                      ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-44 overflow-y-auto p-1 bg-slate-50/30 border border-slate-100 rounded-xl">
-                          {matchingSessionsInRange.map(s => {
-                            const isIncluded = selectedReportSessionIds.includes(s.id);
-                            let badgeColor = 'bg-teal-50 border-teal-150 text-teal-700';
-                            if (s.jenis_pengajian === 'Desa') badgeColor = 'bg-blue-50 border-blue-150 text-blue-700';
-                            if (s.jenis_pengajian === 'Daerah') badgeColor = 'bg-purple-50 border-purple-150 text-purple-700';
-
-                            return (
-                              <label 
-                                key={s.id}
-                                className={`flex items-start gap-2.5 p-2.5 border rounded-lg cursor-pointer transition-all hover:bg-white select-none ${
-                                  isIncluded 
-                                    ? 'bg-white border-primary/25 shadow-sm' 
-                                    : 'bg-slate-50/50 border-slate-200/60 opacity-60'
-                                }`}
+                                className="text-[10px] text-primary hover:underline font-extrabold cursor-pointer"
                               >
-                                <input 
-                                  type="checkbox"
-                                  className="rounded border-slate-350 text-primary focus:ring-primary w-4 h-4 mt-0.5"
-                                  checked={isIncluded}
-                                  onChange={(e) => {
-                                    if (e.target.checked) {
-                                      setSelectedReportSessionIds(prev => [...prev, s.id]);
-                                    } else {
-                                      setSelectedReportSessionIds(prev => prev.filter(id => id !== s.id));
-                                    }
-                                  }}
-                                />
-                                <div className="flex flex-col gap-0.5 min-w-0">
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="font-black text-slate-750 text-[11px] truncate">
-                                      {new Date(s.tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })} &bull; {s.waktu_mulai}
-                                    </span>
-                                    <span className={`px-1 py-0.5 rounded text-[8px] font-extrabold uppercase border ${badgeColor}`}>
-                                      {s.jenis_pengajian}
-                                    </span>
-                                  </div>
-                                  <div className="text-[10px] text-slate-400 font-semibold truncate leading-tight">
-                                    Target: {s.kelompoks.join(', ')} ({s.kategoris.join(', ')})
-                                  </div>
-                                </div>
-                              </label>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </>
-                  );
-                })()}
-              </div>
+                                {matchingSessionsInRange.every(s => selectedReportSessionIds.includes(s.id)) ? "Sembunyikan Semua Sesi" : "Ikutkan Semua Sesi"}
+                              </button>
+                            )}
+                          </div>
+
+                          {matchingSessionsInRange.length === 0 ? (
+                            <div className="p-3 bg-slate-50 border border-dashed border-slate-200 rounded-xl text-center text-slate-400 text-xs font-semibold">
+                              Tidak ditemukan sesi pengajian yang cocok dengan filter demografis dan wilayah terpilih.
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-44 overflow-y-auto p-1 bg-slate-50/30 border border-slate-100 rounded-xl">
+                              {matchingSessionsInRange.map(s => {
+                                const isIncluded = selectedReportSessionIds.includes(s.id);
+                                let badgeColor = 'bg-teal-50 border-teal-150 text-teal-700';
+                                if (s.jenis_pengajian === 'Desa') badgeColor = 'bg-blue-50 border-blue-150 text-blue-700';
+                                if (s.jenis_pengajian === 'Daerah') badgeColor = 'bg-purple-50 border-purple-150 text-purple-700';
+
+                                return (
+                                  <label 
+                                    key={s.id}
+                                    className={`flex items-start gap-2.5 p-2.5 border rounded-lg cursor-pointer transition-all hover:bg-white select-none ${
+                                      isIncluded 
+                                        ? 'bg-white border-primary/25 shadow-sm' 
+                                        : 'bg-slate-50/50 border-slate-200/60 opacity-60'
+                                    }`}
+                                  >
+                                    <input 
+                                      type="checkbox"
+                                      className="rounded border-slate-350 text-primary focus:ring-primary w-4 h-4 mt-0.5"
+                                      checked={isIncluded}
+                                      onChange={(e) => {
+                                        if (e.target.checked) {
+                                          setSelectedReportSessionIds(prev => [...prev, s.id]);
+                                        } else {
+                                          setSelectedReportSessionIds(prev => prev.filter(id => id !== s.id));
+                                        }
+                                      }}
+                                    />
+                                    <div className="flex flex-col gap-0.5 min-w-0">
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="font-black text-slate-750 text-[11px] truncate">
+                                          {new Date(s.tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })} &bull; {s.waktu_mulai}
+                                        </span>
+                                        <span className={`px-1 py-0.5 rounded text-[8px] font-extrabold uppercase border ${badgeColor}`}>
+                                          {s.jenis_pengajian}
+                                        </span>
+                                      </div>
+                                      <div className="text-[10px] text-slate-400 font-semibold truncate leading-tight">
+                                        Target: {s.kelompoks.join(', ')} ({s.kategoris.join(', ')})
+                                      </div>
+                                    </div>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </div>
+                )}
+              </>
             )}
           </div>
 
@@ -2360,6 +2257,208 @@ export default function PresensiPage() {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+// ================================================= HELPER COMPONENTS =================================================
+
+function MultiSelectDropdown({ 
+  label, 
+  options, 
+  selected, 
+  onChange, 
+  placeholder = "Pilih...", 
+  allLabel = "Semua",
+  badgeCountLabel = "terpilih"
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const toggleOption = (val) => {
+    if (selected.includes(val)) {
+      onChange(selected.filter(item => item !== val));
+    } else {
+      onChange([...selected, val]);
+    }
+  };
+
+  const isAllSelected = selected.length === options.length;
+
+  const toggleAll = () => {
+    if (isAllSelected) {
+      onChange([]);
+    } else {
+      onChange([...options]);
+    }
+  };
+
+  let displayText = placeholder;
+  if (selected.length === 0) {
+    displayText = "Tidak ada";
+  } else if (selected.length === options.length) {
+    displayText = `${allLabel} (${options.length})`;
+  } else if (selected.length <= 2) {
+    displayText = selected.join(', ');
+  } else {
+    displayText = `${selected.length} ${badgeCountLabel}`;
+  }
+
+  return (
+    <div className="flex flex-col gap-1.5 min-w-[150px] relative text-left" ref={dropdownRef}>
+      <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">{label}</span>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-750 font-bold text-xs flex items-center justify-between hover:border-primary transition-all shadow-sm cursor-pointer outline-none min-h-[34px]"
+      >
+        <span className="truncate pr-1">{displayText}</span>
+        <ChevronDown size={14} className={`text-slate-400 transition-transform shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      {isOpen && (
+        <div className="absolute top-[100%] left-0 right-0 mt-1 bg-white border border-slate-150 rounded-xl shadow-xl z-50 p-2.5 max-h-60 overflow-y-auto min-w-[180px]">
+          <div className="flex justify-between items-center border-b border-slate-50 pb-1.5 mb-1.5">
+            <span className="text-[9px] font-extrabold text-slate-400 uppercase">Pilih Opsi</span>
+            <button
+              type="button"
+              onClick={toggleAll}
+              className="text-[9px] text-primary hover:underline font-extrabold cursor-pointer"
+            >
+              {isAllSelected ? "Hapus Semua" : "Pilih Semua"}
+            </button>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            {options.map(opt => {
+              const isChecked = selected.includes(opt);
+              return (
+                <label key={opt} className="flex items-center gap-2 px-1.5 py-1 rounded hover:bg-slate-50 cursor-pointer font-semibold text-slate-650 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={isChecked}
+                    onChange={() => toggleOption(opt)}
+                    className="rounded border-slate-350 text-primary focus:ring-primary w-4 h-4 cursor-pointer"
+                  />
+                  <span className="truncate">{opt}</span>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function GroupedMultiSelectDropdown({ 
+  label, 
+  groupedOptions, 
+  selected, 
+  onChange, 
+  placeholder = "Pilih..." 
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const allKelompoks = groupedOptions.flatMap(g => g.kelompoks);
+  const isAllSelected = selected.length === allKelompoks.length;
+
+  const toggleAll = () => {
+    if (isAllSelected) {
+      onChange([]);
+    } else {
+      onChange([...allKelompoks]);
+    }
+  };
+
+  const toggleOption = (val) => {
+    if (selected.includes(val)) {
+      onChange(selected.filter(item => item !== val));
+    } else {
+      onChange([...selected, val]);
+    }
+  };
+
+  let displayText = placeholder;
+  if (selected.length === 0) {
+    displayText = "Tidak ada";
+  } else if (selected.length === allKelompoks.length) {
+    displayText = `Semua Kelompok (${allKelompoks.length})`;
+  } else if (selected.length <= 2) {
+    displayText = selected.join(', ');
+  } else {
+    displayText = `${selected.length} Kelompok`;
+  }
+
+  return (
+    <div className="flex flex-col gap-1.5 min-w-[150px] relative text-left" ref={dropdownRef}>
+      <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">{label}</span>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-750 font-bold text-xs flex items-center justify-between hover:border-primary transition-all shadow-sm cursor-pointer outline-none min-h-[34px]"
+      >
+        <span className="truncate pr-1">{displayText}</span>
+        <ChevronDown size={14} className={`text-slate-400 transition-transform shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      {isOpen && (
+        <div className="absolute top-[100%] left-0 mt-1 bg-white border border-slate-150 rounded-xl shadow-xl z-50 p-3 max-h-60 overflow-y-auto min-w-[220px]">
+          <div className="flex justify-between items-center border-b border-slate-50 pb-1.5 mb-1.5">
+            <span className="text-[9px] font-extrabold text-slate-400 uppercase">Pilih Kelompok</span>
+            <button
+              type="button"
+              onClick={toggleAll}
+              className="text-[9px] text-primary hover:underline font-extrabold cursor-pointer"
+            >
+              {isAllSelected ? "Hapus Semua" : "Pilih Semua"}
+            </button>
+          </div>
+          <div className="flex flex-col gap-3">
+            {groupedOptions.map(g => (
+              <div key={g.desa} className="flex flex-col gap-1">
+                <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">{g.desa}</span>
+                <div className="flex flex-col gap-1.5 pl-1">
+                  {g.kelompoks.map(k => {
+                    const isChecked = selected.includes(k);
+                    return (
+                      <label key={k} className="flex items-center gap-2 px-1.5 py-0.5 rounded hover:bg-slate-50 cursor-pointer font-semibold text-slate-650 text-xs">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => toggleOption(k)}
+                          className="rounded border-slate-350 text-primary focus:ring-primary w-4 h-4 cursor-pointer"
+                        />
+                        <span className="truncate">{k}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
