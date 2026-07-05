@@ -4,8 +4,8 @@ export function middleware(request) {
   const emailCookie = request.cookies.get('user_email');
   const path = request.nextUrl.pathname;
 
-  // Protect /dashboard routes
-  if (path.startsWith('/dashboard') && !emailCookie) {
+  // Protect /dashboard routes (except legacy scan page which redirects to status)
+  if (path.startsWith('/dashboard') && path !== '/dashboard/presensi/scan' && !emailCookie) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
