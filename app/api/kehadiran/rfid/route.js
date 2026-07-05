@@ -16,6 +16,11 @@ function getGmt7DateTime() {
   return { dateStr, timeStr, dateObj: nd };
 }
 
+function timeToMinutes(t) {
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
+}
+
 async function processRfidPresence(rfidValue, user) {
   if (!rfidValue) {
     return { error: "RFID card ID wajib dikirim", status: 400 };
@@ -49,29 +54,56 @@ async function processRfidPresence(rfidValue, user) {
 
   // 3. Hitung tanggal dan waktu GMT+7
   const { dateStr, timeStr, dateObj } = getGmt7DateTime();
+  const currentMin = dateObj.getHours() * 60 + dateObj.getMinutes();
 
-  // 4. Periksa data kehadiran jamaah untuk hari ini (untuk cooldown 10 menit)
-  const { rows: todayPresences } = await db.query(
-    "SELECT * FROM kehadiran WHERE jamaah_id = $1 AND tanggal = $2 ORDER BY waktu_presensi DESC;",
-    [jamaah.id, dateStr]
-  );
+  // 4. Cari Sesi Pengajian yang aktif saat ini untuk jamaah ini
+  const { rows: sessions } = await db.query("SELECT * FROM sesi WHERE tanggal = $1;", [dateStr]);
+  
+  let activeSession = null;
+  for (const s of sessions) {
+    const startMin = timeToMinutes(s.waktu_mulai) - 30; // 30 minutes earlier
+    const endMin = timeToMinutes(s.waktu_selesai);
+    
+    if (currentMin >= startMin && currentMin <= endMin) {
+      // Check filters
+      const matchesDesa = s.desas.includes(jamaah.desa);
+      const matchesKelompok = s.kelompoks.includes(jamaah.kelompok);
+      const matchesGender = s.genders.includes(jamaah.jenis_kelamin);
+      const matchesMarital = s.marital_statuses.includes(jamaah.status_pernikahan);
+      const matchesKategori = s.kategoris.includes(jamaah.kategori);
+
+      if (matchesDesa && matchesKelompok && matchesGender && matchesMarital && matchesKategori) {
+        activeSession = s;
+        break; // Match found
+      }
+    }
+  }
 
   const recorder = user ? user.email : 'RFID Hardware';
 
-  // Cari entri 'Hadir' terakhir hari ini untuk cooldown check
-  const lastHadirEntry = todayPresences.find(p => p.status === 'Hadir' && p.waktu_presensi);
+  // 5. Cooldown check
+  // Ambil data kehadiran hari ini untuk jamaah
+  let presenceQuery = "";
+  let presenceParams = [];
+  if (activeSession) {
+    presenceQuery = "SELECT * FROM kehadiran WHERE jamaah_id = $1 AND sesi_id = $2 ORDER BY waktu_presensi DESC;";
+    presenceParams = [jamaah.id, activeSession.id];
+  } else {
+    presenceQuery = "SELECT * FROM kehadiran WHERE jamaah_id = $1 AND tanggal = $2 AND sesi_id IS NULL ORDER BY waktu_presensi DESC;";
+    presenceParams = [jamaah.id, dateStr];
+  }
+
+  const { rows: existingPresences } = await db.query(presenceQuery, presenceParams);
+  const lastHadirEntry = existingPresences.find(p => p.status === 'Hadir' && p.waktu_presensi);
 
   if (lastHadirEntry) {
-    // Parse waktu presensi (format: YYYY-MM-DD HH:mm:ss)
     const lastTimeStr = lastHadirEntry.waktu_presensi.replace(' ', 'T');
     const lastTapTime = new Date(lastTimeStr);
     
-    // Hitung selisih dalam milidetik
     const diffMs = Math.abs(dateObj.getTime() - lastTapTime.getTime());
     const diffMin = diffMs / 60000;
 
     if (diffMin < 30) {
-      // Cooldown aktif (kurang dari 30 menit): Kembalikan sukses khusus tanpa menulis ulang ke DB
       return {
         success: true,
         alreadyLogged: true,
@@ -86,38 +118,47 @@ async function processRfidPresence(rfidValue, user) {
     }
   }
 
-  // 5. Simpan kehadiran
-  // Jika ada record hari ini yang berstatus 'Tidak Hadir' atau 'Ijin', update record tersebut menjadi 'Hadir'
-  const standbyEntry = todayPresences.find(p => p.status === 'Tidak Hadir' || p.status === 'Ijin');
-
-  if (standbyEntry) {
-    await db.query(`
-      UPDATE kehadiran 
-      SET status = 'Hadir', waktu_presensi = $1, recorded_by = $2 
-      WHERE id = $3;
-    `, [timeStr, recorder, standbyEntry.id]);
+  // 6. Simpan Kehadiran
+  if (activeSession) {
+    // Jika ada standby/absent record untuk sesi ini, update menjadi Hadir
+    const standbyEntry = existingPresences.find(p => p.status === 'Tidak Hadir' || p.status === 'Ijin');
+    if (standbyEntry) {
+      await db.query(`
+        UPDATE kehadiran 
+        SET status = 'Hadir', waktu_presensi = $1, recorded_by = $2 
+        WHERE id = $3;
+      `, [timeStr, recorder, standbyEntry.id]);
+    } else {
+      const newPresenceId = crypto.randomUUID();
+      await db.query(`
+        INSERT INTO kehadiran (id, jamaah_id, tanggal, waktu_presensi, status, recorded_by, sesi_id)
+        VALUES ($1, $2, $3, $4, $5, $6, $7);
+      `, [newPresenceId, jamaah.id, dateStr, timeStr, 'Hadir', recorder, activeSession.id]);
+    }
   } else {
-    // Jika tidak ada standby entry, atau entry hari ini sudah 'Hadir' (tapi sudah lewat 10 menit), buat entri baru
+    // Tapping outside of active session (sesi_id = null)
     const newPresenceId = crypto.randomUUID();
     await db.query(`
-      INSERT INTO kehadiran (id, jamaah_id, tanggal, waktu_presensi, status, recorded_by)
-      VALUES ($1, $2, $3, $4, $5, $6);
+      INSERT INTO kehadiran (id, jamaah_id, tanggal, waktu_presensi, status, recorded_by, sesi_id)
+      VALUES ($1, $2, $3, $4, $5, $6, NULL);
     `, [newPresenceId, jamaah.id, dateStr, timeStr, 'Hadir', recorder]);
   }
 
-  // 6. Catat aktivitas
+  // 7. Catat log audit
   await logActivity(
     recorder,
     'SCAN_RFID',
     'KEHADIRAN',
     jamaah.id,
-    `Presensi RFID berhasil: ${jamaah.nama_lengkap} (${jamaah.kelompok}, ${jamaah.desa})`
+    `Presensi RFID berhasil: ${jamaah.nama_lengkap} (${jamaah.kelompok}, ${jamaah.desa}) ${activeSession ? `untuk Sesi ${activeSession.jenis_pengajian}` : 'di luar sesi aktif'}`
   );
 
   return {
     success: true,
     alreadyLogged: false,
-    message: "Kehadiran berhasil dicatat.",
+    message: activeSession 
+      ? `Kehadiran berhasil dicatat untuk Sesi ${activeSession.jenis_pengajian} ${jamaah.kelompok}.`
+      : "Kartu terdeteksi: Tap berhasil dicatat di luar sesi aktif.",
     jamaah: {
       nama_lengkap: jamaah.nama_lengkap,
       desa: jamaah.desa,
@@ -127,9 +168,9 @@ async function processRfidPresence(rfidValue, user) {
   };
 }
 
-// GET handler: mendukung link url query parameters (misal: /api/kehadiran/rfid?card_id=12345)
+// GET handler
 export async function GET(request) {
-  const user = await getCurrentUser(); // opsional, bypass auth jika dari ESP32
+  const user = await getCurrentUser();
   const { searchParams } = new URL(request.url);
   const cardId = searchParams.get('card_id') || searchParams.get('rfid');
 
@@ -145,30 +186,20 @@ export async function GET(request) {
   }
 }
 
-// POST handler: mendukung JSON body (misal: { "card_id": "12345" }) maupun URLSearchParams
+// POST handler
 export async function POST(request) {
-  const user = await getCurrentUser(); // opsional, bypass auth jika dari ESP32
+  const user = await getCurrentUser();
   
   try {
     let cardId = null;
-
-    // Deteksi tipe konten request
     const contentType = request.headers.get('content-type') || '';
+    
     if (contentType.includes('application/json')) {
       const body = await request.json();
       cardId = body.card_id || body.rfid;
     } else {
-      // Fallback ke url query params
-      const { searchParams } = new URL(request.url);
-      cardId = searchParams.get('card_id') || searchParams.get('rfid');
-      
-      // Jika masih kosong, coba parse body form urlencoded
-      if (!cardId) {
-        try {
-          const formData = await request.formData();
-          cardId = formData.get('card_id') || formData.get('rfid');
-        } catch (_) {}
-      }
+      const formData = await request.formData();
+      cardId = formData.get('card_id') || formData.get('rfid');
     }
 
     const result = await processRfidPresence(cardId, user);

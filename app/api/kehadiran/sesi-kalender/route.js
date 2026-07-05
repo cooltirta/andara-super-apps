@@ -15,96 +15,36 @@ export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const start = searchParams.get('start');
   const end = searchParams.get('end');
-  const filterDesa = searchParams.get('desa') || '';
-  const filterKelompok = searchParams.get('kelompok') || '';
-  const kategoriStr = searchParams.get('kategori') || '';
-  const statusPernikahanStr = searchParams.get('status_pernikahan') || '';
 
   if (!start || !end) {
     return NextResponse.json({ error: "Parameter start dan end wajib diisi" }, { status: 400 });
   }
 
-  const kategoriArray = kategoriStr ? kategoriStr.split(',') : [];
-  const statusPernikahanArray = statusPernikahanStr ? statusPernikahanStr.split(',') : [];
-
   try {
     let baseQuery = `
-      WITH session_counts AS (
-        SELECT 
-          k.tanggal,
-          k.jamaah_id,
-          COUNT(*) as count_sessions
-        FROM kehadiran k
-        JOIN jamaah j ON k.jamaah_id = j.id
-        WHERE k.tanggal >= $1 AND k.tanggal <= $2
+      SELECT tanggal, COUNT(*)::int as count_sessions 
+      FROM sesi 
+      WHERE tanggal >= $1 AND tanggal <= $2
     `;
-    
     const params = [start, end];
     let paramIdx = 3;
 
-    if (!user.monitor_all_desas) {
-      if (filterDesa) {
-        if (user.desas_pantau && user.desas_pantau.includes(filterDesa)) {
-          baseQuery += ` AND j.desa = $${paramIdx++}`;
-          params.push(filterDesa);
-        } else {
-          baseQuery += " AND j.desa = ANY('{}'::text[])";
-        }
-      } else {
-        baseQuery += ` AND j.desa = ANY($${paramIdx++}::text[])`;
-        params.push(user.desas_pantau || []);
-      }
-    } else {
-      if (filterDesa) {
-        baseQuery += ` AND j.desa = $${paramIdx++}`;
-        params.push(filterDesa);
-      }
+    // Filter sesi berdasarkan wilayah wewenang pengguna jika bukan Admin global
+    if (user.role !== 'Admin' && !user.monitor_all_desas) {
+      const allowedDesas = [user.desa, ...(user.desas_pantau || [])];
+      const allowedKelompoks = [user.kelompok, ...(user.kelompoks_pantau || [])];
+
+      baseQuery += ` AND (desas && $${paramIdx++}::varchar[] OR kelompoks && $${paramIdx++}::varchar[])`;
+      params.push(allowedDesas, allowedKelompoks);
     }
 
-    if (!user.monitor_all_kelompoks) {
-      if (filterKelompok) {
-        if (user.kelompoks_pantau && user.kelompoks_pantau.includes(filterKelompok)) {
-          baseQuery += ` AND j.kelompok = $${paramIdx++}`;
-          params.push(filterKelompok);
-        } else {
-          baseQuery += " AND j.kelompok = ANY('{}'::text[])";
-        }
-      } else {
-        baseQuery += ` AND j.kelompok = ANY($${paramIdx++}::text[])`;
-        params.push(user.kelompoks_pantau || []);
-      }
-    } else {
-      if (filterKelompok) {
-        baseQuery += ` AND j.kelompok = $${paramIdx++}`;
-        params.push(filterKelompok);
-      }
-    }
-
-    if (kategoriArray.length > 0) {
-      baseQuery += ` AND j.kategori = ANY($${paramIdx++})`;
-      params.push(kategoriArray);
-    }
-    if (statusPernikahanArray.length > 0) {
-      baseQuery += ` AND j.status_pernikahan = ANY($${paramIdx++})`;
-      params.push(statusPernikahanArray);
-    }
-
-    baseQuery += `
-        GROUP BY k.tanggal, k.jamaah_id
-      )
-      SELECT 
-        tanggal,
-        MAX(count_sessions)::int as max_sessions
-      FROM session_counts
-      GROUP BY tanggal
-      ORDER BY tanggal;
-    `;
+    baseQuery += ` GROUP BY tanggal ORDER BY tanggal;`;
 
     const { rows } = await db.query(baseQuery, params);
     
     const sessionMap = {};
     rows.forEach(r => {
-      sessionMap[r.tanggal] = r.max_sessions;
+      sessionMap[r.tanggal] = r.count_sessions;
     });
 
     return NextResponse.json(sessionMap);

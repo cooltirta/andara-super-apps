@@ -4,7 +4,7 @@ import { getCurrentUser, canModifyAttendance } from '@/lib/auth';
 import crypto from 'crypto';
 import { logActivity } from '@/lib/activity';
 
-// GET: Memuat daftar kehadiran jamaah untuk tanggal tertentu (termasuk standby row)
+// GET: Memuat daftar kehadiran jamaah untuk tanggal tertentu atau sesi pengajian tertentu
 export async function GET(request) {
   const user = await getCurrentUser();
   if (!user) {
@@ -16,44 +16,106 @@ export async function GET(request) {
   }
 
   const { searchParams } = new URL(request.url);
+  const sesiId = searchParams.get('sesi_id');
   const date = searchParams.get('date');
 
-  if (!date) {
-    return NextResponse.json({ error: "Parameter tanggal (date) wajib diisi" }, { status: 400 });
+  if (!sesiId && !date) {
+    return NextResponse.json({ error: "Parameter sesi_id atau date wajib diisi" }, { status: 400 });
   }
 
   try {
-    // 1. Ambil daftar jamaah aktif sesuai wewenang
-    let jamaahQuery = `
-      SELECT id as jamaah_id, nama_lengkap, desa, kelompok, jenis_kelamin, kategori, status_pernikahan 
-      FROM jamaah 
-      WHERE status_kehidupan = 'Hidup'
-    `;
-    const jamaahParams = [];
-    let paramIdx = 1;
-    
-    if (user.monitor_all_desas && user.monitor_all_kelompoks) {
-      // No filter
-    } else if (!user.monitor_all_desas && user.monitor_all_kelompoks) {
-      jamaahQuery += ` AND desa = ANY($${paramIdx++}::text[])`;
-      jamaahParams.push(user.desas_pantau || []);
-    } else if (user.monitor_all_desas && !user.monitor_all_kelompoks) {
-      jamaahQuery += ` AND kelompok = ANY($${paramIdx++}::text[])`;
-      jamaahParams.push(user.kelompoks_pantau || []);
+    let jamaahs = [];
+    let querySession = null;
+
+    if (sesiId) {
+      // 1. Ambil detail sesi untuk mencocokkan filter
+      const { rows: sessionRows } = await db.query("SELECT * FROM sesi WHERE id = $1;", [sesiId]);
+      querySession = sessionRows[0];
+      if (!querySession) {
+        return NextResponse.json({ error: "Sesi pengajian tidak ditemukan" }, { status: 404 });
+      }
+
+      // 2. Ambil daftar jamaah aktif yang memenuhi filter dari sesi tersebut
+      let jamaahQuery = `
+        SELECT id as jamaah_id, nama_lengkap, desa, kelompok, jenis_kelamin, kategori, status_pernikahan 
+        FROM jamaah 
+        WHERE status_kehidupan = 'Hidup'
+          AND desa = ANY($1::text[])
+          AND kelompok = ANY($2::text[])
+          AND jenis_kelamin = ANY($3::text[])
+          AND status_pernikahan = ANY($4::text[])
+          AND kategori = ANY($5::text[])
+      `;
+      const jamaahParams = [
+        querySession.desas, 
+        querySession.kelompoks, 
+        querySession.genders, 
+        querySession.marital_statuses, 
+        querySession.kategoris
+      ];
+      let paramIdx = 6;
+
+      // Filter tambahan berdasarkan cakupan pengawas
+      if (!user.monitor_all_desas) {
+        jamaahQuery += ` AND desa = ANY($${paramIdx++}::text[])`;
+        jamaahParams.push(user.desas_pantau || []);
+      }
+      if (!user.monitor_all_kelompoks) {
+        jamaahQuery += ` AND kelompok = ANY($${paramIdx++}::text[])`;
+        jamaahParams.push(user.kelompoks_pantau || []);
+      }
+      jamaahQuery += ` ORDER BY desa ASC, kelompok ASC, nama_lengkap ASC;`;
+
+      const { rows } = await db.query(jamaahQuery, jamaahParams);
+      jamaahs = rows;
     } else {
-      jamaahQuery += ` AND desa = ANY($${paramIdx++}::text[]) AND kelompok = ANY($${paramIdx++}::text[])`;
-      jamaahParams.push(user.desas_pantau || [], user.kelompoks_pantau || []);
+      // Fallback: load all jamaah based on user scope (legacy date mode)
+      let jamaahQuery = `
+        SELECT id as jamaah_id, nama_lengkap, desa, kelompok, jenis_kelamin, kategori, status_pernikahan 
+        FROM jamaah 
+        WHERE status_kehidupan = 'Hidup'
+      `;
+      const jamaahParams = [];
+      let paramIdx = 1;
+      
+      if (user.monitor_all_desas && user.monitor_all_kelompoks) {
+        // No filter
+      } else if (!user.monitor_all_desas && user.monitor_all_kelompoks) {
+        jamaahQuery += ` AND desa = ANY($${paramIdx++}::text[])`;
+        jamaahParams.push(user.desas_pantau || []);
+      } else if (user.monitor_all_desas && !user.monitor_all_kelompoks) {
+        jamaahQuery += ` AND kelompok = ANY($${paramIdx++}::text[])`;
+        jamaahParams.push(user.kelompoks_pantau || []);
+      } else {
+        jamaahQuery += ` AND desa = ANY($${paramIdx++}::text[]) AND kelompok = ANY($${paramIdx++}::text[])`;
+        jamaahParams.push(user.desas_pantau || [], user.kelompoks_pantau || []);
+      }
+      jamaahQuery += ` ORDER BY desa ASC, kelompok ASC, nama_lengkap ASC;`;
+
+      const { rows } = await db.query(jamaahQuery, jamaahParams);
+      jamaahs = rows;
     }
-    jamaahQuery += ` ORDER BY desa ASC, kelompok ASC, nama_lengkap ASC;`;
 
-    const { rows: jamaahs } = await db.query(jamaahQuery, jamaahParams);
+    // 3. Ambil catatan kehadiran (berdasarkan sesi_id atau date)
+    let presenceQuery = "";
+    let presenceParams = [];
+    if (sesiId) {
+      presenceQuery = `
+        SELECT id as kehadiran_id, jamaah_id, status, waktu_presensi, recorded_by, sesi_id 
+        FROM kehadiran 
+        WHERE sesi_id = $1;
+      `;
+      presenceParams = [sesiId];
+    } else {
+      presenceQuery = `
+        SELECT id as kehadiran_id, jamaah_id, status, waktu_presensi, recorded_by, sesi_id 
+        FROM kehadiran 
+        WHERE tanggal = $1;
+      `;
+      presenceParams = [date];
+    }
 
-    // 2. Ambil catatan kehadiran untuk tanggal tersebut
-    const { rows: presences } = await db.query(`
-      SELECT id as kehadiran_id, jamaah_id, status, waktu_presensi, recorded_by 
-      FROM kehadiran 
-      WHERE tanggal = $1;
-    `, [date]);
+    const { rows: presences } = await db.query(presenceQuery, presenceParams);
 
     // Group catatan kehadiran berdasarkan jamaah_id
     const presenceMap = {};
@@ -83,7 +145,7 @@ export async function GET(request) {
       return true;
     }
 
-    // 3. Bangun daftar structured (1 item per jamaah)
+    // 4. Bangun daftar structured (1 item per jamaah)
     const resultList = [];
     for (const j of jamaahs) {
       const jPresences = presenceMap[j.jamaah_id] || [];
@@ -102,7 +164,8 @@ export async function GET(request) {
           kehadiran_id: p.kehadiran_id,
           status: p.status,
           waktu_presensi: p.waktu_presensi,
-          recorded_by: p.recorded_by
+          recorded_by: p.recorded_by,
+          sesi_id: p.sesi_id
         }))
       });
     }
@@ -114,7 +177,7 @@ export async function GET(request) {
   }
 }
 
-// PUT: Menyimpan atau memperbarui status kehadiran jamaah (Mendukung Multi-Sesi)
+// PUT: Menyimpan atau memperbarui status kehadiran jamaah (Mendukung Sesi)
 export async function PUT(request) {
   const user = await getCurrentUser();
   if (!user) {
@@ -126,7 +189,7 @@ export async function PUT(request) {
 
     // Check if bulk update
     if (data.kehadiran && Array.isArray(data.kehadiran)) {
-      const { tanggal, waktu_presensi, kehadiran } = data;
+      const { tanggal, waktu_presensi, kehadiran, sesi_id } = data;
       if (!tanggal) {
         return NextResponse.json({ error: "tanggal wajib diisi" }, { status: 400 });
       }
@@ -217,9 +280,9 @@ export async function PUT(request) {
                   }
                   await db.query(`
                     UPDATE kehadiran 
-                    SET status = $1, waktu_presensi = $2, recorded_by = $3
-                    WHERE id = $4;
-                  `, [status, rowWaktu, user.email, id]);
+                    SET status = $1, waktu_presensi = $2, recorded_by = $3, sesi_id = $4
+                    WHERE id = $5;
+                  `, [status, rowWaktu, user.email, sesi_id || existing.sesi_id || null, id]);
                 }
               }
             } else {
@@ -245,9 +308,9 @@ export async function PUT(request) {
 
                 const newId = crypto.randomUUID();
                 await db.query(`
-                  INSERT INTO kehadiran (id, jamaah_id, tanggal, waktu_presensi, status, recorded_by)
-                  VALUES ($1, $2, $3, $4, $5, $6);
-                `, [newId, jamaah_id, tanggal, rowWaktu, status, user.email]);
+                  INSERT INTO kehadiran (id, jamaah_id, tanggal, waktu_presensi, status, recorded_by, sesi_id)
+                  VALUES ($1, $2, $3, $4, $5, $6, $7);
+                `, [newId, jamaah_id, tanggal, rowWaktu, status, user.email, sesi_id || null]);
               }
             }
           }
@@ -257,7 +320,7 @@ export async function PUT(request) {
           throw txError;
         }
 
-        await logActivity(user.email, 'SAVE_ATTENDANCE', 'KEHADIRAN', tanggal, `Menyimpan rekap kehadiran tanggal ${tanggal} (Jumlah data: ${kehadiran.length})`);
+        await logActivity(user.email, 'SAVE_ATTENDANCE', 'KEHADIRAN', tanggal, `Menyimpan rekap kehadiran tanggal ${tanggal} (Sesi: ${sesi_id || 'Legacy'}, Jumlah: ${kehadiran.length})`);
 
         return NextResponse.json({
           success: true,
@@ -268,7 +331,7 @@ export async function PUT(request) {
       }
     } else {
       // Single update (for backwards compatibility if any)
-      const { id, jamaah_id, tanggal, status, waktu_presensi } = data;
+      const { id, jamaah_id, tanggal, status, waktu_presensi, sesi_id } = data;
 
       if (!jamaah_id || !tanggal || !status) {
         return NextResponse.json({ error: "jamaah_id, tanggal, dan status wajib diisi" }, { status: 400 });
@@ -293,8 +356,8 @@ export async function PUT(request) {
             let rowWaktu = waktu_presensi || null;
             if (status === 'Ijin') rowWaktu = null;
             await db.query(`
-              UPDATE kehadiran SET status = $1, waktu_presensi = $2, recorded_by = $3 WHERE id = $4;
-            `, [status, rowWaktu, user.email, id]);
+              UPDATE kehadiran SET status = $1, waktu_presensi = $2, recorded_by = $3, sesi_id = $4 WHERE id = $5;
+            `, [status, rowWaktu, user.email, sesi_id || existing.sesi_id || null, id]);
           }
         }
       } else {
@@ -307,9 +370,9 @@ export async function PUT(request) {
           if (status === 'Ijin') rowWaktu = null;
           const newId = crypto.randomUUID();
           await db.query(`
-            INSERT INTO kehadiran (id, jamaah_id, tanggal, waktu_presensi, status, recorded_by)
-            VALUES ($1, $2, $3, $4, $5, $6);
-          `, [newId, jamaah_id, tanggal, rowWaktu, status, user.email]);
+            INSERT INTO kehadiran (id, jamaah_id, tanggal, waktu_presensi, status, recorded_by, sesi_id)
+            VALUES ($1, $2, $3, $4, $5, $6, $7);
+          `, [newId, jamaah_id, tanggal, rowWaktu, status, user.email, sesi_id || null]);
         }
       }
 
@@ -321,7 +384,7 @@ export async function PUT(request) {
   }
 }
 
-// DELETE: Menghapus data kehadiran untuk tanggal tertentu sesuai cakupan wewenang
+// DELETE: Menghapus data kehadiran untuk tanggal tertentu atau sesi tertentu
 export async function DELETE(request) {
   const user = await getCurrentUser();
   if (!user) {
@@ -333,19 +396,28 @@ export async function DELETE(request) {
   }
 
   const { searchParams } = new URL(request.url);
+  const sesiId = searchParams.get('sesi_id');
   const date = searchParams.get('date');
 
-  if (!date) {
-    return NextResponse.json({ error: "Parameter tanggal (date) wajib diisi" }, { status: 400 });
+  if (!sesiId && !date) {
+    return NextResponse.json({ error: "Parameter sesi_id atau date wajib diisi" }, { status: 400 });
   }
 
   try {
-    let deleteQuery = "DELETE FROM kehadiran WHERE tanggal = $1";
-    const deleteParams = [date];
-    let paramIdx = 2;
+    let deleteQuery = "DELETE FROM kehadiran WHERE ";
+    const deleteParams = [];
+    let paramIdx = 1;
+
+    if (sesiId) {
+      deleteQuery += `sesi_id = $${paramIdx++}`;
+      deleteParams.push(sesiId);
+    } else {
+      deleteQuery += `tanggal = $${paramIdx++}`;
+      deleteParams.push(date);
+    }
 
     if (user.monitor_all_desas && user.monitor_all_kelompoks) {
-      // Delete all
+      // Delete all matching
     } else if (!user.monitor_all_desas && user.monitor_all_kelompoks) {
       deleteQuery += ` AND jamaah_id IN (SELECT id FROM jamaah WHERE desa = ANY($${paramIdx++}::text[]))`;
       deleteParams.push(user.desas_pantau || []);
@@ -359,9 +431,15 @@ export async function DELETE(request) {
 
     await db.query(deleteQuery, deleteParams);
 
-    await logActivity(user.email, 'RESET_ATTENDANCE', 'KEHADIRAN', date, `Mereset/menghapus rekap kehadiran tanggal ${date}`);
+    await logActivity(
+      user.email, 
+      'RESET_ATTENDANCE', 
+      'KEHADIRAN', 
+      sesiId || date, 
+      `Mereset/menghapus rekap kehadiran untuk ${sesiId ? `Sesi ${sesiId}` : `Tanggal ${date}`}`
+    );
 
-    return NextResponse.json({ success: true, message: `Kehadiran pada tanggal ${date} berhasil dihapus` });
+    return NextResponse.json({ success: true, message: `Kehadiran berhasil dihapus` });
   } catch (error) {
     console.error("Gagal menghapus kehadiran:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Users, ClipboardCheck, ShieldCheck, LogOut, Menu, X, Bell, History, MapPin, Compass, Heart, Package, Calendar } from 'lucide-react';
+import { LayoutDashboard, Users, ClipboardCheck, ShieldCheck, LogOut, Menu, X, Bell, History, MapPin, Compass, Heart, Package, Calendar, Radio } from 'lucide-react';
 
 export default function Sidebar({ user }) {
   const pathname = usePathname();
@@ -163,13 +163,29 @@ export default function Sidebar({ user }) {
                 href="/dashboard/presensi" 
                 onClick={() => setIsOpen(false)}
                 className={`flex items-center gap-3 px-4 py-2.5 rounded-3xl font-semibold text-sm transition-all duration-150 ${
-                  pathname.startsWith('/dashboard/presensi') 
+                  pathname === '/dashboard/presensi' 
                     ? 'bg-primary-light text-primary font-bold shadow-sm' 
                     : 'text-slate-600 hover:text-primary hover:bg-slate-50'
                 }`}
               >
                 <ClipboardCheck size={18} />
                 <span>Daftar Kehadiran</span>
+              </Link>
+            )}
+
+            {/* Kiosk RFID Link */}
+            {(user.can_read_kehadiran || user.can_create_kehadiran || user.can_update_kehadiran) && (
+              <Link 
+                href="/dashboard/presensi/rfid" 
+                onClick={() => setIsOpen(false)}
+                className={`flex items-center gap-3 px-4 py-2.5 rounded-3xl font-semibold text-sm transition-all duration-150 ${
+                  pathname === '/dashboard/presensi/rfid' 
+                    ? 'bg-primary-light text-primary font-bold shadow-sm' 
+                    : 'text-slate-600 hover:text-primary hover:bg-slate-50'
+                }`}
+              >
+                <Radio size={18} />
+                <span>Kiosk RFID</span>
               </Link>
             )}
 

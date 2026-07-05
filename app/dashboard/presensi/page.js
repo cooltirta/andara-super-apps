@@ -9,7 +9,24 @@ export default function PresensiPage() {
   const [user, setUser] = useState(null);
   
   // Navigation
-  const [activeTab, setActiveTab] = useState('input'); // 'input' or 'laporan'
+  const [activeTab, setActiveTab] = useState('input'); // 'input', 'laporan', or 'sesi'
+
+  // Sesi Tab States
+  const [sessions, setSessions] = useState([]);
+  const [selectedSessionId, setSelectedSessionId] = useState('');
+  const [loadingSessions, setLoadingSessions] = useState(false);
+  const [showCreateSesiModal, setShowCreateSesiModal] = useState(false);
+  
+  // Create Sesi Modal Form Fields
+  const [newSesiDate, setNewSesiDate] = useState('');
+  const [newSesiStart, setNewSesiStart] = useState('08:00');
+  const [newSesiEnd, setNewSesiEnd] = useState('10:00');
+  const [newSesiType, setNewSesiType] = useState('Kelompok');
+  const [newSesiDesas, setNewSesiDesas] = useState([]);
+  const [newSesiKelompoks, setNewSesiKelompoks] = useState([]);
+  const [newSesiGenders, setNewSesiGenders] = useState(['Laki-laki', 'Perempuan']);
+  const [newSesiMarital, setNewSesiMarital] = useState(['Belum Menikah', 'Menikah', 'Duda', 'Janda']);
+  const [newSesiKategoris, setNewSesiKategoris] = useState(['Balita', 'CBR/PAUD', 'Pra Remaja', 'Remaja', 'Pra Nikah', 'Dewasa', 'Lansia']);
 
   // Input Tab States
   const [selectedDate, setSelectedDate] = useState('');
@@ -61,6 +78,20 @@ export default function PresensiPage() {
     }, 4000);
   };
 
+  const loadSessions = async () => {
+    setLoadingSessions(true);
+    try {
+      const res = await fetch('/api/sesi');
+      if (res.ok) {
+        setSessions(await res.json());
+      }
+    } catch (err) {
+      console.error("Gagal mengambil sesi:", err);
+    } finally {
+      setLoadingSessions(false);
+    }
+  };
+
   // 1. Ambil Profil Pengguna saat Load
   const loadUser = async () => {
     try {
@@ -84,6 +115,8 @@ export default function PresensiPage() {
         setLocations(await lokasiRes.json());
       }
 
+      await loadSessions();
+
       // Default filters berdasarkan monitored locations
       if (!currentUser.monitor_all_desas && currentUser.desas_pantau && currentUser.desas_pantau.length > 0) {
         setFilterDesa(currentUser.desas_pantau[0]);
@@ -106,6 +139,7 @@ export default function PresensiPage() {
       // Default Date Picker ke hari ini (Format: YYYY-MM-DD)
       const todayStr = new Date().toISOString().split('T')[0];
       setSelectedDate(todayStr);
+      setNewSesiDate(todayStr);
 
       // Default Date Range Laporan ke awal bulan s/d hari ini
       const firstDayOfMonth = new Date();
@@ -122,12 +156,29 @@ export default function PresensiPage() {
     loadUser();
   }, []);
 
-  // 2. Load Data Kehadiran ketika Tanggal berubah (Struktur Sesi nested)
+  // Update selected session automatically when date changes
+  useEffect(() => {
+    if (sessions && sessions.length > 0 && selectedDate) {
+      const daily = sessions.filter(s => s.tanggal === selectedDate);
+      if (daily.length > 0) {
+        setSelectedSessionId(daily[0].id);
+      } else {
+        setSelectedSessionId('');
+      }
+    } else {
+      setSelectedSessionId('');
+    }
+  }, [selectedDate, sessions]);
+
+  // 2. Load Data Kehadiran ketika Sesi terpilih berubah
   const loadInputAttendance = async () => {
-    if (!selectedDate || !user) return;
+    if (!selectedSessionId || !user) {
+      setJamaahList([]);
+      return;
+    }
     setLoadingInput(true);
     try {
-      const res = await fetch(`/api/kehadiran?date=${selectedDate}`);
+      const res = await fetch(`/api/kehadiran?sesi_id=${selectedSessionId}`);
       if (!res.ok) throw new Error("Gagal mengambil data kehadiran");
       const data = await res.json();
       setJamaahList(data);
@@ -170,7 +221,7 @@ export default function PresensiPage() {
 
   useEffect(() => {
     loadInputAttendance();
-  }, [selectedDate, user]);
+  }, [selectedSessionId, user]);
 
   // Reset jam dan menit jika beralih tanggal hari ini
   const todayStr = new Date().toISOString().split('T')[0];
@@ -326,6 +377,7 @@ export default function PresensiPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           tanggal: selectedDate,
+          sesi_id: selectedSessionId,
           kehadiran: kehadiranPayload
         })
       });
@@ -348,18 +400,24 @@ export default function PresensiPage() {
 
   // 3c. Hapus Presensi Harian dari Database
   const handleDeleteAttendance = async () => {
-    if (!confirm(`Apakah Anda yakin ingin menghapus seluruh data presensi untuk tanggal ${selectedDate}? Data yang sudah tersimpan di database akan dihapus.`)) {
+    if (!selectedSessionId) {
+      showToast("Gagal: Tidak ada sesi terpilih untuk dihapus", "error");
+      return;
+    }
+    const targetSession = sessions.find(s => s.id === selectedSessionId);
+    const sessionName = targetSession ? `${targetSession.jenis_pengajian} (${targetSession.tanggal})` : selectedSessionId;
+    if (!confirm(`Apakah Anda yakin ingin menghapus seluruh data presensi untuk sesi ${sessionName}? Data yang sudah tersimpan di database akan dihapus.`)) {
       return;
     }
 
     setLoadingSubmit(true);
     try {
-      const res = await fetch(`/api/kehadiran?date=${selectedDate}`, {
+      const res = await fetch(`/api/kehadiran?sesi_id=${selectedSessionId}`, {
         method: 'DELETE'
       });
       const data = await res.json();
       if (res.ok) {
-        showToast(`Berhasil menghapus presensi untuk tanggal ${selectedDate}`, "success");
+        showToast(`Berhasil menghapus presensi untuk sesi ${sessionName}`, "success");
         loadInputAttendance();
       } else {
         showToast(data.error || "Gagal menghapus presensi", "error");
@@ -491,6 +549,82 @@ export default function PresensiPage() {
     );
   }
 
+  const handleCreateSesi = async (e) => {
+    e.preventDefault();
+    if (!newSesiDate || !newSesiStart || !newSesiEnd || !newSesiType) {
+      showToast("Gagal: Lengkapi form tanggal dan waktu pengajian", "error");
+      return;
+    }
+    if (newSesiDesas.length === 0 || newSesiKelompoks.length === 0) {
+      showToast("Gagal: Sesi harus memiliki minimal 1 Desa dan 1 Kelompok target", "error");
+      return;
+    }
+    if (newSesiGenders.length === 0 || newSesiMarital.length === 0 || newSesiKategoris.length === 0) {
+      showToast("Gagal: Sesi harus memiliki minimal 1 target Gender, Status Pernikahan, dan Kategori Peserta", "error");
+      return;
+    }
+
+    setLoadingSubmit(true);
+    try {
+      const res = await fetch('/api/sesi', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tanggal: newSesiDate,
+          waktu_mulai: newSesiStart,
+          waktu_selesai: newSesiEnd,
+          jenis_pengajian: newSesiType,
+          desas: newSesiDesas,
+          kelompoks: newSesiKelompoks,
+          genders: newSesiGenders,
+          marital_statuses: newSesiMarital,
+          kategoris: newSesiKategoris
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast("Sesi pengajian berhasil dibuat", "success");
+        setShowCreateSesiModal(false);
+        setNewSesiStart('08:00');
+        setNewSesiEnd('10:00');
+        setNewSesiType('Kelompok');
+        // Reset selections
+        setNewSesiDesas([]);
+        setNewSesiKelompoks([]);
+        await loadSessions();
+      } else {
+        showToast(data.error || "Gagal membuat sesi", "error");
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("Gagal menghubungi server", "error");
+    } finally {
+      setLoadingSubmit(false);
+    }
+  };
+
+  const handleDeleteSesi = async (id, name) => {
+    if (!confirm(`Apakah Anda yakin ingin menghapus sesi pengajian '${name}'? Menghapus sesi ini juga akan menghapus data kehadiran yang terikat dengannya.`)) {
+      return;
+    }
+    setLoadingSubmit(true);
+    try {
+      const res = await fetch(`/api/sesi/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(`Sesi '${name}' berhasil dihapus`, "success");
+        await loadSessions();
+      } else {
+        showToast(data.error || "Gagal menghapus sesi", "error");
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("Gagal menghubungi server", "error");
+    } finally {
+      setLoadingSubmit(false);
+    }
+  };
+
   // Filter List Jamaah lokal (pada tab Input)
   const filteredInputList = jamaahList.filter(j => {
     const matchName = j.nama_lengkap.toLowerCase().includes(searchName.toLowerCase().trim());
@@ -566,6 +700,18 @@ export default function PresensiPage() {
             Input Kehadiran
           </button>
         )}
+        {(user.can_create_kehadiran || user.can_update_kehadiran || user.can_delete_kehadiran) && (
+          <button 
+            className={`py-3 px-1 font-bold text-sm cursor-pointer border-b-2 transition-all ${
+              activeTab === 'sesi' 
+                ? 'text-primary border-primary' 
+                : 'text-slate-400 border-transparent hover:text-slate-600'
+            }`} 
+            onClick={() => setActiveTab('sesi')}
+          >
+            Manajemen Sesi
+          </button>
+        )}
         {user.can_read_laporan && (
           <button 
             className={`py-3 px-1 font-bold text-sm cursor-pointer border-b-2 transition-all ${
@@ -583,7 +729,7 @@ export default function PresensiPage() {
       {/* ================================================= TAB INPUT ================================================= */}
       {activeTab === 'input' && (
         <div className="flex flex-col gap-6">
-          {/* Tanggal Picker & Time Picker Panel */}
+          {/* Tanggal Picker & Sesi Selector Panel */}
           <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-5 flex flex-wrap items-center gap-6">
             <div className="flex items-center gap-3 text-xs font-bold text-slate-600">
               <span className="uppercase tracking-wider">Tanggal Kehadiran:</span>
@@ -595,10 +741,43 @@ export default function PresensiPage() {
               />
             </div>
 
+            <div className="flex items-center gap-3 text-xs font-bold text-slate-600">
+              <span className="uppercase tracking-wider">Pilih Sesi Pengajian:</span>
+              <select
+                className="px-3 py-2 rounded-lg border border-slate-200 focus:border-primary outline-none bg-white text-slate-700 font-bold text-xs cursor-pointer min-w-[200px]"
+                value={selectedSessionId}
+                onChange={(e) => setSelectedSessionId(e.target.value)}
+              >
+                {sessions.filter(s => s.tanggal === selectedDate).length === 0 ? (
+                  <option value="">-- Tidak ada sesi di tanggal ini --</option>
+                ) : (
+                  sessions.filter(s => s.tanggal === selectedDate).map(s => (
+                    <option key={s.id} value={s.id}>
+                      [{s.jenis_pengajian}] {s.waktu_mulai} - {s.waktu_selesai} ({s.kelompoks.join(', ')})
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
+
+            {selectedSessionId && (
+              (() => {
+                const s = sessions.find(sess => sess.id === selectedSessionId);
+                if (!s) return null;
+                return (
+                  <div className="text-[10px] text-slate-500 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100/50 font-semibold leading-relaxed flex flex-col gap-0.5">
+                    <div>Desa: <span className="font-bold text-slate-700">{s.desas.join(', ')}</span></div>
+                    <div>Kelompok: <span className="font-bold text-slate-700">{s.kelompoks.join(', ')}</span></div>
+                    <div>Filter Peserta: <span className="font-bold text-slate-700">{s.genders.join(', ')} &bull; {s.marital_statuses.join(', ')} &bull; {s.kategoris.join(', ')}</span></div>
+                  </div>
+                );
+              })()
+            )}
+
             {isBackdate && (
               <div className="flex items-center gap-3 text-xs font-bold text-slate-600 animate-fadeIn bg-pastel-yellow border border-pastel-yellow-solid/25 px-4 py-2 rounded-xl">
                 <Clock size={16} className="text-pastel-yellow-text" />
-                <span className="text-pastel-yellow-text uppercase tracking-wider">Jam & Menit Pengajian (Backdate):</span>
+                <span className="text-pastel-yellow-text uppercase tracking-wider">Jam & Menit (Backdate):</span>
                 <input 
                   type="time" 
                   className="px-3 py-1.5 rounded-lg border border-slate-200 focus:border-primary outline-none bg-white text-slate-700 font-bold text-xs" 
@@ -617,7 +796,7 @@ export default function PresensiPage() {
               >
                 <RefreshCw size={14} className={loadingInput ? "animate-spin" : ""} />
               </button>
-              {user.can_delete_kehadiran && jamaahList.some(j => j.presences && j.presences.length > 0) && (
+              {user.can_delete_kehadiran && selectedSessionId && jamaahList.some(j => j.presences && j.presences.length > 0) && (
                 <button
                   onClick={handleDeleteAttendance}
                   disabled={loadingSubmit}
@@ -627,7 +806,7 @@ export default function PresensiPage() {
                   <span>Hapus Presensi</span>
                 </button>
               )}
-              {(user.can_create_kehadiran || user.can_update_kehadiran) && (
+              {selectedSessionId && (user.can_create_kehadiran || user.can_update_kehadiran) && (
                 <button
                   onClick={handleSubmitAttendance}
                   disabled={loadingSubmit || (isBackdate && !attendanceTime)}
@@ -640,8 +819,18 @@ export default function PresensiPage() {
             </div>
           </div>
 
-          {/* Saringan Pencarian & Filter */}
-          <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-3 flex flex-col gap-3">
+          {!selectedSessionId ? (
+            <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-8 text-center flex flex-col items-center justify-center gap-3">
+              <Calendar className="w-12 h-12 text-slate-300" />
+              <h3 className="text-base font-bold text-slate-700">Tidak Ada Sesi Terpilih</h3>
+              <p className="text-xs text-slate-500 max-w-sm leading-relaxed font-bold">
+                Silakan buat Sesi Pengajian baru di tab **Manajemen Sesi** untuk tanggal ini, atau pilih tanggal lain yang sudah memiliki sesi aktif.
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* Saringan Pencarian & Filter */}
+              <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-3 flex flex-col gap-3">
             <div className="flex flex-wrap items-center gap-3.5">
               <div className="relative flex-1 min-w-[240px]">
                 <Search className="absolute left-3 top-3 text-slate-400 w-4 h-4" />
@@ -1074,6 +1263,369 @@ export default function PresensiPage() {
               </div>
             </div>
           )}
+          </>
+          )}
+        </div>
+      )}
+
+      {/* ================================================= TAB SESI ================================================= */}
+      {activeTab === 'sesi' && (user.can_create_kehadiran || user.can_update_kehadiran || user.can_delete_kehadiran) && (
+        <div className="flex flex-col gap-6">
+          {/* Header Panel */}
+          <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-5 flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-bold text-slate-800">Daftar Sesi Pengajian</h2>
+              <p className="text-xs text-slate-400 font-semibold mt-0.5">
+                Daftar sesi pengajian terjadwal untuk mengelola filter absensi wajib jamaah.
+              </p>
+            </div>
+            {user.can_create_kehadiran && (
+              <button
+                onClick={() => setShowCreateSesiModal(true)}
+                className="py-2 px-4 rounded-lg bg-primary hover:bg-primary-hover text-white font-bold text-xs shadow-md shadow-primary/10 transition-all flex items-center gap-1.5 cursor-pointer"
+              >
+                <span>+ Buat Sesi Baru</span>
+              </button>
+            )}
+          </div>
+
+          {/* Sesi List Grid */}
+          {sessions.length === 0 ? (
+            <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-12 text-center flex flex-col items-center justify-center gap-3">
+              <Calendar className="w-12 h-12 text-slate-300" />
+              <h3 className="text-sm font-bold text-slate-700">Belum Ada Sesi Terjadwal</h3>
+              <p className="text-xs text-slate-400 max-w-xs leading-relaxed font-semibold">
+                Silakan buat sesi baru untuk mencatat dan menyaring absensi jamaah secara dinamis.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {sessions.map(s => {
+                let badgeColor = 'bg-teal-50 border-teal-150 text-teal-700';
+                if (s.jenis_pengajian === 'Desa') badgeColor = 'bg-blue-50 border-blue-150 text-blue-700';
+                if (s.jenis_pengajian === 'Daerah') badgeColor = 'bg-purple-50 border-purple-150 text-purple-700';
+
+                return (
+                  <div key={s.id} className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm flex flex-col justify-between gap-4 hover:shadow-md transition-shadow">
+                    <div className="flex flex-col gap-3">
+                      {/* Top Header Card */}
+                      <div className="flex justify-between items-start gap-2">
+                        <div className="flex flex-col">
+                          <span className="text-sm font-black text-slate-800">
+                            {formatIndonesianDate(s.tanggal)}
+                          </span>
+                          <span className="text-xs font-bold text-slate-400 mt-0.5">
+                            Pukul: {s.waktu_mulai} - {s.waktu_selesai} WIB
+                          </span>
+                        </div>
+                        <span className={`px-2.5 py-1 rounded-md border text-[10px] font-extrabold uppercase tracking-wider shrink-0 ${badgeColor}`}>
+                          {s.jenis_pengajian}
+                        </span>
+                      </div>
+
+                      {/* Criteria Details */}
+                      <div className="border-t border-slate-50 pt-3 flex flex-col gap-2 text-xs font-bold text-slate-600">
+                        <div>
+                          <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block">Desa Target</span>
+                          <span className="text-slate-700 font-semibold">{s.desas.join(', ')}</span>
+                        </div>
+                        <div>
+                          <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block">Kelompok Target</span>
+                          <span className="text-slate-700 font-semibold">{s.kelompoks.join(', ')}</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block">Jenis Kelamin</span>
+                            <span className="text-slate-700 font-semibold">{s.genders.join(', ')}</span>
+                          </div>
+                          <div>
+                            <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block">Status Pernikahan</span>
+                            <span className="text-slate-700 font-semibold">{s.marital_statuses.join(', ')}</span>
+                          </div>
+                        </div>
+                        <div>
+                          <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block">Kategori Peserta</span>
+                          <span className="text-slate-700 font-semibold truncate block" title={s.kategoris.join(', ')}>{s.kategoris.join(', ')}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    {user.can_delete_kehadiran && (
+                      <div className="border-t border-slate-50 pt-3.5 flex justify-end">
+                        <button
+                          onClick={() => handleDeleteSesi(s.id, `${s.jenis_pengajian} (${s.tanggal})`)}
+                          className="flex items-center gap-1 py-1 px-2.5 rounded text-xs font-bold text-red-500 hover:bg-red-50 transition-colors cursor-pointer"
+                        >
+                          <Trash2 size={12} />
+                          <span>Hapus Sesi</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Create Sesi Modal */}
+      {showCreateSesiModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-lg w-full max-h-[85vh] overflow-y-auto shadow-2xl p-6 flex flex-col gap-5 animate-scaleIn">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <h2 className="text-base font-black text-slate-800">Buat Sesi Pengajian Baru</h2>
+              <button 
+                onClick={() => setShowCreateSesiModal(false)}
+                className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-all"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateSesi} className="flex flex-col gap-4 text-xs font-bold text-slate-700">
+              {/* Date & Type */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label>Tanggal Pengajian</label>
+                  <input 
+                    type="date"
+                    required
+                    value={newSesiDate}
+                    onChange={(e) => setNewSesiDate(e.target.value)}
+                    className="p-2.5 rounded-lg border border-slate-200 focus:border-primary outline-none text-slate-850 bg-white"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label>Jenis Pengajian</label>
+                  <select
+                    value={newSesiType}
+                    onChange={(e) => setNewSesiType(e.target.value)}
+                    className="p-2.5 rounded-lg border border-slate-200 focus:border-primary outline-none text-slate-850 bg-white cursor-pointer"
+                  >
+                    <option value="Kelompok">Kelompok</option>
+                    <option value="Desa">Desa</option>
+                    <option value="Daerah">Daerah</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Start & End Time */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label>Waktu Mulai</label>
+                  <input 
+                    type="time"
+                    required
+                    value={newSesiStart}
+                    onChange={(e) => setNewSesiStart(e.target.value)}
+                    className="p-2.5 rounded-lg border border-slate-200 focus:border-primary outline-none text-slate-850 bg-white"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label>Waktu Selesai</label>
+                  <input 
+                    type="time"
+                    required
+                    value={newSesiEnd}
+                    onChange={(e) => setNewSesiEnd(e.target.value)}
+                    className="p-2.5 rounded-lg border border-slate-200 focus:border-primary outline-none text-slate-850 bg-white"
+                  />
+                </div>
+              </div>
+
+              {/* Desas Checklist */}
+              <div className="flex flex-col gap-1.5">
+                <div className="flex justify-between items-center">
+                  <label>Target Desa</label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const allDesas = locations.map(d => d.nama_desa);
+                      if (newSesiDesas.length === allDesas.length) {
+                        setNewSesiDesas([]);
+                      } else {
+                        setNewSesiDesas(allDesas);
+                      }
+                    }}
+                    className="text-[10px] text-primary hover:underline font-extrabold cursor-pointer"
+                  >
+                    {newSesiDesas.length === locations.length ? "Hapus Semua" : "Pilih Semua"}
+                  </button>
+                </div>
+                <div className="p-3 border border-slate-200 rounded-lg max-h-24 overflow-y-auto flex flex-wrap gap-2.5 bg-slate-50/50">
+                  {locations.map(d => (
+                    <label key={d.id} className="flex items-center gap-1.5 cursor-pointer font-semibold text-slate-650">
+                      <input 
+                        type="checkbox"
+                        checked={newSesiDesas.includes(d.nama_desa)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setNewSesiDesas(prev => [...prev, d.nama_desa]);
+                          } else {
+                            setNewSesiDesas(prev => prev.filter(v => v !== d.nama_desa));
+                          }
+                        }}
+                      />
+                      <span>{d.nama_desa}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Kelompoks Checklist (Grouped by Desa) */}
+              <div className="flex flex-col gap-1.5">
+                <div className="flex justify-between items-center">
+                  <label>Target Kelompok</label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const allKelompoks = locations.flatMap(d => d.kelompoks.map(k => k.nama_kelompok));
+                      if (newSesiKelompoks.length === allKelompoks.length) {
+                        setNewSesiKelompoks([]);
+                      } else {
+                        setNewSesiKelompoks(allKelompoks);
+                      }
+                    }}
+                    className="text-[10px] text-primary hover:underline font-extrabold cursor-pointer"
+                  >
+                    {newSesiKelompoks.length === locations.flatMap(d => d.kelompoks).length ? "Hapus Semua" : "Pilih Semua"}
+                  </button>
+                </div>
+                <div className="p-3 border border-slate-200 rounded-lg max-h-36 overflow-y-auto flex flex-col gap-3 bg-slate-50/50">
+                  {locations.map(d => (
+                    <div key={d.id} className="flex flex-col gap-1">
+                      <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">{d.nama_desa}</span>
+                      <div className="flex flex-wrap gap-2.5 pl-1">
+                        {d.kelompoks.map(k => (
+                          <label key={k.id} className="flex items-center gap-1.5 cursor-pointer font-semibold text-slate-650">
+                            <input 
+                              type="checkbox"
+                              checked={newSesiKelompoks.includes(k.nama_kelompok)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setNewSesiKelompoks(prev => [...prev, k.nama_kelompok]);
+                                } else {
+                                  setNewSesiKelompoks(prev => prev.filter(v => v !== k.nama_kelompok));
+                                }
+                              }}
+                            />
+                            <span>{k.nama_kelompok}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Gender and Marital Checklist Grid */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label>Jenis Kelamin</label>
+                  <div className="p-2.5 border border-slate-200 rounded-lg flex flex-col gap-1.5 bg-slate-50/50">
+                    {['Laki-laki', 'Perempuan'].map(g => (
+                      <label key={g} className="flex items-center gap-1.5 cursor-pointer font-semibold text-slate-650">
+                        <input 
+                          type="checkbox"
+                          checked={newSesiGenders.includes(g)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setNewSesiGenders(prev => [...prev, g]);
+                            } else {
+                              setNewSesiGenders(prev => prev.filter(v => v !== g));
+                            }
+                          }}
+                        />
+                        <span>{g}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label>Status Pernikahan</label>
+                  <div className="p-2.5 border border-slate-200 rounded-lg flex flex-col gap-1.5 bg-slate-50/50">
+                    {['Belum Menikah', 'Menikah', 'Duda', 'Janda'].map(m => (
+                      <label key={m} className="flex items-center gap-1.5 cursor-pointer font-semibold text-slate-650">
+                        <input 
+                          type="checkbox"
+                          checked={newSesiMarital.includes(m)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setNewSesiMarital(prev => [...prev, m]);
+                            } else {
+                              setNewSesiMarital(prev => prev.filter(v => v !== m));
+                            }
+                          }}
+                        />
+                        <span>{m}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Kategori Checklist */}
+              <div className="flex flex-col gap-1.5">
+                <div className="flex justify-between items-center">
+                  <label>Kategori Peserta</label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const allKats = ['Balita', 'CBR/PAUD', 'Pra Remaja', 'Remaja', 'Pra Nikah', 'Dewasa', 'Lansia'];
+                      if (newSesiKategoris.length === allKats.length) {
+                        setNewSesiKategoris([]);
+                      } else {
+                        setNewSesiKategoris(allKats);
+                      }
+                    }}
+                    className="text-[10px] text-primary hover:underline font-extrabold cursor-pointer"
+                  >
+                    {newSesiKategoris.length === 7 ? "Hapus Semua" : "Pilih Semua"}
+                  </button>
+                </div>
+                <div className="p-3 border border-slate-200 rounded-lg flex flex-wrap gap-2.5 bg-slate-50/50">
+                  {['Balita', 'CBR/PAUD', 'Pra Remaja', 'Remaja', 'Pra Nikah', 'Dewasa', 'Lansia'].map(k => (
+                    <label key={k} className="flex items-center gap-1.5 cursor-pointer font-semibold text-slate-650">
+                      <input 
+                        type="checkbox"
+                        checked={newSesiKategoris.includes(k)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setNewSesiKategoris(prev => [...prev, k]);
+                          } else {
+                            setNewSesiKategoris(prev => prev.filter(v => v !== k));
+                          }
+                        }}
+                      />
+                      <span>{k}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Footer Actions */}
+              <div className="flex justify-end gap-2 border-t border-slate-100 pt-4 mt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateSesiModal(false)}
+                  className="py-2 px-4 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 transition-colors font-bold cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={loadingSubmit}
+                  className="py-2 px-5 rounded-lg bg-primary hover:bg-primary-hover text-white transition-all font-bold flex items-center gap-1.5 shadow-md shadow-primary/10 cursor-pointer active:scale-95 disabled:opacity-50"
+                >
+                  {loadingSubmit && <RefreshCw size={12} className="animate-spin" />}
+                  <span>Buat Sesi</span>
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 
