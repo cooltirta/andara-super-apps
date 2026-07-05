@@ -1973,12 +1973,12 @@ export default function DatabasePage() {
                   }}
                   className="rounded-[40px] overflow-hidden relative select-none print:rounded-none"
                 >
-                  {/* Nama Jamaah (2-line layout, size 21.7 pt -> 90.4 px, left 66px, top 130px) */}
+                  {/* Nama Jamaah (2-line layout, size 21.7 pt -> 90.4 px, left 66px, top 55px) */}
                   <div 
                     style={{
                       position: 'absolute',
                       left: '66px',
-                      top: '130px',
+                      top: '55px',
                       width: '880px',
                       fontSize: '90.4px',
                       lineHeight: '1.1',
@@ -1991,12 +1991,12 @@ export default function DatabasePage() {
                     {formatJamaahName(selectedQrJamaah.nama_lengkap)}
                   </div>
 
-                  {/* Nama Kelompok (size 10.7 pt -> 44.6 px, left 66px, top 495px) */}
+                  {/* Nama Kelompok (size 10.7 pt -> 44.6 px, left 66px, top 310px) */}
                   <div 
                     style={{
                       position: 'absolute',
                       left: '66px',
-                      top: '495px',
+                      top: '310px',
                       width: '560px',
                       fontSize: '44.6px',
                       lineHeight: '1.2',
