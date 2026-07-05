@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Users, Home, UserPlus, Search, Edit2, Trash2, X, Plus, AlertTriangle, CheckCircle, Info, Download } from 'lucide-react';
+import { Users, Home, UserPlus, Search, Edit2, Trash2, X, Plus, AlertTriangle, CheckCircle, Info, Download, ChevronDown } from 'lucide-react';
 
 export default function DatabasePage() {
   const router = useRouter();
@@ -14,11 +14,13 @@ export default function DatabasePage() {
 
   // Filters
   const [searchName, setSearchName] = useState('');
-  const [filterKelompok, setFilterKelompok] = useState('');
-  const [filterGender, setFilterGender] = useState('');
+  const [filterDesas, setFilterDesas] = useState([]);
+  const [filterKelompoks, setFilterKelompoks] = useState([]);
+  const [filterGenders, setFilterGenders] = useState(['Laki-laki', 'Perempuan']);
   const [filterBlood, setFilterBlood] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
-  const [filterMarital, setFilterMarital] = useState('');
+  const [filterMarital, setFilterMarital] = useState(['Belum Menikah', 'Menikah', 'Janda/Duda']);
+  const [filterKategori, setFilterKategori] = useState(['Balita', 'CBR/PAUD', 'Pra Remaja', 'Remaja', 'Pra Nikah', 'Dewasa', 'Lansia']);
   
   // Keluarga Filters
   const [searchKeluarga, setSearchKeluarga] = useState('');
@@ -79,7 +81,7 @@ export default function DatabasePage() {
   // Reset pagination to page 1 on filter changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchName, filterKelompok, filterGender, filterBlood, filterStatus, filterMarital, rowsPerPage]);
+  }, [searchName, filterDesas, filterKelompoks, filterGenders, filterBlood, filterStatus, filterMarital, filterKategori, rowsPerPage]);
 
   // Focus RFID input capture when scan mode is activated
   useEffect(() => {
@@ -120,6 +122,50 @@ export default function DatabasePage() {
     return `${age} Tahun`;
   };
 
+  // Helpers and useEffects for interdependent filters
+  const getAvailableMaritalStatuses = (selectedGenders, selectedKategoris) => {
+    const adultKats = ['Dewasa', 'Lansia'];
+    const hasAdultsSelected = selectedKategoris.some(k => adultKats.includes(k));
+    const hasNonAdultsSelected = selectedKategoris.some(k => !adultKats.includes(k));
+
+    if (selectedKategoris.length > 0 && hasNonAdultsSelected && !hasAdultsSelected) {
+      return ['Belum Menikah'];
+    }
+
+    return ['Belum Menikah', 'Menikah', 'Janda/Duda'];
+  };
+
+  const getAvailableKategoris = (selectedStatuses) => {
+    const hasAdultStatuses = selectedStatuses.some(s => ['Menikah', 'Janda/Duda'].includes(s));
+    if (hasAdultStatuses) {
+      return ['Dewasa', 'Lansia'];
+    }
+    return ['Balita', 'CBR/PAUD', 'Pra Remaja', 'Remaja', 'Pra Nikah', 'Dewasa', 'Lansia'];
+  };
+
+  // Sync Kelompok when Desa changes
+  useEffect(() => {
+    if (filterDesas.length > 0) {
+      const validKelompoks = locations
+        .filter(d => filterDesas.includes(d.nama_desa))
+        .flatMap(d => d.kelompoks.map(k => k.nama_kelompok));
+      
+      setFilterKelompoks(prev => prev.filter(k => validKelompoks.includes(k)));
+    }
+  }, [filterDesas, locations]);
+
+  // Sync Marital Status when Gender or Kategori changes
+  useEffect(() => {
+    const available = getAvailableMaritalStatuses(filterGenders, filterKategori);
+    setFilterMarital(prev => prev.filter(s => available.includes(s)));
+  }, [filterGenders, filterKategori]);
+
+  // Sync Kategori when Marital Status changes
+  useEffect(() => {
+    const available = getAvailableKategoris(filterMarital);
+    setFilterKategori(prev => prev.filter(c => available.includes(c)));
+  }, [filterMarital]);
+
   // Fetch initial data
   const loadData = async () => {
     setLoading(true);
@@ -148,7 +194,25 @@ export default function DatabasePage() {
       if (jamaahRes.ok && keluargaRes.ok && lokasiRes.ok) {
         setJamaahList(await jamaahRes.json());
         setKeluargaList(await keluargaRes.json());
-        setLocations(await lokasiRes.json());
+        const locationsData = await lokasiRes.json();
+        setLocations(locationsData);
+
+        if (!currentUser.monitor_all_desas && currentUser.desas_pantau && currentUser.desas_pantau.length > 0) {
+          setFilterDesas(currentUser.desas_pantau);
+        } else if (currentUser.role === 'Admin' || currentUser.role === 'Moderator') {
+          setFilterDesas(currentUser.desa ? [currentUser.desa] : []);
+        } else {
+          setFilterDesas(locationsData.map(d => d.nama_desa));
+        }
+
+        if (!currentUser.monitor_all_kelompoks && currentUser.kelompoks_pantau && currentUser.kelompoks_pantau.length > 0) {
+          setFilterKelompoks(currentUser.kelompoks_pantau);
+        } else if (currentUser.role === 'Moderator') {
+          setFilterDesas(currentUser.desa ? [currentUser.desa] : []);
+          setFilterKelompoks(currentUser.kelompok ? [currentUser.kelompok] : []);
+        } else {
+          setFilterKelompoks(locationsData.flatMap(d => d.kelompoks.map(k => k.nama_kelompok)));
+        }
       } else {
         throw new Error("Gagal mengambil data jamaah, keluarga, dan lokasi");
       }
@@ -600,16 +664,20 @@ export default function DatabasePage() {
 
   const filteredJamaah = jamaahList.filter(j => {
     const matchName = j.nama_lengkap.toLowerCase().includes(searchName.toLowerCase().trim());
-    const matchKelompok = filterKelompok ? j.kelompok === filterKelompok : true;
-    const matchGender = filterGender ? j.jenis_kelamin === filterGender : true;
+    const matchDesa = filterDesas.length === 0 || filterDesas.includes(j.desa);
+    const matchKelompok = filterKelompoks.length === 0 || filterKelompoks.includes(j.kelompok);
+    const matchGender = filterGenders.length === 0 || filterGenders.includes(j.jenis_kelamin);
     const matchBlood = filterBlood ? j.golongan_darah === filterBlood : true;
     const matchStatus = filterStatus ? j.status_kehidupan === filterStatus : true;
-    const matchMarital = filterMarital 
-      ? (filterMarital === 'Janda/Duda' 
-          ? (j.status_pernikahan === 'Janda' || j.status_pernikahan === 'Duda') 
-          : j.status_pernikahan === filterMarital)
-      : true;
-    return matchName && matchKelompok && matchGender && matchBlood && matchStatus && matchMarital;
+    const matchKategori = filterKategori.includes(j.kategori);
+    const matchMarital = filterMarital.some(status => {
+      if (status === 'Janda/Duda') {
+        return j.status_pernikahan === 'Janda' || j.status_pernikahan === 'Duda';
+      }
+      return (j.status_pernikahan || 'Belum Menikah') === status;
+    });
+
+    return matchName && matchDesa && matchKelompok && matchGender && matchBlood && matchStatus && matchKategori && matchMarital;
   });
 
   const totalRows = filteredJamaah.length;
@@ -805,80 +873,119 @@ export default function DatabasePage() {
 
       {/* Filters Area (Only on Jamaah Tab) */}
       {activeTab === 'jamaah' && (
-        <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-3 flex flex-wrap items-center gap-3.5 mb-6" id="search-filter-section">
-          {/* Search bar */}
-          <div className="relative flex-1 min-w-[240px]">
-            <Search className="absolute left-3 top-3 text-slate-400 w-4 h-4" />
-            <input 
-              type="text" 
-              id="search-jamaah-name" 
-              className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-slate-200 focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all outline-none bg-white text-slate-755 text-xs font-semibold" 
-              placeholder="Cari nama jamaah..."
-              value={searchName}
-              onChange={(e) => setSearchName(e.target.value)}
-            />
+        <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-5 flex flex-col gap-5 mb-6" id="search-filter-section">
+          {/* Top Row: Search and Single Selects */}
+          <div className="flex flex-wrap items-center gap-4">
+            {/* Search Bar */}
+            <div className="relative flex-1 min-w-[280px]">
+              <Search className="absolute left-3 top-3 text-slate-400 w-4 h-4" />
+              <input 
+                type="text" 
+                id="search-jamaah-name" 
+                className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-slate-200 focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all outline-none bg-white text-slate-700 text-xs font-semibold" 
+                placeholder="Cari nama jamaah..."
+                value={searchName}
+                onChange={(e) => setSearchName(e.target.value)}
+              />
+            </div>
+
+            {/* Status Kehidupan */}
+            <div className="flex flex-col gap-1.5 min-w-[140px]">
+              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest text-left">Status Kehidupan</span>
+              <select 
+                id="filter-status" 
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-750 font-bold text-xs cursor-pointer outline-none hover:border-primary focus:border-primary min-h-[34px]"
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+              >
+                <option value="">Semua Status Kehidupan</option>
+                <option value="Hidup">Hidup</option>
+                <option value="Meninggal">Meninggal</option>
+              </select>
+            </div>
+
+            {/* Golongan Darah */}
+            <div className="flex flex-col gap-1.5 min-w-[120px]">
+              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest text-left">Golongan Darah</span>
+              <select 
+                id="filter-blood" 
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-750 font-bold text-xs cursor-pointer outline-none hover:border-primary focus:border-primary min-h-[34px]"
+                value={filterBlood}
+                onChange={(e) => setFilterBlood(e.target.value)}
+              >
+                <option value="">Semua Gol. Darah</option>
+                <option value="A">A</option>
+                <option value="B">B</option>
+                <option value="O">O</option>
+                <option value="AB">AB</option>
+                <option value="Tidak Diketahui">Tidak Diketahui</option>
+              </select>
+            </div>
           </div>
-          
-          {/* Dropdown Filters */}
-          <div className="flex flex-wrap gap-2">
-            <select 
-              id="filter-kelompok" 
-              className="px-2.5 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 font-bold text-[10px] cursor-pointer outline-none focus:border-primary"
-              value={filterKelompok}
-              onChange={(e) => setFilterKelompok(e.target.value)}
-            >
-              <option value="">Semua Kelompok</option>
-              {(user.role === 'Super Admin' 
-                ? [...locations.flatMap(d => d.kelompoks)].sort((a, b) => a.nama_kelompok.localeCompare(b.nama_kelompok))
-                : [...(locations.find(d => d.nama_desa === user.desa)?.kelompoks || [])].sort((a, b) => a.nama_kelompok.localeCompare(b.nama_kelompok))
-              ).map(k => (
-                <option key={k.id} value={k.nama_kelompok}>{k.nama_kelompok}</option>
-              ))}
-            </select>
-            <select 
-              id="filter-gender" 
-              className="px-2.5 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 font-bold text-[10px] cursor-pointer outline-none focus:border-primary"
-              value={filterGender}
-              onChange={(e) => setFilterGender(e.target.value)}
-            >
-              <option value="">Semua Gender</option>
-              <option value="Laki-laki">Laki-laki</option>
-              <option value="Perempuan">Perempuan</option>
-            </select>
-            <select 
-              id="filter-blood" 
-              className="px-2.5 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 font-bold text-[10px] cursor-pointer outline-none focus:border-primary"
-              value={filterBlood}
-              onChange={(e) => setFilterBlood(e.target.value)}
-            >
-              <option value="">Semua Gol. Darah</option>
-              <option value="A">A</option>
-              <option value="B">B</option>
-              <option value="O">O</option>
-              <option value="AB">AB</option>
-              <option value="Tidak Diketahui">Tidak Diketahui</option>
-            </select>
-            <select 
-              id="filter-status" 
-              className="px-2.5 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 font-bold text-[10px] cursor-pointer outline-none focus:border-primary"
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-            >
-              <option value="">Semua Status Kehidupan</option>
-              <option value="Hidup">Hidup</option>
-              <option value="Meninggal">Meninggal</option>
-            </select>
-            <select 
-              id="filter-marital" 
-              className="px-2.5 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 font-bold text-[10px] cursor-pointer outline-none focus:border-primary"
-              value={filterMarital}
-              onChange={(e) => setFilterMarital(e.target.value)}
-            >
-              <option value="">Semua Status Pernikahan</option>
-              <option value="Belum Menikah">Belum Menikah</option>
-              <option value="Menikah">Menikah</option>
-              <option value="Janda/Duda">Janda/Duda</option>
-            </select>
+
+          {/* Bottom Row: 5 MultiSelectDropdowns */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 border-t border-slate-50 pt-4">
+            <MultiSelectDropdown
+              label="Target Desa"
+              options={
+                user.monitor_all_desas 
+                  ? locations.map(d => d.nama_desa)
+                  : locations.filter(d => (user.desas_pantau || []).includes(d.nama_desa)).map(d => d.nama_desa)
+              }
+              selected={filterDesas}
+              onChange={setFilterDesas}
+              placeholder="Pilih Desa..."
+              allLabel="Semua Desa"
+              badgeCountLabel="Desa Terpilih"
+            />
+
+            <GroupedMultiSelectDropdown
+              label="Target Kelompok"
+              groupedOptions={
+                (user.monitor_all_desas 
+                  ? locations 
+                  : locations.filter(d => (user.desas_pantau || []).includes(d.nama_desa))
+                ).map(d => ({
+                  desa: d.nama_desa,
+                  kelompoks: d.kelompoks
+                    .filter(k => user.monitor_all_kelompoks || (user.kelompoks_pantau || []).includes(k.nama_kelompok))
+                    .map(k => k.nama_kelompok)
+                }))
+              }
+              selected={filterKelompoks}
+              onChange={setFilterKelompoks}
+              placeholder="Pilih Kelompok..."
+            />
+
+            <MultiSelectDropdown
+              label="Jenis Kelamin"
+              options={['Laki-laki', 'Perempuan']}
+              selected={filterGenders}
+              onChange={setFilterGenders}
+              placeholder="Pilih Gender..."
+              allLabel="Semua Gender"
+              badgeCountLabel="Gender Terpilih"
+            />
+
+            <MultiSelectDropdown
+              label="Status Pernikahan"
+              options={getAvailableMaritalStatuses(filterGenders, filterKategori)}
+              selected={filterMarital}
+              onChange={setFilterMarital}
+              placeholder="Pilih Status..."
+              allLabel="Semua Status"
+              badgeCountLabel="Status Terpilih"
+            />
+
+            <MultiSelectDropdown
+              label="Kategori Jamaah"
+              options={getAvailableKategoris(filterMarital)}
+              selected={filterKategori}
+              onChange={setFilterKategori}
+              placeholder="Pilih Kategori..."
+              allLabel="Semua Kategori"
+              badgeCountLabel="Kategori Terpilih"
+            />
           </div>
         </div>
       )}
@@ -2202,6 +2309,208 @@ export default function DatabasePage() {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+// ================================================= HELPER COMPONENTS =================================================
+
+function MultiSelectDropdown({ 
+  label, 
+  options, 
+  selected, 
+  onChange, 
+  placeholder = "Pilih...", 
+  allLabel = "Semua",
+  badgeCountLabel = "terpilih"
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const toggleOption = (val) => {
+    if (selected.includes(val)) {
+      onChange(selected.filter(item => item !== val));
+    } else {
+      onChange([...selected, val]);
+    }
+  };
+
+  const isAllSelected = selected.length === options.length;
+
+  const toggleAll = () => {
+    if (isAllSelected) {
+      onChange([]);
+    } else {
+      onChange([...options]);
+    }
+  };
+
+  let displayText = placeholder;
+  if (selected.length === 0) {
+    displayText = "Tidak ada";
+  } else if (selected.length === options.length) {
+    displayText = `${allLabel} (${options.length})`;
+  } else if (selected.length <= 2) {
+    displayText = selected.join(', ');
+  } else {
+    displayText = `${selected.length} ${badgeCountLabel}`;
+  }
+
+  return (
+    <div className="flex flex-col gap-1.5 min-w-[150px] relative text-left" ref={dropdownRef}>
+      <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">{label}</span>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-750 font-bold text-xs flex items-center justify-between hover:border-primary transition-all shadow-sm cursor-pointer outline-none min-h-[34px]"
+      >
+        <span className="truncate pr-1">{displayText}</span>
+        <ChevronDown size={14} className={`text-slate-400 transition-transform shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      {isOpen && (
+        <div className="absolute top-[100%] left-0 right-0 mt-1 bg-white border border-slate-150 rounded-xl shadow-xl z-50 p-2.5 max-h-60 overflow-y-auto min-w-[180px]">
+          <div className="flex justify-between items-center border-b border-slate-50 pb-1.5 mb-1.5">
+            <span className="text-[9px] font-extrabold text-slate-400 uppercase">Pilih Opsi</span>
+            <button
+              type="button"
+              onClick={toggleAll}
+              className="text-[9px] text-primary hover:underline font-extrabold cursor-pointer"
+            >
+              {isAllSelected ? "Hapus Semua" : "Pilih Semua"}
+            </button>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            {options.map(opt => {
+              const isChecked = selected.includes(opt);
+              return (
+                <label key={opt} className="flex items-center gap-2 px-1.5 py-1 rounded hover:bg-slate-50 cursor-pointer font-semibold text-slate-650 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={isChecked}
+                    onChange={() => toggleOption(opt)}
+                    className="rounded border-slate-350 text-primary focus:ring-primary w-4 h-4 cursor-pointer"
+                  />
+                  <span className="truncate">{opt}</span>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function GroupedMultiSelectDropdown({ 
+  label, 
+  groupedOptions, 
+  selected, 
+  onChange, 
+  placeholder = "Pilih..." 
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const allKelompoks = groupedOptions.flatMap(g => g.kelompoks);
+  const isAllSelected = selected.length === allKelompoks.length;
+
+  const toggleAll = () => {
+    if (isAllSelected) {
+      onChange([]);
+    } else {
+      onChange([...allKelompoks]);
+    }
+  };
+
+  const toggleOption = (val) => {
+    if (selected.includes(val)) {
+      onChange(selected.filter(item => item !== val));
+    } else {
+      onChange([...selected, val]);
+    }
+  };
+
+  let displayText = placeholder;
+  if (selected.length === 0) {
+    displayText = "Tidak ada";
+  } else if (selected.length === allKelompoks.length) {
+    displayText = `Semua Kelompok (${allKelompoks.length})`;
+  } else if (selected.length <= 2) {
+    displayText = selected.join(', ');
+  } else {
+    displayText = `${selected.length} Kelompok`;
+  }
+
+  return (
+    <div className="flex flex-col gap-1.5 min-w-[150px] relative text-left" ref={dropdownRef}>
+      <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">{label}</span>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-755 font-bold text-xs flex items-center justify-between hover:border-primary transition-all shadow-sm cursor-pointer outline-none min-h-[34px]"
+      >
+        <span className="truncate pr-1">{displayText}</span>
+        <ChevronDown size={14} className={`text-slate-400 transition-transform shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      {isOpen && (
+        <div className="absolute top-[100%] left-0 mt-1 bg-white border border-slate-150 rounded-xl shadow-xl z-50 p-3 max-h-60 overflow-y-auto min-w-[220px]">
+          <div className="flex justify-between items-center border-b border-slate-50 pb-1.5 mb-1.5">
+            <span className="text-[9px] font-extrabold text-slate-400 uppercase">Pilih Kelompok</span>
+            <button
+              type="button"
+              onClick={toggleAll}
+              className="text-[9px] text-primary hover:underline font-extrabold cursor-pointer"
+            >
+              {isAllSelected ? "Hapus Semua" : "Pilih Semua"}
+            </button>
+          </div>
+          <div className="flex flex-col gap-3">
+            {groupedOptions.map(g => (
+              <div key={g.desa} className="flex flex-col gap-1">
+                <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">{g.desa}</span>
+                <div className="flex flex-col gap-1.5 pl-1">
+                  {g.kelompoks.map(k => {
+                    const isChecked = selected.includes(k);
+                    return (
+                      <label key={k} className="flex items-center gap-2 px-1.5 py-0.5 rounded hover:bg-slate-50 cursor-pointer font-semibold text-slate-655 text-xs">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => toggleOption(k)}
+                          className="rounded border-slate-350 text-primary focus:ring-primary w-4 h-4 cursor-pointer"
+                        />
+                        <span className="truncate">{k}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
