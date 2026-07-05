@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Calendar, Search, Users, CheckCircle, AlertTriangle, Info, Clock, Download, RefreshCw, Trash2, X, ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react';
+import { Calendar, Search, Users, CheckCircle, AlertTriangle, Info, Clock, Download, RefreshCw, Trash2, X, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Edit2 } from 'lucide-react';
 
 export default function PresensiPage() {
   const router = useRouter();
@@ -16,6 +16,7 @@ export default function PresensiPage() {
   const [selectedSessionId, setSelectedSessionId] = useState('');
   const [loadingSessions, setLoadingSessions] = useState(false);
   const [showCreateSesiModal, setShowCreateSesiModal] = useState(false);
+  const [editingSessionId, setEditingSessionId] = useState(null);
   
   // Create Sesi Modal Form Fields
   const [newSesiDate, setNewSesiDate] = useState('');
@@ -664,8 +665,10 @@ export default function PresensiPage() {
 
     setLoadingSubmit(true);
     try {
-      const res = await fetch('/api/sesi', {
-        method: 'POST',
+      const url = editingSessionId ? `/api/sesi/${editingSessionId}` : '/api/sesi';
+      const method = editingSessionId ? 'PUT' : 'POST';
+      const res = await fetch(url, {
+        method: method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           tanggal: newSesiDate,
@@ -681,8 +684,9 @@ export default function PresensiPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        showToast("Sesi pengajian berhasil dibuat", "success");
+        showToast(editingSessionId ? "Sesi pengajian berhasil diperbarui" : "Sesi pengajian berhasil dibuat", "success");
         setShowCreateSesiModal(false);
+        setEditingSessionId(null);
         setNewSesiStart('08:00');
         setNewSesiEnd('10:00');
         setNewSesiType('Kelompok');
@@ -691,7 +695,7 @@ export default function PresensiPage() {
         setNewSesiKelompoks([]);
         await loadSessions();
       } else {
-        showToast(data.error || "Gagal membuat sesi", "error");
+        showToast(data.error || (editingSessionId ? "Gagal memperbarui sesi" : "Gagal membuat sesi"), "error");
       }
     } catch (err) {
       console.error(err);
@@ -1320,7 +1324,19 @@ export default function PresensiPage() {
             </div>
             {user.can_create_kehadiran && (
               <button
-                onClick={() => setShowCreateSesiModal(true)}
+                onClick={() => {
+                  setEditingSessionId(null);
+                  setNewSesiDate('');
+                  setNewSesiStart('08:00');
+                  setNewSesiEnd('10:00');
+                  setNewSesiType('Kelompok');
+                  setNewSesiDesas([]);
+                  setNewSesiKelompoks([]);
+                  setNewSesiGenders(['Laki-laki', 'Perempuan']);
+                  setNewSesiMarital(['Belum Menikah', 'Menikah', 'Duda', 'Janda']);
+                  setNewSesiKategoris(['Balita', 'CBR/PAUD', 'Pra Remaja', 'Remaja', 'Pra Nikah', 'Dewasa', 'Lansia']);
+                  setShowCreateSesiModal(true);
+                }}
                 className="py-2 px-4 rounded-lg bg-primary hover:bg-primary-hover text-white font-bold text-xs shadow-md shadow-primary/10 transition-all flex items-center gap-1.5 cursor-pointer"
               >
                 <span>+ Buat Sesi Baru</span>
@@ -1390,17 +1406,38 @@ export default function PresensiPage() {
                     </div>
 
                     {/* Actions */}
-                    {user.can_delete_kehadiran && (
-                      <div className="border-t border-slate-50 pt-3.5 flex justify-end">
+                    <div className="border-t border-slate-50 pt-3.5 flex justify-between items-center">
+                      <div>
+                        <button
+                          onClick={() => {
+                            setEditingSessionId(s.id);
+                            setNewSesiDate(s.tanggal);
+                            setNewSesiStart(s.waktu_mulai);
+                            setNewSesiEnd(s.waktu_selesai);
+                            setNewSesiType(s.jenis_pengajian);
+                            setNewSesiDesas(s.desas);
+                            setNewSesiKelompoks(s.kelompoks);
+                            setNewSesiGenders(s.genders);
+                            setNewSesiMarital(s.marital_statuses);
+                            setNewSesiKategoris(s.kategoris);
+                            setShowCreateSesiModal(true);
+                          }}
+                          className="flex items-center gap-1.5 py-1 px-2.5 rounded text-xs font-bold text-primary hover:bg-primary/5 transition-colors cursor-pointer"
+                        >
+                          <Edit2 size={12} />
+                          <span>Edit Sesi</span>
+                        </button>
+                      </div>
+                      {user.can_delete_kehadiran && (
                         <button
                           onClick={() => handleDeleteSesi(s.id, `${s.jenis_pengajian} (${s.tanggal})`)}
-                          className="flex items-center gap-1 py-1 px-2.5 rounded text-xs font-bold text-red-500 hover:bg-red-50 transition-colors cursor-pointer"
+                          className="flex items-center gap-1.5 py-1 px-2.5 rounded text-xs font-bold text-red-500 hover:bg-red-50 transition-colors cursor-pointer"
                         >
                           <Trash2 size={12} />
                           <span>Hapus Sesi</span>
                         </button>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -1414,7 +1451,7 @@ export default function PresensiPage() {
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white rounded-2xl max-w-lg w-full max-h-[85vh] overflow-y-auto shadow-2xl p-6 flex flex-col gap-5 animate-scaleIn">
             <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-              <h2 className="text-base font-black text-slate-800">Buat Sesi Pengajian Baru</h2>
+              <h2 className="text-base font-black text-slate-800">{editingSessionId ? "Edit Sesi Pengajian" : "Buat Sesi Pengajian Baru"}</h2>
               <button 
                 onClick={() => setShowCreateSesiModal(false)}
                 className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-all"
@@ -1660,7 +1697,7 @@ export default function PresensiPage() {
                   className="py-2 px-5 rounded-lg bg-primary hover:bg-primary-hover text-white transition-all font-bold flex items-center gap-1.5 shadow-md shadow-primary/10 cursor-pointer active:scale-95 disabled:opacity-50"
                 >
                   {loadingSubmit && <RefreshCw size={12} className="animate-spin" />}
-                  <span>Buat Sesi</span>
+                  <span>{editingSessionId ? "Simpan Perubahan" : "Buat Sesi"}</span>
                 </button>
               </div>
             </form>
