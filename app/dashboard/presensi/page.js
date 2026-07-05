@@ -51,12 +51,12 @@ export default function PresensiPage() {
   // Laporan Tab States
   const [reportStartDate, setReportStartDate] = useState('');
   const [reportEndDate, setReportEndDate] = useState('');
-  const [reportStartTime, setReportStartTime] = useState('00:00');
-  const [reportEndTime, setReportEndTime] = useState('23:59');
-  const [reportKategori, setReportKategori] = useState(['Balita', 'CBR/PAUD', 'Pra Remaja', 'Remaja', 'Pra Nikah', 'Dewasa', 'Lansia']);
+  const [reportDesas, setReportDesas] = useState([]);
+  const [reportKelompoks, setReportKelompoks] = useState([]);
+  const [reportGenders, setReportGenders] = useState(['Laki-laki', 'Perempuan']);
   const [reportStatusPernikahan, setReportStatusPernikahan] = useState(['Belum Menikah', 'Menikah', 'Janda', 'Duda']);
-  const [reportDesa, setReportDesa] = useState('');
-  const [reportKelompok, setReportKelompok] = useState('');
+  const [reportKategori, setReportKategori] = useState(['Balita', 'CBR/PAUD', 'Pra Remaja', 'Remaja', 'Pra Nikah', 'Dewasa', 'Lansia']);
+  const [selectedReportSessionIds, setSelectedReportSessionIds] = useState([]);
   const [reportData, setReportData] = useState(null);
   const [loadingReport, setLoadingReport] = useState(false);
 
@@ -111,29 +111,32 @@ export default function PresensiPage() {
       }
 
       const lokasiRes = await fetch('/api/lokasi');
-      if (lokasiRes.ok) {
-        setLocations(await lokasiRes.json());
-      }
+      const locationsData = lokasiRes.ok ? await lokasiRes.json() : [];
+      setLocations(locationsData);
 
       await loadSessions();
 
       // Default filters berdasarkan monitored locations
       if (!currentUser.monitor_all_desas && currentUser.desas_pantau && currentUser.desas_pantau.length > 0) {
         setFilterDesa(currentUser.desas_pantau[0]);
-        setReportDesa(currentUser.desas_pantau[0]);
+        setReportDesas(currentUser.desas_pantau);
       } else if (currentUser.role === 'Admin') {
         setFilterDesa(currentUser.desa);
-        setReportDesa(currentUser.desa);
+        setReportDesas(currentUser.desa ? [currentUser.desa] : []);
+      } else {
+        setReportDesas(locationsData.map(d => d.nama_desa));
       }
       
       if (!currentUser.monitor_all_kelompoks && currentUser.kelompoks_pantau && currentUser.kelompoks_pantau.length > 0) {
         setFilterKelompok(currentUser.kelompoks_pantau[0]);
-        setReportKelompok(currentUser.kelompoks_pantau[0]);
+        setReportKelompoks(currentUser.kelompoks_pantau);
       } else if (currentUser.role === 'Moderator') {
         setFilterDesa(currentUser.desa);
         setFilterKelompok(currentUser.kelompok);
-        setReportDesa(currentUser.desa);
-        setReportKelompok(currentUser.kelompok);
+        setReportDesas(currentUser.desa ? [currentUser.desa] : []);
+        setReportKelompoks(currentUser.kelompok ? [currentUser.kelompok] : []);
+      } else {
+        setReportKelompoks(locationsData.flatMap(d => d.kelompoks.map(k => k.nama_kelompok)));
       }
 
       // Default Date Picker ke hari ini (Format: YYYY-MM-DD)
@@ -438,13 +441,15 @@ export default function PresensiPage() {
     }
     setLoadingReport(true);
 
-    const startDateTime = `${reportStartDate} ${reportStartTime || '00:00'}:00`;
-    const endDateTime = `${reportEndDate} ${reportEndTime || '23:59'}:59`;
+    const desasParam = reportDesas.join(',');
+    const kelompoksParam = reportKelompoks.join(',');
+    const gendersParam = reportGenders.join(',');
     const kategoriParam = reportKategori.join(',');
     const maritalParam = reportStatusPernikahan.join(',');
+    const sesiIdsParam = selectedReportSessionIds.join(',');
 
     try {
-      const res = await fetch(`/api/kehadiran/laporan?start_date=${encodeURIComponent(startDateTime)}&end_date=${encodeURIComponent(endDateTime)}&desa=${reportDesa}&kelompok=${reportKelompok}&kategori=${encodeURIComponent(kategoriParam)}&status_pernikahan=${encodeURIComponent(maritalParam)}`);
+      const res = await fetch(`/api/kehadiran/laporan?start_date=${reportStartDate}&end_date=${reportEndDate}&desas=${encodeURIComponent(desasParam)}&kelompoks=${encodeURIComponent(kelompoksParam)}&genders=${encodeURIComponent(gendersParam)}&kategori=${encodeURIComponent(kategoriParam)}&status_pernikahan=${encodeURIComponent(maritalParam)}&sesi_ids=${encodeURIComponent(sesiIdsParam)}`);
       if (!res.ok) throw new Error("Gagal memuat laporan kehadiran");
       const data = await res.json();
       setReportData(data);
@@ -456,6 +461,29 @@ export default function PresensiPage() {
       setLoadingReport(false);
     }
   };
+
+  // Sync matching sessions in range when dates or session lists change
+  useEffect(() => {
+    if (sessions && sessions.length > 0 && reportStartDate && reportEndDate) {
+      const filtered = sessions.filter(s => {
+        const inDateRange = s.tanggal >= reportStartDate && s.tanggal <= reportEndDate;
+        if (!inDateRange) return false;
+
+        const matchesDesa = reportDesas.length === 0 || s.desas.some(d => reportDesas.includes(d));
+        const matchesKelompok = reportKelompoks.length === 0 || s.kelompoks.some(k => reportKelompoks.includes(k));
+        const matchesGender = reportGenders.length === 0 || s.genders.some(g => reportGenders.includes(g));
+        const matchesMarital = reportStatusPernikahan.length === 0 || s.marital_statuses.some(m => reportStatusPernikahan.includes(m));
+        const matchesKategori = reportKategori.length === 0 || s.kategoris.some(kat => reportKategori.includes(kat));
+
+        return matchesDesa && matchesKelompok && matchesGender && matchesMarital && matchesKategori;
+      });
+
+      const matchedIds = filtered.map(s => s.id);
+      setSelectedReportSessionIds(matchedIds);
+    } else {
+      setSelectedReportSessionIds([]);
+    }
+  }, [reportStartDate, reportEndDate, reportDesas, reportKelompoks, reportGenders, reportStatusPernikahan, reportKategori, sessions]);
 
   // Load report data saat pertama kali tab laporan dibuka
   useEffect(() => {
@@ -485,9 +513,7 @@ export default function PresensiPage() {
 
     setLoadingCal(true);
     try {
-      const kategoriParam = reportKategori.join(',');
-      const maritalParam = reportStatusPernikahan.join(',');
-      const res = await fetch(`/api/kehadiran/sesi-kalender?start=${startStr}&end=${endStr}&desa=${reportDesa}&kelompok=${reportKelompok}&kategori=${encodeURIComponent(kategoriParam)}&status_pernikahan=${encodeURIComponent(maritalParam)}`);
+      const res = await fetch(`/api/kehadiran/sesi-kalender?start=${startStr}&end=${endStr}`);
       if (res.ok) {
         const data = await res.json();
         setCalSessions(data);
@@ -503,7 +529,7 @@ export default function PresensiPage() {
     if (activeTab === 'laporan') {
       fetchCalendarSessions();
     }
-  }, [activeTab, calYear, calMonth, reportDesa, reportKelompok, reportKategori, reportStatusPernikahan, user]);
+  }, [activeTab, calYear, calMonth, user]);
 
   const getCalendarDays = () => {
     const days = [];
@@ -1740,173 +1766,312 @@ export default function PresensiPage() {
           </div>
 
           {/* Laporan Filter Bar */}
-          <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-5 flex flex-col gap-5">
-            <div className="flex flex-wrap items-center gap-5">
-              
-              {/* Selected Range Display */}
-              <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200/60 text-xs font-bold text-slate-650">
-                <span className="uppercase tracking-wider text-slate-400 text-[10px]">Rentang Terpilih:</span>
-                <span className="text-slate-800 font-extrabold text-xs">
+          <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-5 flex flex-col gap-5 text-left text-xs font-bold text-slate-700">
+            {/* Range and Actions */}
+            <div className="flex flex-wrap items-center justify-between gap-5 border-b border-slate-50 pb-4">
+              <div className="flex items-center gap-2 bg-slate-50 px-3.5 py-2 rounded-xl border border-slate-200/60 font-bold text-slate-650">
+                <span className="uppercase tracking-wider text-slate-400 text-[10px] font-extrabold">Rentang Terpilih:</span>
+                <span className="text-slate-800 font-black text-xs">
                   {reportStartDate ? new Date(reportStartDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
                 </span>
                 <span className="text-slate-400 font-normal">&rarr;</span>
-                <span className="text-slate-800 font-extrabold text-xs">
+                <span className="text-slate-800 font-black text-xs">
                   {reportEndDate ? new Date(reportEndDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
                 </span>
               </div>
 
-              {/* Time Inputs */}
-              <div className="flex items-center gap-2 text-xs font-bold text-slate-650">
-                <span className="uppercase tracking-wider text-slate-400 text-[10px]">Waktu Mulai:</span>
-                <input 
-                  type="time" 
-                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-750 font-semibold text-xs cursor-pointer focus:border-primary focus:outline-none" 
-                  value={reportStartTime}
-                  onChange={(e) => setReportStartTime(e.target.value)}
-                />
-              </div>
-              <div className="flex items-center gap-2 text-xs font-bold text-slate-650">
-                <span className="uppercase tracking-wider text-slate-400 text-[10px]">Waktu Selesai:</span>
-                <input 
-                  type="time" 
-                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-750 font-semibold text-xs cursor-pointer focus:border-primary focus:outline-none" 
-                  value={reportEndTime}
-                  onChange={(e) => setReportEndTime(e.target.value)}
-                />
-              </div>
-
-              {/* Filter Desa */}
-              {user.monitor_all_desas ? (
-                <select 
-                  className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 font-bold text-xs cursor-pointer"
-                  value={reportDesa}
-                  onChange={(e) => {
-                    setReportDesa(e.target.value);
-                    setReportKelompok('');
-                  }}
-                >
-                  <option value="">Semua Desa</option>
-                  {[...locations].sort((a, b) => a.nama_desa.localeCompare(b.nama_desa)).map(d => (
-                    <option key={d.id} value={d.nama_desa}>{d.nama_desa}</option>
-                  ))}
-                </select>
-              ) : (
-                <select 
-                  className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 font-bold text-xs cursor-pointer"
-                  value={reportDesa}
-                  onChange={(e) => {
-                    setReportDesa(e.target.value);
-                    setReportKelompok('');
-                  }}
-                >
-                  <option value="">Semua Desa Terpantau</option>
-                  {[...locations].filter(d => (user.desas_pantau || []).includes(d.nama_desa)).sort((a, b) => a.nama_desa.localeCompare(b.nama_desa)).map(d => (
-                    <option key={d.id} value={d.nama_desa}>{d.nama_desa}</option>
-                  ))}
-                </select>
-              )}
-
-              {/* Filter Kelompok */}
-              {user.monitor_all_kelompoks ? (
-                <select 
-                  className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 font-bold text-xs cursor-pointer"
-                  value={reportKelompok}
-                  onChange={(e) => setReportKelompok(e.target.value)}
-                >
-                  <option value="">Semua Kelompok</option>
-                  {(reportDesa 
-                    ? (locations.find(d => d.nama_desa === reportDesa)?.kelompoks || []) 
-                    : locations.flatMap(d => d.kelompoks)
-                  )
-                  .sort((a, b) => a.nama_kelompok.localeCompare(b.nama_kelompok))
-                  .map(k => (
-                    <option key={k.id} value={k.nama_kelompok}>{k.nama_kelompok}</option>
-                  ))}
-                </select>
-              ) : (
-                <select 
-                  className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 font-bold text-xs cursor-pointer"
-                  value={reportKelompok}
-                  onChange={(e) => setReportKelompok(e.target.value)}
-                >
-                  <option value="">Semua Kelompok Terpantau</option>
-                  {(reportDesa 
-                    ? (locations.find(d => d.nama_desa === reportDesa)?.kelompoks || []) 
-                    : locations.flatMap(d => d.kelompoks)
-                  )
-                  .filter(k => (user.kelompoks_pantau || []).includes(k.nama_kelompok))
-                  .sort((a, b) => a.nama_kelompok.localeCompare(b.nama_kelompok))
-                  .map(k => (
-                    <option key={k.id} value={k.nama_kelompok}>{k.nama_kelompok}</option>
-                  ))}
-                </select>
-              )}
-
               <button 
                 onClick={loadReport} 
-                className="py-2 px-4 font-bold text-xs bg-primary hover:bg-primary-hover text-white rounded-lg transition-all shadow-sm active:scale-95 ml-auto"
-                disabled={loadingReport}
+                className="py-2.5 px-5 font-bold text-xs bg-primary hover:bg-primary-hover text-white rounded-lg transition-all shadow-md shadow-primary/10 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                disabled={loadingReport || !reportStartDate || !reportEndDate || selectedReportSessionIds.length === 0}
               >
-                {loadingReport ? "Memuat..." : "Tampilkan Laporan"}
+                {loadingReport ? "Memuat..." : "Tampilkan Laporan Kehadiran"}
               </button>
             </div>
 
-            {/* Checklist Filters Row */}
-            <div className="flex flex-col sm:flex-row gap-6 border-t border-slate-100 pt-4 text-left">
-              {/* Kategori Checklist */}
-              <div className="flex-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Kategori Jamaah</span>
-                <div className="flex flex-wrap gap-x-4 gap-y-2">
-                  {['Balita', 'CBR/PAUD', 'Pra Remaja', 'Remaja', 'Pra Nikah', 'Dewasa', 'Lansia'].map(cat => {
-                    const isChecked = reportKategori.includes(cat);
-                    return (
-                      <label key={cat} className="flex items-center gap-2 text-xs font-semibold text-slate-650 cursor-pointer select-none">
+            {/* Checklists Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {/* Left Column: Desa & Kelompok Checklists */}
+              <div className="flex flex-col gap-4">
+                {/* Desas Checklist */}
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Target Desa</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const allDesas = locations.map(d => d.nama_desa);
+                        if (reportDesas.length === allDesas.length) {
+                          setReportDesas([]);
+                        } else {
+                          setReportDesas(allDesas);
+                        }
+                      }}
+                      className="text-[10px] text-primary hover:underline font-extrabold cursor-pointer"
+                    >
+                      {reportDesas.length === locations.length ? "Hapus Semua" : "Pilih Semua"}
+                    </button>
+                  </div>
+                  <div className="p-3 border border-slate-200 rounded-lg max-h-24 overflow-y-auto flex flex-wrap gap-2.5 bg-slate-50/50">
+                    {locations.map(d => (
+                      <label key={d.id} className="flex items-center gap-1.5 cursor-pointer font-semibold text-slate-650">
                         <input 
-                          type="checkbox" 
-                          className="rounded border-slate-300 text-primary focus:ring-primary w-4 h-4"
-                          checked={isChecked}
-                          onChange={() => {
-                            if (isChecked) {
-                              setReportKategori(prev => prev.filter(c => c !== cat));
+                          type="checkbox"
+                          checked={reportDesas.includes(d.nama_desa)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setReportDesas(prev => [...prev, d.nama_desa]);
                             } else {
-                              setReportKategori(prev => [...prev, cat]);
+                              setReportDesas(prev => prev.filter(v => v !== d.nama_desa));
                             }
                           }}
                         />
-                        <span>{cat}</span>
+                        <span>{d.nama_desa}</span>
                       </label>
-                    );
-                  })}
+                    ))}
+                  </div>
+                </div>
+
+                {/* Kelompoks Checklist (Grouped by Desa) */}
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Target Kelompok</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const allKelompoks = locations.flatMap(d => d.kelompoks.map(k => k.nama_kelompok));
+                        if (reportKelompoks.length === allKelompoks.length) {
+                          setReportKelompoks([]);
+                        } else {
+                          setReportKelompoks(allKelompoks);
+                        }
+                      }}
+                      className="text-[10px] text-primary hover:underline font-extrabold cursor-pointer"
+                    >
+                      {reportKelompoks.length === locations.flatMap(d => d.kelompoks).length ? "Hapus Semua" : "Pilih Semua"}
+                    </button>
+                  </div>
+                  <div className="p-3 border border-slate-200 rounded-lg max-h-40 overflow-y-auto flex flex-col gap-3 bg-slate-50/50">
+                    {locations.map(d => (
+                      <div key={d.id} className="flex flex-col gap-1">
+                        <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">{d.nama_desa}</span>
+                        <div className="flex flex-wrap gap-2.5 pl-1">
+                          {d.kelompoks.map(k => (
+                            <label key={k.id} className="flex items-center gap-1.5 cursor-pointer font-semibold text-slate-650">
+                              <input 
+                                type="checkbox"
+                                checked={reportKelompoks.includes(k.nama_kelompok)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setReportKelompoks(prev => [...prev, k.nama_kelompok]);
+                                  } else {
+                                    setReportKelompoks(prev => prev.filter(v => v !== k.nama_kelompok));
+                                  }
+                                }}
+                              />
+                              <span>{k.nama_kelompok}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
 
-              {/* Status Pernikahan Checklist */}
-              <div className="flex-1 border-t sm:border-t-0 sm:border-l border-slate-100 pt-4 sm:pt-0 sm:pl-6">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Status Pernikahan</span>
-                <div className="flex flex-wrap gap-x-4 gap-y-2">
-                  {['Belum Menikah', 'Menikah', 'Janda', 'Duda'].map(status => {
-                    const isChecked = reportStatusPernikahan.includes(status);
-                    return (
-                      <label key={status} className="flex items-center gap-2 text-xs font-semibold text-slate-650 cursor-pointer select-none">
+              {/* Right Column: Gender, Marital, and Kategori Checklists */}
+              <div className="flex flex-col gap-4">
+                {/* Gender & Marital Status Checklists Grid */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Jenis Kelamin</span>
+                    <div className="p-3 border border-slate-200 rounded-lg flex flex-col gap-2 bg-slate-50/50">
+                      {['Laki-laki', 'Perempuan'].map(g => (
+                        <label key={g} className="flex items-center gap-1.5 cursor-pointer font-semibold text-slate-650">
+                          <input 
+                            type="checkbox"
+                            checked={reportGenders.includes(g)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                  setReportGenders(prev => [...prev, g]);
+                              } else {
+                                  setReportGenders(prev => prev.filter(v => v !== g));
+                              }
+                            }}
+                          />
+                          <span>{g}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status Pernikahan</span>
+                    <div className="p-3 border border-slate-200 rounded-lg flex flex-col gap-2 bg-slate-50/50">
+                      {['Belum Menikah', 'Menikah', 'Janda', 'Duda'].map(m => (
+                        <label key={m} className="flex items-center gap-1.5 cursor-pointer font-semibold text-slate-650">
+                          <input 
+                            type="checkbox"
+                            checked={reportStatusPernikahan.includes(m)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                  setReportStatusPernikahan(prev => [...prev, m]);
+                              } else {
+                                  setReportStatusPernikahan(prev => prev.filter(v => v !== m));
+                              }
+                            }}
+                          />
+                          <span>{m}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Kategori Checklist */}
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Kategori Jamaah</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const allKats = ['Balita', 'CBR/PAUD', 'Pra Remaja', 'Remaja', 'Pra Nikah', 'Dewasa', 'Lansia'];
+                        if (reportKategori.length === allKats.length) {
+                          setReportKategori([]);
+                        } else {
+                          setReportKategori(allKats);
+                        }
+                      }}
+                      className="text-[10px] text-primary hover:underline font-extrabold cursor-pointer"
+                    >
+                      {reportKategori.length === 7 ? "Hapus Semua" : "Pilih Semua"}
+                    </button>
+                  </div>
+                  <div className="p-3 border border-slate-200 rounded-lg flex flex-wrap gap-2.5 bg-slate-50/50">
+                    {['Balita', 'CBR/PAUD', 'Pra Remaja', 'Remaja', 'Pra Nikah', 'Dewasa', 'Lansia'].map(k => (
+                      <label key={k} className="flex items-center gap-1.5 cursor-pointer font-semibold text-slate-650">
                         <input 
-                          type="checkbox" 
-                          className="rounded border-slate-300 text-primary focus:ring-primary w-4 h-4"
-                          checked={isChecked}
-                          onChange={() => {
-                            if (isChecked) {
-                              setReportStatusPernikahan(prev => prev.filter(s => s !== status));
+                          type="checkbox"
+                          checked={reportKategori.includes(k)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setReportKategori(prev => [...prev, k]);
                             } else {
-                              setReportStatusPernikahan(prev => [...prev, status]);
+                              setReportKategori(prev => prev.filter(v => v !== k));
                             }
                           }}
                         />
-                        <span>{status}</span>
+                        <span>{k}</span>
                       </label>
-                    );
-                  })}
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
+
+            {/* Review Sesi Panel (Inclusion / Exclusion Checkboxes) */}
+            {reportStartDate && reportEndDate && (
+              <div className="border-t border-slate-100 pt-4 flex flex-col gap-2">
+                {(() => {
+                  const matchingSessionsInRange = sessions.filter(s => {
+                    const inDateRange = s.tanggal >= reportStartDate && s.tanggal <= reportEndDate;
+                    if (!inDateRange) return false;
+
+                    const matchesDesa = reportDesas.length === 0 || s.desas.some(d => reportDesas.includes(d));
+                    const matchesKelompok = reportKelompoks.length === 0 || s.kelompoks.some(k => reportKelompoks.includes(k));
+                    const matchesGender = reportGenders.length === 0 || s.genders.some(g => reportGenders.includes(g));
+                    const matchesMarital = reportStatusPernikahan.length === 0 || s.marital_statuses.some(m => reportStatusPernikahan.includes(m));
+                    const matchesKategori = reportKategori.length === 0 || s.kategoris.some(kat => reportKategori.includes(kat));
+
+                    return matchesDesa && matchesKelompok && matchesGender && matchesMarital && matchesKategori;
+                  });
+
+                  return (
+                    <>
+                      <div className="flex justify-between items-center">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                          Review Sesi Pengajian ({matchingSessionsInRange.length} Sesi Cocok)
+                        </span>
+                        {matchingSessionsInRange.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const matchIds = matchingSessionsInRange.map(s => s.id);
+                              const allChecked = matchIds.every(id => selectedReportSessionIds.includes(id));
+                              if (allChecked) {
+                                // Uncheck all matching
+                                setSelectedReportSessionIds(prev => prev.filter(id => !matchIds.includes(id)));
+                              } else {
+                                // Check all matching
+                                setSelectedReportSessionIds(prev => {
+                                  const union = new Set([...prev, ...matchIds]);
+                                  return Array.from(union);
+                                });
+                              }
+                            }}
+                            className="text-[10px] text-primary hover:underline font-extrabold cursor-pointer"
+                          >
+                            {matchingSessionsInRange.every(s => selectedReportSessionIds.includes(s.id)) ? "Sembunyikan Semua Sesi" : "Ikutkan Semua Sesi"}
+                          </button>
+                        )}
+                      </div>
+
+                      {matchingSessionsInRange.length === 0 ? (
+                        <div className="p-3 bg-slate-50 border border-dashed border-slate-200 rounded-xl text-center text-slate-400 text-xs font-semibold">
+                          Tidak ditemukan sesi pengajian yang cocok dengan filter demografis dan wilayah terpilih.
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-44 overflow-y-auto p-1 bg-slate-50/30 border border-slate-100 rounded-xl">
+                          {matchingSessionsInRange.map(s => {
+                            const isIncluded = selectedReportSessionIds.includes(s.id);
+                            let badgeColor = 'bg-teal-50 border-teal-150 text-teal-700';
+                            if (s.jenis_pengajian === 'Desa') badgeColor = 'bg-blue-50 border-blue-150 text-blue-700';
+                            if (s.jenis_pengajian === 'Daerah') badgeColor = 'bg-purple-50 border-purple-150 text-purple-700';
+
+                            return (
+                              <label 
+                                key={s.id}
+                                className={`flex items-start gap-2.5 p-2.5 border rounded-lg cursor-pointer transition-all hover:bg-white select-none ${
+                                  isIncluded 
+                                    ? 'bg-white border-primary/25 shadow-sm' 
+                                    : 'bg-slate-50/50 border-slate-200/60 opacity-60'
+                                }`}
+                              >
+                                <input 
+                                  type="checkbox"
+                                  className="rounded border-slate-350 text-primary focus:ring-primary w-4 h-4 mt-0.5"
+                                  checked={isIncluded}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setSelectedReportSessionIds(prev => [...prev, s.id]);
+                                    } else {
+                                      setSelectedReportSessionIds(prev => prev.filter(id => id !== s.id));
+                                    }
+                                  }}
+                                />
+                                <div className="flex flex-col gap-0.5 min-w-0">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="font-black text-slate-750 text-[11px] truncate">
+                                      {new Date(s.tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })} &bull; {s.waktu_mulai}
+                                    </span>
+                                    <span className={`px-1 py-0.5 rounded text-[8px] font-extrabold uppercase border ${badgeColor}`}>
+                                      {s.jenis_pengajian}
+                                    </span>
+                                  </div>
+                                  <div className="text-[10px] text-slate-400 font-semibold truncate leading-tight">
+                                    Target: {s.kelompoks.join(', ')} ({s.kategoris.join(', ')})
+                                  </div>
+                                </div>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
+            )}
           </div>
 
           {loadingReport ? (

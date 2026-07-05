@@ -16,17 +16,24 @@ export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const startDate = searchParams.get('start_date');
   const endDate = searchParams.get('end_date');
-  let filterDesa = searchParams.get('desa') || '';
-  let filterKelompok = searchParams.get('kelompok') || '';
-  const kategoriStr = searchParams.get('kategori') || '';
-  const statusPernikahanStr = searchParams.get('status_pernikahan') || '';
+  
+  const desasStr = searchParams.get('desas') || '';
+  const kelompoksStr = searchParams.get('kelompoks') || '';
+  const gendersStr = searchParams.get('genders') || '';
+  const maritalStatusesStr = searchParams.get('marital_statuses') || '';
+  const kategorisStr = searchParams.get('kategoris') || '';
+  const sesiIdsStr = searchParams.get('sesi_ids') || '';
 
   if (!startDate || !endDate) {
     return NextResponse.json({ error: "start_date dan end_date wajib diisi" }, { status: 400 });
   }
 
-  const kategoriArray = kategoriStr ? kategoriStr.split(',') : [];
-  const statusPernikahanArray = statusPernikahanStr ? statusPernikahanStr.split(',') : [];
+  const desasArray = desasStr ? desasStr.split(',') : [];
+  const kelompoksArray = kelompoksStr ? kelompoksStr.split(',') : [];
+  const gendersArray = gendersStr ? gendersStr.split(',') : [];
+  const maritalStatusesArray = maritalStatusesStr ? maritalStatusesStr.split(',') : [];
+  const kategorisArray = kategorisStr ? kategorisStr.split(',') : [];
+  const sesiIdsArray = sesiIdsStr ? sesiIdsStr.split(',') : [];
 
   try {
     await logActivity(
@@ -44,9 +51,15 @@ export async function GET(request) {
       ORDER BY tanggal DESC, waktu_mulai DESC;
     `;
     const { rows: sessions } = await db.query(sessionQuery, [startDate, endDate]);
-    const totalSessions = sessions.length;
+    
+    // Filter sesi berdasarkan checklist eksklusi dari frontend
+    let filteredSessions = sessions;
+    if (sesiIdsArray.length > 0) {
+      filteredSessions = sessions.filter(s => sesiIdsArray.includes(s.id));
+    }
+    const totalSessions = filteredSessions.length;
 
-    // 2. Ambil daftar jamaah aktif
+    // 2. Ambil daftar jamaah aktif berdasarkan filter demografis
     let jamaahQuery = `
       SELECT id as jamaah_id, nama_lengkap, desa, kelompok, jenis_kelamin, kategori, status_pernikahan 
       FROM jamaah 
@@ -55,54 +68,50 @@ export async function GET(request) {
     const jamaahParams = [];
     let paramIdx = 1;
 
-    // Filter berdasarkan hak akses desa pengawas
-    if (!user.monitor_all_desas) {
-      if (filterDesa) {
-        if (user.desas_pantau && user.desas_pantau.includes(filterDesa)) {
-          jamaahQuery += ` AND desa = $${paramIdx++}`;
-          jamaahParams.push(filterDesa);
-        } else {
-          jamaahQuery += " AND desa = ANY('{}'::text[])";
-        }
-      } else {
-        jamaahQuery += ` AND desa = ANY($${paramIdx++}::text[])`;
-        jamaahParams.push(user.desas_pantau || []);
+    // Filter Desa
+    if (desasArray.length > 0) {
+      let allowedDesas = desasArray;
+      if (!user.monitor_all_desas) {
+        allowedDesas = desasArray.filter(d => (user.desas_pantau || []).includes(d));
+        if (allowedDesas.length === 0) allowedDesas = ['__none__'];
       }
-    } else {
-      if (filterDesa) {
-        jamaahQuery += ` AND desa = $${paramIdx++}`;
-        jamaahParams.push(filterDesa);
-      }
+      jamaahQuery += ` AND desa = ANY($${paramIdx++}::text[])`;
+      jamaahParams.push(allowedDesas);
+    } else if (!user.monitor_all_desas) {
+      jamaahQuery += ` AND desa = ANY($${paramIdx++}::text[])`;
+      jamaahParams.push(user.desas_pantau || []);
     }
 
-    // Filter berdasarkan hak akses kelompok pengawas
-    if (!user.monitor_all_kelompoks) {
-      if (filterKelompok) {
-        if (user.kelompoks_pantau && user.kelompoks_pantau.includes(filterKelompok)) {
-          jamaahQuery += ` AND kelompok = $${paramIdx++}`;
-          jamaahParams.push(filterKelompok);
-        } else {
-          jamaahQuery += " AND kelompok = ANY('{}'::text[])";
-        }
-      } else {
-        jamaahQuery += ` AND kelompok = ANY($${paramIdx++}::text[])`;
-        jamaahParams.push(user.kelompoks_pantau || []);
+    // Filter Kelompok
+    if (kelompoksArray.length > 0) {
+      let allowedKelompoks = kelompoksArray;
+      if (!user.monitor_all_kelompoks) {
+        allowedKelompoks = kelompoksArray.filter(k => (user.kelompoks_pantau || []).includes(k));
+        if (allowedKelompoks.length === 0) allowedKelompoks = ['__none__'];
       }
-    } else {
-      if (filterKelompok) {
-        jamaahQuery += ` AND kelompok = $${paramIdx++}`;
-        jamaahParams.push(filterKelompok);
-      }
+      jamaahQuery += ` AND kelompok = ANY($${paramIdx++}::text[])`;
+      jamaahParams.push(allowedKelompoks);
+    } else if (!user.monitor_all_kelompoks) {
+      jamaahQuery += ` AND kelompok = ANY($${paramIdx++}::text[])`;
+      jamaahParams.push(user.kelompoks_pantau || []);
     }
 
-    // Filter tambahan dari request UI (kategori & status pernikahan)
-    if (kategoriArray.length > 0) {
-      jamaahQuery += ` AND kategori = ANY($${paramIdx++})`;
-      jamaahParams.push(kategoriArray);
+    // Filter Gender
+    if (gendersArray.length > 0) {
+      jamaahQuery += ` AND jenis_kelamin = ANY($${paramIdx++})`;
+      jamaahParams.push(gendersArray);
     }
-    if (statusPernikahanArray.length > 0) {
+
+    // Filter Status Pernikahan
+    if (maritalStatusesArray.length > 0) {
       jamaahQuery += ` AND status_pernikahan = ANY($${paramIdx++})`;
-      jamaahParams.push(statusPernikahanArray);
+      jamaahParams.push(maritalStatusesArray);
+    }
+
+    // Filter Kategori
+    if (kategorisArray.length > 0) {
+      jamaahQuery += ` AND kategori = ANY($${paramIdx++})`;
+      jamaahParams.push(kategorisArray);
     }
 
     jamaahQuery += ` ORDER BY desa ASC, kelompok ASC, nama_lengkap ASC;`;
@@ -115,7 +124,7 @@ export async function GET(request) {
       WHERE tanggal >= $1 AND tanggal <= $2;
     `, [startDate, endDate]);
 
-    // Buat map kehadiran agar mempermudah lookup cepat [jamaah_id][sesi_id]
+    // Buat map kehadiran [jamaah_id][sesi_id]
     const presenceMap = {};
     presences.forEach(p => {
       if (!presenceMap[p.jamaah_id]) {
@@ -124,7 +133,6 @@ export async function GET(request) {
       if (p.sesi_id) {
         presenceMap[p.jamaah_id][p.sesi_id] = p.status;
       }
-      // Simpan juga berdasarkan tanggal untuk fallback record manual lama
       if (!presenceMap[p.jamaah_id][p.tanggal]) {
         presenceMap[p.jamaah_id][p.tanggal] = p.status;
       }
@@ -149,8 +157,8 @@ export async function GET(request) {
       let tidak_hadir = 0;
       let total_wajib = 0;
 
-      // Iterasi semua sesi untuk mencocokkan filter wajib hadir jamaah ini
-      sessions.forEach(s => {
+      // Iterasi semua sesi terpilih untuk mencocokkan filter wajib hadir jamaah ini
+      filteredSessions.forEach(s => {
         const matchesDesa = s.desas.includes(j.desa);
         const matchesKelompok = s.kelompoks.includes(j.kelompok);
         const matchesGender = s.genders.includes(j.jenis_kelamin);
@@ -160,10 +168,8 @@ export async function GET(request) {
         if (matchesDesa && matchesKelompok && matchesGender && matchesMarital && matchesKategori) {
           total_wajib++;
           
-          // Cari status kehadiran di map
           let status = presenceMap[j.jamaah_id]?.[s.id];
           if (!status) {
-            // Fallback ke tanggal untuk support data lama sebelum sesi_id ada
             status = presenceMap[j.jamaah_id]?.[s.tanggal];
           }
 
