@@ -16,7 +16,12 @@ export async function DELETE(request, { params }) {
   const { anggota_id } = await params;
 
   try {
-    const { rows: memberRows } = await db.query("SELECT keluarga_id, jamaah_id FROM anggota_keluarga WHERE id = $1;", [anggota_id]);
+    const { rows: memberRows } = await db.query(`
+      SELECT ak.keluarga_id, ak.jamaah_id, j.nama_lengkap 
+      FROM anggota_keluarga ak 
+      JOIN jamaah j ON ak.jamaah_id = j.id 
+      WHERE ak.id = $1;
+    `, [anggota_id]);
     const member = memberRows[0];
     if (!member) {
       return NextResponse.json({ error: "Anggota keluarga tidak ditemukan" }, { status: 404 });
@@ -41,7 +46,7 @@ export async function DELETE(request, { params }) {
 
     await db.query("DELETE FROM anggota_keluarga WHERE id = $1;", [anggota_id]);
 
-    await logActivity(user.email, 'DELETE_MEMBER', 'KELUARGA', anggota_id, `Mengeluarkan anggota keluarga: ${j_row.nama_lengkap} dari unit keluarga`);
+    await logActivity(user.email, 'DELETE_MEMBER', 'KELUARGA', anggota_id, `Mengeluarkan anggota keluarga: ${member.nama_lengkap} dari unit keluarga`);
 
     return NextResponse.json({ success: true, message: "Anggota keluarga berhasil dikeluarkan" });
   } catch (error) {

@@ -38,7 +38,7 @@ export async function PUT(request, { params }) {
     let golongan_darah = data.golongan_darah || "Tidak Diketahui";
     let kelompok = data.kelompok;
     let pendidikan_terakhir = data.pendidikan_terakhir;
-    let tanggal_lulus = data.tanggal_lulus_pendidikan_terakhir || null;
+    let tanggal_lulus = null;
     let desa = data.desa || "Andara";
     let kategori = data.kategori || "Dewasa";
     let tanggal_lahir = data.tanggal_lahir || null;

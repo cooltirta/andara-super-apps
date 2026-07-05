@@ -166,6 +166,26 @@ export default function DatabasePage() {
     }
   }, [filterDesas, locations]);
 
+  // Sync Desa when Kelompok changes
+  useEffect(() => {
+    if (filterKelompoks.length > 0) {
+      const neededDesas = [];
+      filterKelompoks.forEach(kName => {
+        const parentDesa = locations.find(d => 
+          d.kelompoks.some(k => k.nama_kelompok === kName)
+        );
+        if (parentDesa && !neededDesas.includes(parentDesa.nama_desa)) {
+          neededDesas.push(parentDesa.nama_desa);
+        }
+      });
+      setFilterDesas(prev => {
+        const isSame = prev.length === neededDesas.length && prev.every(d => neededDesas.includes(d));
+        if (isSame) return prev;
+        return neededDesas;
+      });
+    }
+  }, [filterKelompoks, locations]);
+
   // Sync Marital Status when Gender or Kategori changes
   useEffect(() => {
     const available = getAvailableMaritalStatuses(filterGenders, filterKategori);
@@ -1072,7 +1092,6 @@ export default function DatabasePage() {
                           <td className="px-6 py-4 text-center font-bold text-slate-700">{j.golongan_darah}</td>
                           <td className="px-6 py-4 leading-tight">
                             <div className="font-bold text-slate-700">{j.pendidikan_terakhir}</div>
-                            <span className="text-[9px] text-slate-400 font-bold">Lulus: {j.pendidikan_terakhir === 'Tidak Sekolah' ? '-' : (j.tanggal_lulus_pendidikan_terakhir || '-')}</span>
                           </td>
                           <td className={`px-6 py-4 ${j.nama_keluarga ? 'text-slate-600' : 'text-slate-350 font-medium italic'}`}>
                             {j.nama_keluarga ? `${j.nama_keluarga} (${j.jenis_anggota})` : 'Belum berasosiasi'}
@@ -1817,18 +1836,7 @@ export default function DatabasePage() {
                     </select>
                   </div>
                 </div>
-                {formEducation !== 'Tidak Sekolah' && (
-                  <div className="flex flex-col gap-1.5">
-                    <label htmlFor="form-grad-date" className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Tanggal Lulus</label>
-                    <input 
-                      type="date" 
-                      id="form-grad-date" 
-                      className="w-full px-3.5 py-2 rounded-lg border border-slate-200 focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all outline-none bg-white text-slate-700 text-xs font-semibold cursor-pointer"
-                      value={formGradDate}
-                      onChange={(e) => setFormGradDate(e.target.value)}
-                    />
-                  </div>
-                )}
+
                 
                 <div className="flex justify-end gap-2.5 border-t border-slate-100 pt-5 mt-4">
                   <button type="button" className="py-2 px-4 font-bold text-xs bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-lg transition-all" onClick={closeJamaahModal}>Batal</button>

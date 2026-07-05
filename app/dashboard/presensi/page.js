@@ -107,6 +107,26 @@ export default function PresensiPage() {
     }
   }, [filterDesas, locations]);
 
+  // Sync Desa when Kelompok changes (Input Tab)
+  useEffect(() => {
+    if (filterKelompoks.length > 0) {
+      const neededDesas = [];
+      filterKelompoks.forEach(kName => {
+        const parentDesa = locations.find(d => 
+          d.kelompoks.some(k => k.nama_kelompok === kName)
+        );
+        if (parentDesa && !neededDesas.includes(parentDesa.nama_desa)) {
+          neededDesas.push(parentDesa.nama_desa);
+        }
+      });
+      setFilterDesas(prev => {
+        const isSame = prev.length === neededDesas.length && prev.every(d => neededDesas.includes(d));
+        if (isSame) return prev;
+        return neededDesas;
+      });
+    }
+  }, [filterKelompoks, locations]);
+
   // Sync Input Tab Marital Status filter when Gender or Kategori filter changes
   useEffect(() => {
     const available = getAvailableMaritalStatuses(filterGenders, filterKategori);
@@ -123,6 +143,26 @@ export default function PresensiPage() {
       setReportKelompoks(prev => prev.filter(k => validKelompoks.includes(k)));
     }
   }, [reportDesas, locations]);
+
+  // Sync Desa when Kelompok changes (Laporan Tab)
+  useEffect(() => {
+    if (reportKelompoks.length > 0) {
+      const neededDesas = [];
+      reportKelompoks.forEach(kName => {
+        const parentDesa = locations.find(d => 
+          d.kelompoks.some(k => k.nama_kelompok === kName)
+        );
+        if (parentDesa && !neededDesas.includes(parentDesa.nama_desa)) {
+          neededDesas.push(parentDesa.nama_desa);
+        }
+      });
+      setReportDesas(prev => {
+        const isSame = prev.length === neededDesas.length && prev.every(d => neededDesas.includes(d));
+        if (isSame) return prev;
+        return neededDesas;
+      });
+    }
+  }, [reportKelompoks, locations]);
 
   // Sync Laporan Tab Marital Status filter when Gender or Kategori filter changes
   useEffect(() => {
@@ -160,6 +200,26 @@ export default function PresensiPage() {
       setNewSesiKelompoks(prev => prev.filter(k => validKelompoks.includes(k)));
     }
   }, [newSesiDesas, locations]);
+
+  // Sync Sesi Desa when Sesi Kelompok changes
+  useEffect(() => {
+    if (newSesiKelompoks.length > 0) {
+      const neededDesas = [];
+      newSesiKelompoks.forEach(kName => {
+        const parentDesa = locations.find(d => 
+          d.kelompoks.some(k => k.nama_kelompok === kName)
+        );
+        if (parentDesa && !neededDesas.includes(parentDesa.nama_desa)) {
+          neededDesas.push(parentDesa.nama_desa);
+        }
+      });
+      setNewSesiDesas(prev => {
+        const isSame = prev.length === neededDesas.length && prev.every(d => neededDesas.includes(d));
+        if (isSame) return prev;
+        return neededDesas;
+      });
+    }
+  }, [newSesiKelompoks, locations]);
 
   // Sync Sesi Marital Status when Sesi Kategori changes
   useEffect(() => {

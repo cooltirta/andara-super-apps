@@ -197,7 +197,7 @@ export async function POST(request) {
         `, [
           jamaah_id, nama_lengkap, jenis_kelamin, tempat_lahir || null, status_kehidupan,
           golongan_darah, kelompok, pendidikan_terakhir, 
-          pendidikan_terakhir === 'Tidak Sekolah' ? null : (tanggal_lulus || null),
+          null,
           desa, kategori, tanggal_lahir || null, status_pernikahan, rfid
         ]);
 
