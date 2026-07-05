@@ -26,7 +26,7 @@ export default function PresensiPage() {
   const [newSesiDesas, setNewSesiDesas] = useState([]);
   const [newSesiKelompoks, setNewSesiKelompoks] = useState([]);
   const [newSesiGenders, setNewSesiGenders] = useState(['Laki-laki', 'Perempuan']);
-  const [newSesiMarital, setNewSesiMarital] = useState(['Belum Menikah', 'Menikah', 'Duda', 'Janda']);
+  const [newSesiMarital, setNewSesiMarital] = useState(['Belum Menikah', 'Menikah', 'Janda/Duda']);
   const [newSesiKategoris, setNewSesiKategoris] = useState(['Balita', 'CBR/PAUD', 'Pra Remaja', 'Remaja', 'Pra Nikah', 'Dewasa', 'Lansia']);
 
   // Input Tab States
@@ -129,6 +129,49 @@ export default function PresensiPage() {
     const available = getAvailableMaritalStatuses(reportGenders, reportKategori);
     setReportStatusPernikahan(prev => prev.filter(s => available.includes(s)));
   }, [reportGenders, reportKategori]);
+
+  const getAvailableSesiMarital = (kategoris) => {
+    const adultKats = ['Dewasa', 'Lansia'];
+    const hasAdultsSelected = kategoris.some(k => adultKats.includes(k));
+    const hasNonAdultsSelected = kategoris.some(k => !adultKats.includes(k));
+
+    if (kategoris.length > 0 && hasNonAdultsSelected && !hasAdultsSelected) {
+      return ['Belum Menikah'];
+    }
+
+    return ['Belum Menikah', 'Menikah', 'Janda/Duda'];
+  };
+
+  const getAvailableSesiKategoris = (statuses) => {
+    const hasBelumMenikah = statuses.includes('Belum Menikah');
+    if (statuses.length > 0 && !hasBelumMenikah) {
+      return ['Dewasa', 'Lansia'];
+    }
+    return ['Balita', 'CBR/PAUD', 'Pra Remaja', 'Remaja', 'Pra Nikah', 'Dewasa', 'Lansia'];
+  };
+
+  // Sync Sesi Kelompok when Sesi Desa changes
+  useEffect(() => {
+    if (newSesiDesas.length > 0) {
+      const validKelompoks = locations
+        .filter(d => newSesiDesas.includes(d.nama_desa))
+        .flatMap(d => d.kelompoks.map(k => k.nama_kelompok));
+      
+      setNewSesiKelompoks(prev => prev.filter(k => validKelompoks.includes(k)));
+    }
+  }, [newSesiDesas, locations]);
+
+  // Sync Sesi Marital Status when Sesi Kategori changes
+  useEffect(() => {
+    const available = getAvailableSesiMarital(newSesiKategoris);
+    setNewSesiMarital(prev => prev.filter(s => available.includes(s)));
+  }, [newSesiKategoris]);
+
+  // Sync Sesi Kategori when Sesi Marital Status changes
+  useEffect(() => {
+    const available = getAvailableSesiKategoris(newSesiMarital);
+    setNewSesiKategoris(prev => prev.filter(c => available.includes(c)));
+  }, [newSesiMarital]);
 
   // Calendar States
   const [calYear, setCalYear] = useState(new Date().getFullYear());
@@ -663,6 +706,12 @@ export default function PresensiPage() {
       return;
     }
 
+    let dbMarital = [...newSesiMarital];
+    if (dbMarital.includes('Janda/Duda')) {
+      dbMarital = dbMarital.filter(m => m !== 'Janda/Duda');
+      dbMarital.push('Janda', 'Duda');
+    }
+
     setLoadingSubmit(true);
     try {
       const url = editingSessionId ? `/api/sesi/${editingSessionId}` : '/api/sesi';
@@ -678,7 +727,7 @@ export default function PresensiPage() {
           desas: newSesiDesas,
           kelompoks: newSesiKelompoks,
           genders: newSesiGenders,
-          marital_statuses: newSesiMarital,
+          marital_statuses: dbMarital,
           kategoris: newSesiKategoris
         })
       });
@@ -1418,7 +1467,12 @@ export default function PresensiPage() {
                             setNewSesiDesas(s.desas);
                             setNewSesiKelompoks(s.kelompoks);
                             setNewSesiGenders(s.genders);
-                            setNewSesiMarital(s.marital_statuses);
+                            let uiMarital = [...s.marital_statuses];
+                            if (uiMarital.includes('Janda') || uiMarital.includes('Duda')) {
+                              uiMarital = uiMarital.filter(m => m !== 'Janda' && m !== 'Duda');
+                              uiMarital.push('Janda/Duda');
+                            }
+                            setNewSesiMarital(uiMarital);
                             setNewSesiKategoris(s.kategoris);
                             setShowCreateSesiModal(true);
                           }}
@@ -1511,176 +1565,62 @@ export default function PresensiPage() {
                 </div>
               </div>
 
-              {/* Desas Checklist */}
-              <div className="flex flex-col gap-1.5">
-                <div className="flex justify-between items-center">
-                  <label>Target Desa</label>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const allDesas = locations.map(d => d.nama_desa);
-                      if (newSesiDesas.length === allDesas.length) {
-                        setNewSesiDesas([]);
-                      } else {
-                        setNewSesiDesas(allDesas);
-                      }
-                    }}
-                    className="text-[10px] text-primary hover:underline font-extrabold cursor-pointer"
-                  >
-                    {newSesiDesas.length === locations.length ? "Hapus Semua" : "Pilih Semua"}
-                  </button>
-                </div>
-                <div className="p-3 border border-slate-200 rounded-lg max-h-24 overflow-y-auto flex flex-wrap gap-2.5 bg-slate-50/50">
-                  {locations.map(d => (
-                    <label key={d.id} className="flex items-center gap-1.5 cursor-pointer font-semibold text-slate-650">
-                      <input 
-                        type="checkbox"
-                        checked={newSesiDesas.includes(d.nama_desa)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setNewSesiDesas(prev => [...prev, d.nama_desa]);
-                          } else {
-                            setNewSesiDesas(prev => prev.filter(v => v !== d.nama_desa));
-                          }
-                        }}
-                      />
-                      <span>{d.nama_desa}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
+              {/* Target Desa */}
+              <MultiSelectDropdown
+                label="Target Desa"
+                options={locations.map(d => d.nama_desa)}
+                selected={newSesiDesas}
+                onChange={setNewSesiDesas}
+                placeholder="Pilih Desa..."
+                allLabel="Semua Desa"
+                badgeCountLabel="Desa Terpilih"
+              />
 
-              {/* Kelompoks Checklist (Grouped by Desa) */}
-              <div className="flex flex-col gap-1.5">
-                <div className="flex justify-between items-center">
-                  <label>Target Kelompok</label>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const allKelompoks = locations.flatMap(d => d.kelompoks.map(k => k.nama_kelompok));
-                      if (newSesiKelompoks.length === allKelompoks.length) {
-                        setNewSesiKelompoks([]);
-                      } else {
-                        setNewSesiKelompoks(allKelompoks);
-                      }
-                    }}
-                    className="text-[10px] text-primary hover:underline font-extrabold cursor-pointer"
-                  >
-                    {newSesiKelompoks.length === locations.flatMap(d => d.kelompoks).length ? "Hapus Semua" : "Pilih Semua"}
-                  </button>
-                </div>
-                <div className="p-3 border border-slate-200 rounded-lg max-h-36 overflow-y-auto flex flex-col gap-3 bg-slate-50/50">
-                  {locations.map(d => (
-                    <div key={d.id} className="flex flex-col gap-1">
-                      <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">{d.nama_desa}</span>
-                      <div className="flex flex-wrap gap-2.5 pl-1">
-                        {d.kelompoks.map(k => (
-                          <label key={k.id} className="flex items-center gap-1.5 cursor-pointer font-semibold text-slate-650">
-                            <input 
-                              type="checkbox"
-                              checked={newSesiKelompoks.includes(k.nama_kelompok)}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setNewSesiKelompoks(prev => [...prev, k.nama_kelompok]);
-                                } else {
-                                  setNewSesiKelompoks(prev => prev.filter(v => v !== k.nama_kelompok));
-                                }
-                              }}
-                            />
-                            <span>{k.nama_kelompok}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              {/* Target Kelompok */}
+              <GroupedMultiSelectDropdown
+                label="Target Kelompok"
+                groupedOptions={locations.map(d => ({
+                  desa: d.nama_desa,
+                  kelompoks: d.kelompoks.map(k => k.nama_kelompok)
+                }))}
+                selected={newSesiKelompoks}
+                onChange={setNewSesiKelompoks}
+                placeholder="Pilih Kelompok..."
+              />
 
               {/* Gender and Marital Checklist Grid */}
               <div className="grid grid-cols-2 gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <label>Jenis Kelamin</label>
-                  <div className="p-2.5 border border-slate-200 rounded-lg flex flex-col gap-1.5 bg-slate-50/50">
-                    {['Laki-laki', 'Perempuan'].map(g => (
-                      <label key={g} className="flex items-center gap-1.5 cursor-pointer font-semibold text-slate-650">
-                        <input 
-                          type="checkbox"
-                          checked={newSesiGenders.includes(g)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setNewSesiGenders(prev => [...prev, g]);
-                            } else {
-                              setNewSesiGenders(prev => prev.filter(v => v !== g));
-                            }
-                          }}
-                        />
-                        <span>{g}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
+                <MultiSelectDropdown
+                  label="Jenis Kelamin"
+                  options={['Laki-laki', 'Perempuan']}
+                  selected={newSesiGenders}
+                  onChange={setNewSesiGenders}
+                  placeholder="Pilih Gender..."
+                  allLabel="Semua Gender"
+                  badgeCountLabel="Gender Terpilih"
+                />
 
-                <div className="flex flex-col gap-1.5">
-                  <label>Status Pernikahan</label>
-                  <div className="p-2.5 border border-slate-200 rounded-lg flex flex-col gap-1.5 bg-slate-50/50">
-                    {['Belum Menikah', 'Menikah', 'Duda', 'Janda'].map(m => (
-                      <label key={m} className="flex items-center gap-1.5 cursor-pointer font-semibold text-slate-650">
-                        <input 
-                          type="checkbox"
-                          checked={newSesiMarital.includes(m)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setNewSesiMarital(prev => [...prev, m]);
-                            } else {
-                              setNewSesiMarital(prev => prev.filter(v => v !== m));
-                            }
-                          }}
-                        />
-                        <span>{m}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
+                <MultiSelectDropdown
+                  label="Status Pernikahan"
+                  options={getAvailableSesiMarital(newSesiKategoris)}
+                  selected={newSesiMarital}
+                  onChange={setNewSesiMarital}
+                  placeholder="Pilih Status..."
+                  allLabel="Semua Status"
+                  badgeCountLabel="Status Terpilih"
+                />
               </div>
 
               {/* Kategori Checklist */}
-              <div className="flex flex-col gap-1.5">
-                <div className="flex justify-between items-center">
-                  <label>Kategori Peserta</label>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const allKats = ['Balita', 'CBR/PAUD', 'Pra Remaja', 'Remaja', 'Pra Nikah', 'Dewasa', 'Lansia'];
-                      if (newSesiKategoris.length === allKats.length) {
-                        setNewSesiKategoris([]);
-                      } else {
-                        setNewSesiKategoris(allKats);
-                      }
-                    }}
-                    className="text-[10px] text-primary hover:underline font-extrabold cursor-pointer"
-                  >
-                    {newSesiKategoris.length === 7 ? "Hapus Semua" : "Pilih Semua"}
-                  </button>
-                </div>
-                <div className="p-3 border border-slate-200 rounded-lg flex flex-wrap gap-2.5 bg-slate-50/50">
-                  {['Balita', 'CBR/PAUD', 'Pra Remaja', 'Remaja', 'Pra Nikah', 'Dewasa', 'Lansia'].map(k => (
-                    <label key={k} className="flex items-center gap-1.5 cursor-pointer font-semibold text-slate-650">
-                      <input 
-                        type="checkbox"
-                        checked={newSesiKategoris.includes(k)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setNewSesiKategoris(prev => [...prev, k]);
-                          } else {
-                            setNewSesiKategoris(prev => prev.filter(v => v !== k));
-                          }
-                        }}
-                      />
-                      <span>{k}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
+              <MultiSelectDropdown
+                label="Kategori Peserta"
+                options={getAvailableSesiKategoris(newSesiMarital)}
+                selected={newSesiKategoris}
+                onChange={setNewSesiKategoris}
+                placeholder="Pilih Kategori..."
+                allLabel="Semua Kategori"
+                badgeCountLabel="Kategori Terpilih"
+              />
 
               {/* Footer Actions */}
               <div className="flex justify-end gap-2 border-t border-slate-100 pt-4 mt-2">
