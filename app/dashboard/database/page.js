@@ -2008,21 +2008,21 @@ export default function DatabasePage() {
                     {selectedQrJamaah.kelompok ? selectedQrJamaah.kelompok.replace(/^Kelompok\s+/i, '') : ''}
                   </div>
 
-                  {/* QR Code Container (Right side, bottom-aligned, 1/3 card height) */}
+                  {/* QR Code Container (Left-aligned, bottom-aligned, reduced size by 15%) */}
                   <div 
                     style={{
                       position: 'absolute',
-                      right: '66px',
-                      bottom: '60px',
+                      left: '66px',
+                      bottom: '55px',
                       backgroundColor: '#ffffff',
-                      padding: '16px',
-                      borderRadius: '20px',
+                      padding: '15px',
+                      borderRadius: '16px',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.15)',
-                      width: '213px',
-                      height: '213px',
+                      boxShadow: '0 8px 20px -4px rgba(0, 0, 0, 0.12)',
+                      width: '180px',
+                      height: '180px',
                     }}
                   >
                     <img 
@@ -2033,8 +2033,8 @@ export default function DatabasePage() {
                       )}`} 
                       alt="QR Code" 
                       style={{
-                        width: '181px',
-                        height: '181px',
+                        width: '150px',
+                        height: '150px',
                       }}
                     />
                   </div>
