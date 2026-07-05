@@ -17,10 +17,10 @@ export default function DatabasePage() {
   const [filterDesas, setFilterDesas] = useState([]);
   const [filterKelompoks, setFilterKelompoks] = useState([]);
   const [filterGenders, setFilterGenders] = useState(['Laki-laki', 'Perempuan']);
-  const [filterBlood, setFilterBlood] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
+  const [filterBlood, setFilterBlood] = useState(['A', 'B', 'O', 'AB', 'Tidak Diketahui']);
   const [filterMarital, setFilterMarital] = useState(['Belum Menikah', 'Menikah', 'Janda/Duda']);
   const [filterKategori, setFilterKategori] = useState(['Balita', 'CBR/PAUD', 'Pra Remaja', 'Remaja', 'Pra Nikah', 'Dewasa', 'Lansia']);
+  const [filterPendidikan, setFilterPendidikan] = useState(['Tidak Sekolah', 'SD', 'SMP', 'SMA', 'S1', 'S2', 'S3']);
   
   // Keluarga Filters
   const [searchKeluarga, setSearchKeluarga] = useState('');
@@ -81,7 +81,7 @@ export default function DatabasePage() {
   // Reset pagination to page 1 on filter changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchName, filterDesas, filterKelompoks, filterGenders, filterBlood, filterStatus, filterMarital, filterKategori, rowsPerPage]);
+  }, [searchName, filterDesas, filterKelompoks, filterGenders, filterBlood, filterMarital, filterKategori, filterPendidikan, rowsPerPage]);
 
   // Focus RFID input capture when scan mode is activated
   useEffect(() => {
@@ -663,12 +663,12 @@ export default function DatabasePage() {
   }
 
   const filteredJamaah = jamaahList.filter(j => {
+    const matchAlive = j.status_kehidupan === 'Hidup';
     const matchName = j.nama_lengkap.toLowerCase().includes(searchName.toLowerCase().trim());
     const matchDesa = filterDesas.length === 0 || filterDesas.includes(j.desa);
     const matchKelompok = filterKelompoks.length === 0 || filterKelompoks.includes(j.kelompok);
     const matchGender = filterGenders.length === 0 || filterGenders.includes(j.jenis_kelamin);
-    const matchBlood = filterBlood ? j.golongan_darah === filterBlood : true;
-    const matchStatus = filterStatus ? j.status_kehidupan === filterStatus : true;
+    const matchBlood = filterBlood.length === 0 || filterBlood.includes(j.golongan_darah || 'Tidak Diketahui');
     const matchKategori = filterKategori.includes(j.kategori);
     const matchMarital = filterMarital.some(status => {
       if (status === 'Janda/Duda') {
@@ -676,8 +676,9 @@ export default function DatabasePage() {
       }
       return (j.status_pernikahan || 'Belum Menikah') === status;
     });
+    const matchPendidikan = filterPendidikan.includes(j.pendidikan_terakhir || 'Tidak Sekolah');
 
-    return matchName && matchDesa && matchKelompok && matchGender && matchBlood && matchStatus && matchKategori && matchMarital;
+    return matchAlive && matchName && matchDesa && matchKelompok && matchGender && matchBlood && matchKategori && matchMarital && matchPendidikan;
   });
 
   const totalRows = filteredJamaah.length;
@@ -874,89 +875,65 @@ export default function DatabasePage() {
       {/* Filters Area (Only on Jamaah Tab) */}
       {activeTab === 'jamaah' && (
         <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-5 flex flex-col gap-5 mb-6" id="search-filter-section">
-          {/* Top Row: Search and Single Selects */}
-          <div className="flex flex-wrap items-center gap-4">
+          {/* Top Row: Search input and Desa & Kelompok filters */}
+          <div className="flex flex-wrap items-end gap-4">
             {/* Search Bar */}
-            <div className="relative flex-1 min-w-[280px]">
-              <Search className="absolute left-3 top-3 text-slate-400 w-4 h-4" />
-              <input 
-                type="text" 
-                id="search-jamaah-name" 
-                className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-slate-200 focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all outline-none bg-white text-slate-700 text-xs font-semibold" 
-                placeholder="Cari nama jamaah..."
-                value={searchName}
-                onChange={(e) => setSearchName(e.target.value)}
+            <div className="relative flex-1 min-w-[280px] flex flex-col gap-1.5 text-left">
+              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Cari Nama</span>
+              <div className="relative">
+                <Search className="absolute left-3 top-3 text-slate-400 w-4 h-4" />
+                <input 
+                  type="text" 
+                  id="search-jamaah-name" 
+                  className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-slate-200 focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all outline-none bg-white text-slate-700 text-xs font-semibold" 
+                  placeholder="Cari nama jamaah..."
+                  value={searchName}
+                  onChange={(e) => setSearchName(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* Desa Dropdown */}
+            <div className="min-w-[200px]">
+              <MultiSelectDropdown
+                label="Desa"
+                options={
+                  user.monitor_all_desas 
+                    ? locations.map(d => d.nama_desa)
+                    : locations.filter(d => (user.desas_pantau || []).includes(d.nama_desa)).map(d => d.nama_desa)
+                }
+                selected={filterDesas}
+                onChange={setFilterDesas}
+                placeholder="Pilih Desa..."
+                allLabel="Semua Desa"
+                badgeCountLabel="Desa Terpilih"
               />
             </div>
 
-            {/* Status Kehidupan */}
-            <div className="flex flex-col gap-1.5 min-w-[140px]">
-              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest text-left">Status Kehidupan</span>
-              <select 
-                id="filter-status" 
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-750 font-bold text-xs cursor-pointer outline-none hover:border-primary focus:border-primary min-h-[34px]"
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-              >
-                <option value="">Semua Status Kehidupan</option>
-                <option value="Hidup">Hidup</option>
-                <option value="Meninggal">Meninggal</option>
-              </select>
-            </div>
-
-            {/* Golongan Darah */}
-            <div className="flex flex-col gap-1.5 min-w-[120px]">
-              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest text-left">Golongan Darah</span>
-              <select 
-                id="filter-blood" 
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-750 font-bold text-xs cursor-pointer outline-none hover:border-primary focus:border-primary min-h-[34px]"
-                value={filterBlood}
-                onChange={(e) => setFilterBlood(e.target.value)}
-              >
-                <option value="">Semua Gol. Darah</option>
-                <option value="A">A</option>
-                <option value="B">B</option>
-                <option value="O">O</option>
-                <option value="AB">AB</option>
-                <option value="Tidak Diketahui">Tidak Diketahui</option>
-              </select>
+            {/* Kelompok Dropdown */}
+            <div className="min-w-[220px]">
+              <GroupedMultiSelectDropdown
+                label="Kelompok"
+                groupedOptions={
+                  (user.monitor_all_desas 
+                    ? locations 
+                    : locations.filter(d => (user.desas_pantau || []).includes(d.nama_desa))
+                  ).map(d => ({
+                    desa: d.nama_desa,
+                    kelompoks: d.kelompoks
+                      .filter(k => user.monitor_all_kelompoks || (user.kelompoks_pantau || []).includes(k.nama_kelompok))
+                      .map(k => k.nama_kelompok)
+                  }))
+                }
+                selected={filterKelompoks}
+                onChange={setFilterKelompoks}
+                placeholder="Pilih Kelompok..."
+              />
             </div>
           </div>
 
           {/* Bottom Row: 5 MultiSelectDropdowns */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 border-t border-slate-50 pt-4">
-            <MultiSelectDropdown
-              label="Target Desa"
-              options={
-                user.monitor_all_desas 
-                  ? locations.map(d => d.nama_desa)
-                  : locations.filter(d => (user.desas_pantau || []).includes(d.nama_desa)).map(d => d.nama_desa)
-              }
-              selected={filterDesas}
-              onChange={setFilterDesas}
-              placeholder="Pilih Desa..."
-              allLabel="Semua Desa"
-              badgeCountLabel="Desa Terpilih"
-            />
-
-            <GroupedMultiSelectDropdown
-              label="Target Kelompok"
-              groupedOptions={
-                (user.monitor_all_desas 
-                  ? locations 
-                  : locations.filter(d => (user.desas_pantau || []).includes(d.nama_desa))
-                ).map(d => ({
-                  desa: d.nama_desa,
-                  kelompoks: d.kelompoks
-                    .filter(k => user.monitor_all_kelompoks || (user.kelompoks_pantau || []).includes(k.nama_kelompok))
-                    .map(k => k.nama_kelompok)
-                }))
-              }
-              selected={filterKelompoks}
-              onChange={setFilterKelompoks}
-              placeholder="Pilih Kelompok..."
-            />
-
             <MultiSelectDropdown
               label="Jenis Kelamin"
               options={['Laki-laki', 'Perempuan']}
@@ -978,13 +955,33 @@ export default function DatabasePage() {
             />
 
             <MultiSelectDropdown
-              label="Kategori Jamaah"
+              label="Kategori"
               options={getAvailableKategoris(filterMarital)}
               selected={filterKategori}
               onChange={setFilterKategori}
               placeholder="Pilih Kategori..."
               allLabel="Semua Kategori"
               badgeCountLabel="Kategori Terpilih"
+            />
+
+            <MultiSelectDropdown
+              label="Golongan Darah"
+              options={['A', 'B', 'O', 'AB', 'Tidak Diketahui']}
+              selected={filterBlood}
+              onChange={setFilterBlood}
+              placeholder="Pilih Gol. Darah..."
+              allLabel="Semua Golongan"
+              badgeCountLabel="Golongan Terpilih"
+            />
+
+            <MultiSelectDropdown
+              label="Pendidikan"
+              options={['Tidak Sekolah', 'SD', 'SMP', 'SMA', 'S1', 'S2', 'S3']}
+              selected={filterPendidikan}
+              onChange={setFilterPendidikan}
+              placeholder="Pilih Pendidikan..."
+              allLabel="Semua Pendidikan"
+              badgeCountLabel="Pendidikan Terpilih"
             />
           </div>
         </div>
@@ -1012,7 +1009,6 @@ export default function DatabasePage() {
                        <th className="px-6 py-4">Nama Lengkap</th>
                        <th className="px-6 py-4">Lahir</th>
                        <th className="px-6 py-4">Lokasi</th>
-                       <th className="px-6 py-4">Status</th>
                        <th className="px-6 py-4 text-center">Gol. Darah</th>
                        <th className="px-6 py-4">Pendidikan</th>
                        <th className="px-6 py-4">Hub. Keluarga</th>
@@ -1061,13 +1057,6 @@ export default function DatabasePage() {
                              <div className="font-bold text-slate-800">{j.desa}</div>
                              <div className="text-[10px] text-primary font-bold mt-0.5 uppercase">{j.kelompok}</div>
                            </td>
-                          <td className="px-6 py-4">
-                            <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                              isAlive ? 'bg-pastel-green text-pastel-green-text' : 'bg-pastel-red text-pastel-red-text'
-                            }`}>
-                              {j.status_kehidupan}
-                            </span>
-                          </td>
                           <td className="px-6 py-4 text-center font-bold text-slate-700">{j.golongan_darah}</td>
                           <td className="px-6 py-4 leading-tight">
                             <div className="font-bold text-slate-700">{j.pendidikan_terakhir}</div>
@@ -1119,31 +1108,24 @@ export default function DatabasePage() {
                   const isAlive = j.status_kehidupan === 'Hidup';
                   return (
                     <div key={j.id} className="p-4 flex flex-col gap-3 hover:bg-slate-50/30 transition-colors">
-                      {/* Name, Status & Family Info */}
-                      <div className="flex justify-between items-start gap-2">
-                        <div className="flex flex-col gap-0.5 min-w-0">
-                           <span className="text-sm font-bold text-slate-800 truncate">
-                             {j.nama_lengkap}
-                             {isAlive && j.tanggal_lahir && (
-                               <span className="text-[10px] text-slate-400 font-bold ml-1.5">
-                                 ({calculateAge(j.tanggal_lahir)})
-                               </span>
-                             )}
-                           </span>
-                           <span className="text-[10px] text-slate-400 font-semibold">
-                             {j.desa} &bull; {j.kelompok}
-                           </span>
-                           {j.nama_keluarga && (
-                             <span className="text-[9px] text-primary/80 font-bold mt-0.5">
-                               {j.nama_keluarga} ({j.jenis_anggota})
+                      {/* Name & Family Info */}
+                      <div className="flex flex-col gap-0.5 min-w-0">
+                         <span className="text-sm font-bold text-slate-800 truncate">
+                           {j.nama_lengkap}
+                           {isAlive && j.tanggal_lahir && (
+                             <span className="text-[10px] text-slate-400 font-bold ml-1.5">
+                               ({calculateAge(j.tanggal_lahir)})
                              </span>
                            )}
-                        </div>
-                        <span className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-bold shrink-0 uppercase ${
-                          isAlive ? 'bg-pastel-green text-pastel-green-text' : 'bg-pastel-red text-pastel-red-text'
-                        }`}>
-                          {j.status_kehidupan}
-                        </span>
+                         </span>
+                         <span className="text-[10px] text-slate-400 font-semibold">
+                           {j.desa} &bull; {j.kelompok}
+                         </span>
+                         {j.nama_keluarga && (
+                           <span className="text-[9px] text-primary/80 font-bold mt-0.5">
+                             {j.nama_keluarga} ({j.jenis_anggota})
+                           </span>
+                         )}
                       </div>
 
                       {/* Details row */}
