@@ -76,8 +76,8 @@ export default function PresensiPage() {
   };
 
   const getAvailableKategoris = (selectedStatuses) => {
-    const hasAdultStatuses = selectedStatuses.some(s => ['Menikah', 'Janda/Duda'].includes(s));
-    if (hasAdultStatuses) {
+    const hasBelumMenikah = selectedStatuses.includes('Belum Menikah');
+    if (selectedStatuses.length > 0 && !hasBelumMenikah) {
       return ['Dewasa', 'Lansia'];
     }
     return ['Balita', 'CBR/PAUD', 'Pra Remaja', 'Remaja', 'Pra Nikah', 'Dewasa', 'Lansia'];
