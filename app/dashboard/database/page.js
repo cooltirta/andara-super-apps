@@ -1895,8 +1895,8 @@ export default function DatabasePage() {
                     <img 
                       src={`https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=${encodeURIComponent(
                         typeof window !== 'undefined' 
-                          ? `${window.location.origin}/dashboard/presensi/scan?jamaah_id=${selectedQrJamaah.id}`
-                          : `http://localhost:3000/dashboard/presensi/scan?jamaah_id=${selectedQrJamaah.id}`
+                          ? `${window.location.origin}/status/${selectedQrJamaah.id}`
+                          : `http://localhost:3000/status/${selectedQrJamaah.id}`
                       )}`} 
                       alt="QR Code" 
                       className="w-[90px] h-[90px]"
