@@ -13,8 +13,8 @@ export default function PresensiPage() {
 
   // Sesi Tab States
   const [sessions, setSessions] = useState([]);
-  const [filterSesiYear, setFilterSesiYear] = useState('');
-  const [filterSesiMonth, setFilterSesiMonth] = useState('');
+  const [filterSesiYear, setFilterSesiYear] = useState(() => new Date().getFullYear().toString());
+  const [filterSesiMonth, setFilterSesiMonth] = useState(() => (new Date().getMonth() + 1).toString());
   const [selectedSessionId, setSelectedSessionId] = useState('');
   const [loadingSessions, setLoadingSessions] = useState(false);
   const [showCreateSesiModal, setShowCreateSesiModal] = useState(false);
@@ -1464,11 +1464,11 @@ export default function PresensiPage() {
               />
             </div>
 
-            {(filterSesiYear || filterSesiMonth) && (
+            {(filterSesiYear !== new Date().getFullYear().toString() || filterSesiMonth !== (new Date().getMonth() + 1).toString()) && (
               <button
                 onClick={() => {
-                  setFilterSesiYear('');
-                  setFilterSesiMonth('');
+                  setFilterSesiYear(new Date().getFullYear().toString());
+                  setFilterSesiMonth((new Date().getMonth() + 1).toString());
                 }}
                 className="text-xs font-bold text-red-500 hover:text-red-650 transition-colors py-1.5 px-3 rounded-lg hover:bg-red-50 cursor-pointer"
               >
@@ -2574,6 +2574,9 @@ function SesiMonthPicker({ selectedYear, selectedMonth, onChange, sessions }) {
   const [activeYear, setActiveYear] = useState(selectedYear || new Date().getFullYear().toString());
   const dropdownRef = useRef(null);
 
+  const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth() + 1; // 1-indexed
+
   useEffect(() => {
     if (selectedYear) {
       setActiveYear(selectedYear);
@@ -2623,6 +2626,8 @@ function SesiMonthPicker({ selectedYear, selectedMonth, onChange, sessions }) {
     displayLabel = `${fullMonthLabel} ${selectedYear}`;
   }
 
+  const isNextYearDisabled = parseInt(activeYear) >= currentYear;
+
   return (
     <div className="flex flex-col gap-1.5 min-w-[180px] relative text-left" ref={dropdownRef}>
       <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Filter Bulan Sesi</span>
@@ -2650,8 +2655,13 @@ function SesiMonthPicker({ selectedYear, selectedMonth, onChange, sessions }) {
             <span className="text-sm font-extrabold text-slate-800 tracking-tight">{activeYear}</span>
             <button
               type="button"
-              onClick={() => setActiveYear(prev => (parseInt(prev) + 1).toString())}
-              className="p-1.5 rounded-lg hover:bg-slate-50 text-slate-500 hover:text-slate-800 transition-all font-bold cursor-pointer text-xs"
+              disabled={isNextYearDisabled}
+              onClick={() => !isNextYearDisabled && setActiveYear(prev => (parseInt(prev) + 1).toString())}
+              className={`p-1.5 rounded-lg transition-all font-bold text-xs ${
+                isNextYearDisabled
+                  ? 'text-slate-200 cursor-not-allowed opacity-50'
+                  : 'hover:bg-slate-50 text-slate-500 hover:text-slate-800 cursor-pointer'
+              }`}
               title="Tahun Selanjutnya"
             >
               &raquo;
@@ -2662,15 +2672,19 @@ function SesiMonthPicker({ selectedYear, selectedMonth, onChange, sessions }) {
           <div className="grid grid-cols-4 gap-2 text-center">
             {months.map(m => {
               const isSelected = selectedYear === activeYear && selectedMonth === m.value;
+              const isMonthDisabled = parseInt(activeYear) > currentYear || (parseInt(activeYear) === currentYear && parseInt(m.value) > currentMonth);
               return (
                 <button
                   key={m.value}
                   type="button"
-                  onClick={() => handleMonthClick(m.value)}
-                  className={`py-2 px-1 rounded-lg font-bold text-xs transition-all cursor-pointer ${
-                    isSelected 
-                      ? 'bg-primary text-white shadow-md shadow-primary/10' 
-                      : 'text-slate-655 hover:bg-slate-50 hover:text-slate-900'
+                  disabled={isMonthDisabled}
+                  onClick={() => !isMonthDisabled && handleMonthClick(m.value)}
+                  className={`py-2 px-1 rounded-lg font-bold text-xs transition-all ${
+                    isMonthDisabled
+                      ? 'text-slate-300 opacity-40 cursor-not-allowed'
+                      : isSelected 
+                        ? 'bg-primary text-white shadow-md shadow-primary/10 cursor-pointer' 
+                        : 'text-slate-655 hover:bg-slate-50 hover:text-slate-900 cursor-pointer'
                   }`}
                 >
                   {m.label}
