@@ -27,15 +27,35 @@ export default function DatabasePage() {
 
   // Printing state & effect
   const [printList, setPrintList] = useState([]);
+  const [loadedCount, setLoadedCount] = useState(0);
+  const [isPreparingPrint, setIsPreparingPrint] = useState(false);
+
   useEffect(() => {
     if (printList.length > 0) {
+      setLoadedCount(0);
+      setIsPreparingPrint(true);
+      
+      // Safety timeout: if images take too long (e.g. 10 seconds), print anyway
+      const safetyTimer = setTimeout(() => {
+        window.print();
+        setPrintList([]);
+        setIsPreparingPrint(false);
+      }, 10000);
+      
+      return () => clearTimeout(safetyTimer);
+    }
+  }, [printList]);
+
+  useEffect(() => {
+    if (printList.length > 0 && loadedCount >= printList.length * 2) {
       const timer = setTimeout(() => {
         window.print();
         setPrintList([]);
-      }, 1000);
+        setIsPreparingPrint(false);
+      }, 500);
       return () => clearTimeout(timer);
     }
-  }, [printList]);
+  }, [loadedCount, printList]);
 
   // Filters
   const [searchName, setSearchName] = useState('');
@@ -856,17 +876,27 @@ export default function DatabasePage() {
               width: '1011px',
               height: '639px',
               position: 'relative',
-              backgroundImage: "url('/front-static.png')",
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
               fontFamily: "'Cinzel', serif",
               color: '#EBDCB9',
-              WebkitPrintColorAdjust: 'exact',
-              printColorAdjust: 'exact',
               margin: '0 auto',
               overflow: 'hidden',
             }}
           >
+            {/* Background Image Tag (More reliable than CSS background-image in print) */}
+            <img 
+              src="/front-static.png" 
+              alt="Card Background"
+              onLoad={() => setLoadedCount(prev => prev + 1)}
+              style={{
+                position: 'absolute',
+                left: 0,
+                top: 0,
+                width: '1011px',
+                height: '639px',
+                zIndex: 1,
+              }}
+            />
+
             {/* Nama Jamaah */}
             <div 
               style={{
@@ -880,6 +910,7 @@ export default function DatabasePage() {
                 textTransform: 'uppercase',
                 textAlign: 'left',
                 wordWrap: 'break-word',
+                zIndex: 2,
               }}
             >
               {formatJamaahName(j.nama_lengkap)}
@@ -897,6 +928,7 @@ export default function DatabasePage() {
                 fontWeight: '400',
                 textTransform: 'uppercase',
                 textAlign: 'left',
+                zIndex: 2,
               }}
             >
               {j.kelompok ? j.kelompok.replace(/^Kelompok\s+/i, '') : ''}
@@ -916,6 +948,7 @@ export default function DatabasePage() {
                 justifyContent: 'center',
                 width: '180px',
                 height: '180px',
+                zIndex: 2,
               }}
             >
               <img 
@@ -925,6 +958,7 @@ export default function DatabasePage() {
                     : `http://localhost:3000/status/${j.id}`
                 )}`} 
                 alt="QR Code" 
+                onLoad={() => setLoadedCount(prev => prev + 1)}
                 style={{
                   width: '150px',
                   height: '150px',
@@ -2468,6 +2502,22 @@ export default function DatabasePage() {
       </div>
       {/* Print Portal */}
       {renderPrintPortal()}
+
+      {/* Print Loading Overlay */}
+      {isPreparingPrint && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-fadeIn print:hidden">
+          <div className="bg-white rounded-2xl p-6 shadow-2xl border border-slate-100 flex flex-col items-center gap-4 text-center max-w-sm">
+            <div className="w-10 h-10 rounded-full border-[3px] border-primary border-t-transparent animate-spin"></div>
+            <div className="flex flex-col gap-1">
+              <p className="text-sm font-extrabold text-slate-800">Menyiapkan Dokumen Cetak</p>
+              <p className="text-[11px] text-slate-400 font-bold leading-normal">
+                Sedang memuat {printList.length} kartu & kode QR<br />
+                ({Math.round((loadedCount / Math.max(1, printList.length * 2)) * 100)}% selesai)
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
