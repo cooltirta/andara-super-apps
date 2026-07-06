@@ -961,7 +961,11 @@ export default function PresensiPage() {
                     Input Kehadiran Sesi: <span className="text-primary">{sessions.find(s => s.id === selectedSessionId)?.jenis_pengajian}</span>
                   </h2>
                   <p className="text-xs text-slate-400 font-semibold mt-0.5">
-                    Tanggal: {selectedDate ? new Date(selectedDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : ''} &bull; Pukul: {sessions.find(s => s.id === selectedSessionId)?.waktu_mulai} - {sessions.find(s => s.id === selectedSessionId)?.waktu_selesai} WIB
+                    Tanggal: {selectedDate ? (() => {
+                      const [year, month, day] = selectedDate.split('-').map(Number);
+                      const d = new Date(year, month - 1, day);
+                      return d.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+                    })() : ''} &bull; Pukul: {sessions.find(s => s.id === selectedSessionId)?.waktu_mulai} - {sessions.find(s => s.id === selectedSessionId)?.waktu_selesai} WIB
                   </p>
                 </div>
               </div>
@@ -1447,33 +1451,17 @@ export default function PresensiPage() {
           </div>
 
           {/* Filters Panel */}
-          <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-5 flex flex-wrap items-center gap-6">
-            <div className="flex items-center gap-3 text-xs font-bold text-slate-600">
-              <span className="uppercase tracking-wider">Tahun Sesi:</span>
-              <select
-                className="px-3 py-2 rounded-lg border border-slate-200 focus:border-primary outline-none bg-white text-slate-700 font-bold text-xs cursor-pointer min-w-[120px]"
-                value={filterSesiYear}
-                onChange={(e) => setFilterSesiYear(e.target.value)}
-              >
-                <option value="">Semua Tahun</option>
-                {getUniqueSessionYears().map(y => (
-                  <option key={y} value={y}>{y}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex items-center gap-3 text-xs font-bold text-slate-600">
-              <span className="uppercase tracking-wider">Bulan Sesi:</span>
-              <select
-                className="px-3 py-2 rounded-lg border border-slate-200 focus:border-primary outline-none bg-white text-slate-700 font-bold text-xs cursor-pointer min-w-[150px]"
-                value={filterSesiMonth}
-                onChange={(e) => setFilterSesiMonth(e.target.value)}
-              >
-                <option value="">Semua Bulan</option>
-                {monthsList.map(m => (
-                  <option key={m.value} value={m.value}>{m.label}</option>
-                ))}
-              </select>
+          <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-5 flex flex-wrap items-center justify-between gap-6">
+            <div className="flex items-center gap-6">
+              <SesiMonthPicker 
+                selectedYear={filterSesiYear} 
+                selectedMonth={filterSesiMonth} 
+                onChange={(year, month) => {
+                  setFilterSesiYear(year);
+                  setFilterSesiMonth(month);
+                }} 
+                sessions={sessions}
+              />
             </div>
 
             {(filterSesiYear || filterSesiMonth) && (
@@ -1482,7 +1470,7 @@ export default function PresensiPage() {
                   setFilterSesiYear('');
                   setFilterSesiMonth('');
                 }}
-                className="ml-auto text-xs font-bold text-red-500 hover:text-red-650 transition-colors py-1.5 px-3 rounded-lg hover:bg-red-50 cursor-pointer"
+                className="text-xs font-bold text-red-500 hover:text-red-650 transition-colors py-1.5 px-3 rounded-lg hover:bg-red-50 cursor-pointer"
               >
                 Reset Filter
               </button>
@@ -1526,7 +1514,11 @@ export default function PresensiPage() {
                       <div className="flex justify-between items-start gap-2">
                         <div className="flex flex-col">
                           <span className="text-sm font-black text-slate-800">
-                            {new Date(s.tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+                            {(() => {
+                              const [year, month, day] = s.tanggal.split('-').map(Number);
+                              const d = new Date(year, month - 1, day);
+                              return d.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+                            })()}
                           </span>
                           <span className="text-xs font-bold text-slate-400 mt-0.5">
                             Pukul: {s.waktu_mulai} - {s.waktu_selesai} WIB
@@ -2570,6 +2562,132 @@ function GroupedMultiSelectDropdown({
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SesiMonthPicker({ selectedYear, selectedMonth, onChange, sessions }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [activeYear, setActiveYear] = useState(selectedYear || new Date().getFullYear().toString());
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    if (selectedYear) {
+      setActiveYear(selectedYear);
+    }
+  }, [selectedYear]);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const months = [
+    { label: 'Jan', value: '1' },
+    { label: 'Feb', value: '2' },
+    { label: 'Mar', value: '3' },
+    { label: 'Apr', value: '4' },
+    { label: 'Mei', value: '5' },
+    { label: 'Jun', value: '6' },
+    { label: 'Jul', value: '7' },
+    { label: 'Agu', value: '8' },
+    { label: 'Sep', value: '9' },
+    { label: 'Okt', value: '10' },
+    { label: 'Nov', value: '11' },
+    { label: 'Des', value: '12' }
+  ];
+
+  const handleMonthClick = (monthVal) => {
+    onChange(activeYear, monthVal);
+    setIsOpen(false);
+  };
+
+  const handleClear = () => {
+    onChange('', '');
+    setIsOpen(false);
+  };
+
+  let displayLabel = "Semua Sesi";
+  if (selectedYear && selectedMonth) {
+    const monthObj = months.find(m => m.value === selectedMonth);
+    const indonesianMonths = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    const fullMonthLabel = monthObj ? indonesianMonths[parseInt(selectedMonth) - 1] : '';
+    displayLabel = `${fullMonthLabel} ${selectedYear}`;
+  }
+
+  return (
+    <div className="flex flex-col gap-1.5 min-w-[180px] relative text-left" ref={dropdownRef}>
+      <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Filter Bulan Sesi</span>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-750 font-bold text-xs flex items-center justify-between hover:border-primary transition-all shadow-sm cursor-pointer outline-none min-h-[34px]"
+      >
+        <span className="truncate pr-1">{displayLabel}</span>
+        <ChevronDown size={14} className={`text-slate-400 transition-transform shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      {isOpen && (
+        <div className="absolute top-[100%] left-0 mt-1 bg-white border border-slate-150 rounded-xl shadow-xl z-50 p-4 min-w-[240px] animate-fadeIn">
+          {/* Year Navigation Header */}
+          <div className="flex items-center justify-between pb-3 border-b border-slate-50 mb-3">
+            <button
+              type="button"
+              onClick={() => setActiveYear(prev => (parseInt(prev) - 1).toString())}
+              className="p-1.5 rounded-lg hover:bg-slate-50 text-slate-500 hover:text-slate-800 transition-all font-bold cursor-pointer text-xs"
+              title="Tahun Sebelumnya"
+            >
+              &laquo;
+            </button>
+            <span className="text-sm font-extrabold text-slate-800 tracking-tight">{activeYear}</span>
+            <button
+              type="button"
+              onClick={() => setActiveYear(prev => (parseInt(prev) + 1).toString())}
+              className="p-1.5 rounded-lg hover:bg-slate-50 text-slate-500 hover:text-slate-800 transition-all font-bold cursor-pointer text-xs"
+              title="Tahun Selanjutnya"
+            >
+              &raquo;
+            </button>
+          </div>
+
+          {/* Month Grid */}
+          <div className="grid grid-cols-4 gap-2 text-center">
+            {months.map(m => {
+              const isSelected = selectedYear === activeYear && selectedMonth === m.value;
+              return (
+                <button
+                  key={m.value}
+                  type="button"
+                  onClick={() => handleMonthClick(m.value)}
+                  className={`py-2 px-1 rounded-lg font-bold text-xs transition-all cursor-pointer ${
+                    isSelected 
+                      ? 'bg-primary text-white shadow-md shadow-primary/10' 
+                      : 'text-slate-655 hover:bg-slate-50 hover:text-slate-900'
+                  }`}
+                >
+                  {m.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Reset/Clear Button */}
+          <div className="mt-3.5 pt-2.5 border-t border-slate-50 flex justify-end">
+            <button
+              type="button"
+              onClick={handleClear}
+              className="text-[10px] text-slate-400 hover:text-red-500 transition-all font-bold cursor-pointer"
+            >
+              Tampilkan Semua Sesi
+            </button>
           </div>
         </div>
       )}
