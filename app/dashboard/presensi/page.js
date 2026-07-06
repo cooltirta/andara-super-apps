@@ -2,17 +2,19 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Calendar, Search, Users, CheckCircle, AlertTriangle, Info, Clock, Download, RefreshCw, Trash2, X, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Edit2 } from 'lucide-react';
+import { Calendar, Search, Users, CheckCircle, AlertTriangle, Info, Clock, Download, RefreshCw, Trash2, X, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Edit2, ArrowLeft } from 'lucide-react';
 
 export default function PresensiPage() {
   const router = useRouter();
   const [user, setUser] = useState(null);
   
   // Navigation
-  const [activeTab, setActiveTab] = useState('input'); // 'input', 'laporan', or 'sesi'
+  const [activeTab, setActiveTab] = useState('sesi'); // 'input', 'laporan', or 'sesi'
 
   // Sesi Tab States
   const [sessions, setSessions] = useState([]);
+  const [filterSesiYear, setFilterSesiYear] = useState('');
+  const [filterSesiMonth, setFilterSesiMonth] = useState('');
   const [selectedSessionId, setSelectedSessionId] = useState('');
   const [loadingSessions, setLoadingSessions] = useState(false);
   const [showCreateSesiModal, setShowCreateSesiModal] = useState(false);
@@ -251,6 +253,27 @@ export default function PresensiPage() {
     }, 4000);
   };
 
+  const monthsList = [
+    { value: '1', label: 'Januari' },
+    { value: '2', label: 'Februari' },
+    { value: '3', label: 'Maret' },
+    { value: '4', label: 'April' },
+    { value: '5', label: 'Mei' },
+    { value: '6', label: 'Juni' },
+    { value: '7', label: 'Juli' },
+    { value: '8', label: 'Agustus' },
+    { value: '9', label: 'September' },
+    { value: '10', label: 'Oktober' },
+    { value: '11', label: 'November' },
+    { value: '12', label: 'Desember' }
+  ];
+
+  const getUniqueSessionYears = () => {
+    if (!sessions || sessions.length === 0) return [new Date().getFullYear().toString()];
+    const years = sessions.map(s => s.tanggal.split('-')[0]);
+    return Array.from(new Set(years)).sort((a, b) => b - a);
+  };
+
   const loadSessions = async () => {
     setLoadingSessions(true);
     try {
@@ -333,20 +356,6 @@ export default function PresensiPage() {
   useEffect(() => {
     loadUser();
   }, []);
-
-  // Update selected session automatically when date changes
-  useEffect(() => {
-    if (sessions && sessions.length > 0 && selectedDate) {
-      const daily = sessions.filter(s => s.tanggal === selectedDate);
-      if (daily.length > 0) {
-        setSelectedSessionId(daily[0].id);
-      } else {
-        setSelectedSessionId('');
-      }
-    } else {
-      setSelectedSessionId('');
-    }
-  }, [selectedDate, sessions]);
 
   // 2. Load Data Kehadiran ketika Sesi terpilih berubah
   const loadInputAttendance = async () => {
@@ -906,25 +915,13 @@ export default function PresensiPage() {
         {(user.can_read_kehadiran || user.can_create_kehadiran || user.can_update_kehadiran || user.can_delete_kehadiran) && (
           <button 
             className={`py-3 px-1 font-bold text-sm cursor-pointer border-b-2 transition-all ${
-              activeTab === 'input' 
-                ? 'text-primary border-primary' 
-                : 'text-slate-400 border-transparent hover:text-slate-600'
-            }`} 
-            onClick={() => setActiveTab('input')}
-          >
-            Input Kehadiran
-          </button>
-        )}
-        {user.can_create_kehadiran && (
-          <button 
-            className={`py-3 px-1 font-bold text-sm cursor-pointer border-b-2 transition-all ${
               activeTab === 'sesi' 
                 ? 'text-primary border-primary' 
                 : 'text-slate-400 border-transparent hover:text-slate-600'
             }`} 
             onClick={() => setActiveTab('sesi')}
           >
-            Manajemen Sesi
+            Sesi Pengajian
           </button>
         )}
         {user.can_read_laporan && (
@@ -944,45 +941,71 @@ export default function PresensiPage() {
       {/* ================================================= TAB INPUT ================================================= */}
       {activeTab === 'input' && (
         <div className="flex flex-col gap-6">
-          {/* Tanggal Picker & Sesi Selector Panel */}
-          <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-5 flex flex-wrap items-center gap-6">
-            <div className="flex items-center gap-3 text-xs font-bold text-slate-600">
-              <span className="uppercase tracking-wider">Tanggal Kehadiran:</span>
-              <input 
-                type="date" 
-                className="px-3 py-2 rounded-lg border border-slate-200 focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all outline-none bg-white text-slate-700 font-bold text-xs" 
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-              />
-            </div>
+          {/* Back Navigation & Session Info Header */}
+          <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-5 flex flex-col gap-4">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => {
+                    setActiveTab('sesi');
+                    setSelectedSessionId('');
+                  }}
+                  className="flex items-center gap-1.5 py-2 px-3 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold text-xs cursor-pointer transition-colors active:scale-95"
+                >
+                  <ArrowLeft size={14} />
+                  <span>Kembali ke Sesi Pengajian</span>
+                </button>
+                <div className="h-6 w-[1px] bg-slate-200" />
+                <div>
+                  <h2 className="text-base font-bold text-slate-800">
+                    Input Kehadiran Sesi: <span className="text-primary">{sessions.find(s => s.id === selectedSessionId)?.jenis_pengajian}</span>
+                  </h2>
+                  <p className="text-xs text-slate-400 font-semibold mt-0.5">
+                    Tanggal: {selectedDate ? new Date(selectedDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : ''} &bull; Pukul: {sessions.find(s => s.id === selectedSessionId)?.waktu_mulai} - {sessions.find(s => s.id === selectedSessionId)?.waktu_selesai} WIB
+                  </p>
+                </div>
+              </div>
 
-            <div className="flex items-center gap-3 text-xs font-bold text-slate-600">
-              <span className="uppercase tracking-wider">Pilih Sesi Pengajian:</span>
-              <select
-                className="px-3 py-2 rounded-lg border border-slate-200 focus:border-primary outline-none bg-white text-slate-700 font-bold text-xs cursor-pointer min-w-[200px]"
-                value={selectedSessionId}
-                onChange={(e) => setSelectedSessionId(e.target.value)}
-              >
-                {sessions.filter(s => s.tanggal === selectedDate).length === 0 ? (
-                  <option value="">-- Tidak ada sesi di tanggal ini --</option>
-                ) : (
-                  sessions.filter(s => s.tanggal === selectedDate).map(s => (
-                    <option key={s.id} value={s.id}>
-                      [{s.jenis_pengajian}] {s.waktu_mulai} - {s.waktu_selesai} ({s.kelompoks.join(', ')})
-                    </option>
-                  ))
+              <div className="flex items-center gap-3">
+                <button 
+                  onClick={loadInputAttendance} 
+                  className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
+                  title="Refresh Data"
+                >
+                  <RefreshCw size={14} className={loadingInput ? "animate-spin" : ""} />
+                </button>
+                {user.can_delete_kehadiran && selectedSessionId && jamaahList.some(j => j.presences && j.presences.length > 0) && (
+                  <button
+                    onClick={handleDeleteAttendance}
+                    disabled={loadingSubmit}
+                    className={`py-2 px-4 rounded-lg bg-pastel-red hover:bg-pastel-red-solid/30 text-pastel-red-text font-bold text-xs transition-all flex items-center gap-1.5 active:scale-95 cursor-pointer ${loadingSubmit ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    <Trash2 size={14} />
+                    <span>Hapus Presensi</span>
+                  </button>
                 )}
-              </select>
+                {selectedSessionId && (user.can_create_kehadiran || user.can_update_kehadiran) && (
+                  <button
+                    onClick={handleSubmitAttendance}
+                    disabled={loadingSubmit || (isBackdate && !attendanceTime)}
+                    className={`py-2 px-4 rounded-lg bg-primary hover:bg-primary-hover text-white font-bold text-xs transition-all flex items-center gap-1.5 active:scale-95 cursor-pointer ${(loadingSubmit || (isBackdate && !attendanceTime)) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    <CheckCircle size={14} className={loadingSubmit ? "animate-spin" : ""} />
+                    <span>{loadingSubmit ? "Menyimpan..." : "Simpan Kehadiran"}</span>
+                  </button>
+                )}
+              </div>
             </div>
 
+            {/* Session Criteria Information Badges */}
             {selectedSessionId && (
               (() => {
                 const s = sessions.find(sess => sess.id === selectedSessionId);
                 if (!s) return null;
                 return (
-                  <div className="text-[10px] text-slate-500 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100/50 font-semibold leading-relaxed flex flex-col gap-0.5">
-                    <div>Desa: <span className="font-bold text-slate-700">{s.desas.join(', ')}</span></div>
-                    <div>Kelompok: <span className="font-bold text-slate-700">{s.kelompoks.join(', ')}</span></div>
+                  <div className="text-[11px] text-slate-500 bg-slate-50 p-3 rounded-lg border border-slate-100/50 font-semibold leading-relaxed grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 pt-3 border-t border-slate-100/70">
+                    <div>Desa Target: <span className="font-bold text-slate-700">{s.desas.join(', ')}</span></div>
+                    <div>Kelompok Target: <span className="font-bold text-slate-700">{s.kelompoks.join(', ')}</span></div>
                     <div>Filter Peserta: <span className="font-bold text-slate-700">{s.genders.join(', ')} &bull; {s.marital_statuses.join(', ')} &bull; {s.kategoris.join(', ')}</span></div>
                   </div>
                 );
@@ -990,7 +1013,7 @@ export default function PresensiPage() {
             )}
 
             {isBackdate && (
-              <div className="flex items-center gap-3 text-xs font-bold text-slate-600 animate-fadeIn bg-pastel-yellow border border-pastel-yellow-solid/25 px-4 py-2 rounded-xl">
+              <div className="flex items-center gap-3 text-xs font-bold text-slate-650 animate-fadeIn bg-pastel-yellow border border-pastel-yellow-solid/25 px-4 py-2 rounded-xl mt-2 w-fit">
                 <Clock size={16} className="text-pastel-yellow-text" />
                 <span className="text-pastel-yellow-text uppercase tracking-wider">Jam & Menit (Backdate):</span>
                 <input 
@@ -1002,36 +1025,6 @@ export default function PresensiPage() {
                 />
               </div>
             )}
-            
-            <div className="ml-auto flex items-center gap-3">
-              <button 
-                onClick={loadInputAttendance} 
-                className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
-                title="Refresh Data"
-              >
-                <RefreshCw size={14} className={loadingInput ? "animate-spin" : ""} />
-              </button>
-              {user.can_delete_kehadiran && selectedSessionId && jamaahList.some(j => j.presences && j.presences.length > 0) && (
-                <button
-                  onClick={handleDeleteAttendance}
-                  disabled={loadingSubmit}
-                  className={`py-2 px-4 rounded-lg bg-pastel-red hover:bg-pastel-red-solid/30 text-pastel-red-text font-bold text-xs transition-all flex items-center gap-1.5 active:scale-95 ${loadingSubmit ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                  <Trash2 size={14} />
-                  <span>Hapus Presensi</span>
-                </button>
-              )}
-              {selectedSessionId && (user.can_create_kehadiran || user.can_update_kehadiran) && (
-                <button
-                  onClick={handleSubmitAttendance}
-                  disabled={loadingSubmit || (isBackdate && !attendanceTime)}
-                  className={`py-2 px-4 rounded-lg bg-primary hover:bg-primary-hover text-white font-bold text-xs transition-all flex items-center gap-1.5 active:scale-95 ${(loadingSubmit || (isBackdate && !attendanceTime)) ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                  <CheckCircle size={14} className={loadingSubmit ? "animate-spin" : ""} />
-                  <span>{loadingSubmit ? "Menyimpan..." : "Simpan Kehadiran"}</span>
-                </button>
-              )}
-            </div>
           </div>
 
           {!selectedSessionId ? (
@@ -1421,7 +1414,7 @@ export default function PresensiPage() {
       )}
 
       {/* ================================================= TAB SESI ================================================= */}
-      {activeTab === 'sesi' && user.can_create_kehadiran && (
+      {activeTab === 'sesi' && (user.can_read_kehadiran || user.can_create_kehadiran || user.can_update_kehadiran || user.can_delete_kehadiran) && (
         <div className="flex flex-col gap-6">
           {/* Header Panel */}
           <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-5 flex items-center justify-between">
@@ -1453,23 +1446,80 @@ export default function PresensiPage() {
             )}
           </div>
 
-          {/* Sesi List Grid */}
-          {sessions.length === 0 ? (
-            <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-12 text-center flex flex-col items-center justify-center gap-3">
-              <Calendar className="w-12 h-12 text-slate-300" />
-              <h3 className="text-sm font-bold text-slate-700">Belum Ada Sesi Terjadwal</h3>
-              <p className="text-xs text-slate-400 max-w-xs leading-relaxed font-semibold">
-                Silakan buat sesi baru untuk mencatat dan menyaring absensi jamaah secara dinamis.
-              </p>
+          {/* Filters Panel */}
+          <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-5 flex flex-wrap items-center gap-6">
+            <div className="flex items-center gap-3 text-xs font-bold text-slate-600">
+              <span className="uppercase tracking-wider">Tahun Sesi:</span>
+              <select
+                className="px-3 py-2 rounded-lg border border-slate-200 focus:border-primary outline-none bg-white text-slate-700 font-bold text-xs cursor-pointer min-w-[120px]"
+                value={filterSesiYear}
+                onChange={(e) => setFilterSesiYear(e.target.value)}
+              >
+                <option value="">Semua Tahun</option>
+                {getUniqueSessionYears().map(y => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {sessions.map(s => {
-                let badgeColor = 'bg-teal-50 border-teal-150 text-teal-700';
-                if (s.jenis_pengajian === 'Desa') badgeColor = 'bg-blue-50 border-blue-150 text-blue-700';
-                if (s.jenis_pengajian === 'Daerah') badgeColor = 'bg-purple-50 border-purple-150 text-purple-700';
 
-                return (
+            <div className="flex items-center gap-3 text-xs font-bold text-slate-600">
+              <span className="uppercase tracking-wider">Bulan Sesi:</span>
+              <select
+                className="px-3 py-2 rounded-lg border border-slate-200 focus:border-primary outline-none bg-white text-slate-700 font-bold text-xs cursor-pointer min-w-[150px]"
+                value={filterSesiMonth}
+                onChange={(e) => setFilterSesiMonth(e.target.value)}
+              >
+                <option value="">Semua Bulan</option>
+                {monthsList.map(m => (
+                  <option key={m.value} value={m.value}>{m.label}</option>
+                ))}
+              </select>
+            </div>
+
+            {(filterSesiYear || filterSesiMonth) && (
+              <button
+                onClick={() => {
+                  setFilterSesiYear('');
+                  setFilterSesiMonth('');
+                }}
+                className="ml-auto text-xs font-bold text-red-500 hover:text-red-650 transition-colors py-1.5 px-3 rounded-lg hover:bg-red-50 cursor-pointer"
+              >
+                Reset Filter
+              </button>
+            )}
+          </div>
+
+          {/* Sesi List Grid */}
+          {(() => {
+            const filteredSessions = sessions.filter(s => {
+              const [yStr, mStr] = s.tanggal.split('-');
+              const matchesYear = filterSesiYear ? yStr === filterSesiYear : true;
+              const matchesMonth = filterSesiMonth ? parseInt(mStr).toString() === filterSesiMonth : true;
+              return matchesYear && matchesMonth;
+            });
+
+            if (filteredSessions.length === 0) {
+              return (
+                <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-12 text-center flex flex-col items-center justify-center gap-3">
+                  <Calendar className="w-12 h-12 text-slate-300" />
+                  <h3 className="text-sm font-bold text-slate-700">Tidak Ada Sesi Terjadwal</h3>
+                  <p className="text-xs text-slate-400 max-w-xs leading-relaxed font-semibold">
+                    {sessions.length === 0 
+                      ? "Silakan buat sesi baru untuk mencatat dan menyaring absensi jamaah secara dinamis."
+                      : "Tidak ada sesi pengajian yang sesuai dengan filter tahun/bulan yang dipilih."}
+                  </p>
+                </div>
+              );
+            }
+
+            return (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredSessions.map(s => {
+                  let badgeColor = 'bg-teal-50 border-teal-150 text-teal-700';
+                  if (s.jenis_pengajian === 'Desa') badgeColor = 'bg-blue-50 border-blue-150 text-blue-700';
+                  if (s.jenis_pengajian === 'Daerah') badgeColor = 'bg-purple-50 border-purple-150 text-teal-700'; // let's keep consistency or original classes
+
+                  return (
                   <div key={s.id} className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm flex flex-col justify-between gap-4 hover:shadow-md transition-shadow">
                     <div className="flex flex-col gap-3">
                       {/* Top Header Card */}
@@ -1515,8 +1565,8 @@ export default function PresensiPage() {
                     </div>
 
                     {/* Actions */}
-                    <div className="border-t border-slate-50 pt-3.5 flex justify-between items-center">
-                      <div>
+                    <div className="border-t border-slate-50 pt-3.5 flex justify-between items-center gap-2 flex-wrap">
+                      <div className="flex items-center gap-2">
                         <button
                           onClick={() => {
                             setEditingSessionId(s.id);
@@ -1536,27 +1586,43 @@ export default function PresensiPage() {
                             setNewSesiKategoris(s.kategoris);
                             setShowCreateSesiModal(true);
                           }}
-                          className="flex items-center gap-1.5 py-1 px-2.5 rounded text-xs font-bold text-primary hover:bg-primary/5 transition-colors cursor-pointer"
+                          className="flex items-center gap-1 py-1 px-2 rounded text-[11px] font-bold text-primary hover:bg-primary/5 transition-colors cursor-pointer"
+                          title="Edit Sesi"
                         >
                           <Edit2 size={12} />
-                          <span>Edit Sesi</span>
+                          <span>Edit</span>
                         </button>
+
+                        {user.can_delete_kehadiran && (
+                          <button
+                            onClick={() => handleDeleteSesi(s.id, `${s.jenis_pengajian} (${s.tanggal})`)}
+                            className="flex items-center gap-1 py-1 px-2 rounded text-[11px] font-bold text-red-500 hover:bg-red-50 transition-colors cursor-pointer"
+                            title="Hapus Sesi"
+                          >
+                            <Trash2 size={12} />
+                            <span>Hapus</span>
+                          </button>
+                        )}
                       </div>
-                      {user.can_delete_kehadiran && (
-                        <button
-                          onClick={() => handleDeleteSesi(s.id, `${s.jenis_pengajian} (${s.tanggal})`)}
-                          className="flex items-center gap-1.5 py-1 px-2.5 rounded text-xs font-bold text-red-500 hover:bg-red-50 transition-colors cursor-pointer"
-                        >
-                          <Trash2 size={12} />
-                          <span>Hapus Sesi</span>
-                        </button>
-                      )}
+
+                      <button
+                        onClick={() => {
+                          setSelectedDate(s.tanggal);
+                          setSelectedSessionId(s.id);
+                          setActiveTab('input');
+                        }}
+                        className="flex items-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-bold bg-primary text-white hover:bg-primary-hover shadow-md shadow-primary/10 transition-all cursor-pointer active:scale-95 ml-auto"
+                      >
+                        <CheckCircle size={12} />
+                        <span>Input Kehadiran</span>
+                      </button>
                     </div>
                   </div>
                 );
               })}
             </div>
-          )}
+          );
+        })()}
         </div>
       )}
 
