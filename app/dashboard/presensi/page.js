@@ -89,13 +89,21 @@ export default function PresensiPage() {
   // Sync Input Tab Kategori filter when Status Pernikahan changes
   useEffect(() => {
     const available = getAvailableKategoris(inputStatusPernikahan);
-    setFilterKategori(prev => prev.filter(c => available.includes(c)));
+    setFilterKategori(prev => {
+      const next = prev.filter(c => available.includes(c));
+      const isSame = prev.length === next.length && prev.every((v, i) => v === next[i]);
+      return isSame ? prev : next;
+    });
   }, [inputStatusPernikahan]);
 
   // Sync Laporan Tab Kategori filter when Status Pernikahan changes
   useEffect(() => {
     const available = getAvailableKategoris(reportStatusPernikahan);
-    setReportKategori(prev => prev.filter(c => available.includes(c)));
+    setReportKategori(prev => {
+      const next = prev.filter(c => available.includes(c));
+      const isSame = prev.length === next.length && prev.every((v, i) => v === next[i]);
+      return isSame ? prev : next;
+    });
   }, [reportStatusPernikahan]);
 
   // Sync Input Tab Kelompok filter when Desa filter changes
@@ -105,7 +113,11 @@ export default function PresensiPage() {
         .filter(d => filterDesas.includes(d.nama_desa))
         .flatMap(d => d.kelompoks.map(k => k.nama_kelompok));
       
-      setFilterKelompoks(prev => prev.filter(k => validKelompoks.includes(k)));
+      setFilterKelompoks(prev => {
+        const next = prev.filter(k => validKelompoks.includes(k));
+        const isSame = prev.length === next.length && prev.every((v, i) => v === next[i]);
+        return isSame ? prev : next;
+      });
     }
   }, [filterDesas, locations]);
 
@@ -122,7 +134,7 @@ export default function PresensiPage() {
         }
       });
       setFilterDesas(prev => {
-        const isSame = prev.length === neededDesas.length && prev.every(d => neededDesas.includes(d));
+        const isSame = prev.length === neededDesas.length && prev.every((d, i) => d === neededDesas[i]);
         if (isSame) return prev;
         return neededDesas;
       });
@@ -132,7 +144,11 @@ export default function PresensiPage() {
   // Sync Input Tab Marital Status filter when Gender or Kategori filter changes
   useEffect(() => {
     const available = getAvailableMaritalStatuses(filterGenders, filterKategori);
-    setInputStatusPernikahan(prev => prev.filter(s => available.includes(s)));
+    setInputStatusPernikahan(prev => {
+      const next = prev.filter(s => available.includes(s));
+      const isSame = prev.length === next.length && prev.every((v, i) => v === next[i]);
+      return isSame ? prev : next;
+    });
   }, [filterGenders, filterKategori]);
 
   // Sync Laporan Tab Kelompok filter when Desa filter changes
@@ -142,7 +158,11 @@ export default function PresensiPage() {
         .filter(d => reportDesas.includes(d.nama_desa))
         .flatMap(d => d.kelompoks.map(k => k.nama_kelompok));
       
-      setReportKelompoks(prev => prev.filter(k => validKelompoks.includes(k)));
+      setReportKelompoks(prev => {
+        const next = prev.filter(k => validKelompoks.includes(k));
+        const isSame = prev.length === next.length && prev.every((v, i) => v === next[i]);
+        return isSame ? prev : next;
+      });
     }
   }, [reportDesas, locations]);
 
@@ -159,7 +179,7 @@ export default function PresensiPage() {
         }
       });
       setReportDesas(prev => {
-        const isSame = prev.length === neededDesas.length && prev.every(d => neededDesas.includes(d));
+        const isSame = prev.length === neededDesas.length && prev.every((d, i) => d === neededDesas[i]);
         if (isSame) return prev;
         return neededDesas;
       });
@@ -169,7 +189,11 @@ export default function PresensiPage() {
   // Sync Laporan Tab Marital Status filter when Gender or Kategori filter changes
   useEffect(() => {
     const available = getAvailableMaritalStatuses(reportGenders, reportKategori);
-    setReportStatusPernikahan(prev => prev.filter(s => available.includes(s)));
+    setReportStatusPernikahan(prev => {
+      const next = prev.filter(s => available.includes(s));
+      const isSame = prev.length === next.length && prev.every((v, i) => v === next[i]);
+      return isSame ? prev : next;
+    });
   }, [reportGenders, reportKategori]);
 
   const getAvailableSesiMarital = (kategoris) => {
@@ -199,7 +223,11 @@ export default function PresensiPage() {
         .filter(d => newSesiDesas.includes(d.nama_desa))
         .flatMap(d => d.kelompoks.map(k => k.nama_kelompok));
       
-      setNewSesiKelompoks(prev => prev.filter(k => validKelompoks.includes(k)));
+      setNewSesiKelompoks(prev => {
+        const next = prev.filter(k => validKelompoks.includes(k));
+        const isSame = prev.length === next.length && prev.every((v, i) => v === next[i]);
+        return isSame ? prev : next;
+      });
     }
   }, [newSesiDesas, locations]);
 
@@ -216,7 +244,7 @@ export default function PresensiPage() {
         }
       });
       setNewSesiDesas(prev => {
-        const isSame = prev.length === neededDesas.length && prev.every(d => neededDesas.includes(d));
+        const isSame = prev.length === neededDesas.length && prev.every((d, i) => d === neededDesas[i]);
         if (isSame) return prev;
         return neededDesas;
       });
@@ -226,13 +254,21 @@ export default function PresensiPage() {
   // Sync Sesi Marital Status when Sesi Kategori changes
   useEffect(() => {
     const available = getAvailableSesiMarital(newSesiKategoris);
-    setNewSesiMarital(prev => prev.filter(s => available.includes(s)));
+    setNewSesiMarital(prev => {
+      const next = prev.filter(s => available.includes(s));
+      const isSame = prev.length === next.length && prev.every((v, i) => v === next[i]);
+      return isSame ? prev : next;
+    });
   }, [newSesiKategoris]);
 
   // Sync Sesi Kategori when Sesi Marital Status changes
   useEffect(() => {
     const available = getAvailableSesiKategoris(newSesiMarital);
-    setNewSesiKategoris(prev => prev.filter(c => available.includes(c)));
+    setNewSesiKategoris(prev => {
+      const next = prev.filter(c => available.includes(c));
+      const isSame = prev.length === next.length && prev.every((v, i) => v === next[i]);
+      return isSame ? prev : next;
+    });
   }, [newSesiMarital]);
 
   // Calendar States
@@ -1272,15 +1308,7 @@ export default function PresensiPage() {
                                 );
                               })}
                               
-                              {/* Tambah Kehadiran Button */}
-                              {j.can_edit && (user.can_create_kehadiran || user.can_update_kehadiran) && (
-                                <button 
-                                  onClick={() => handleAddNewPresence(j.jamaah_id)}
-                                  className="self-center text-[9px] font-extrabold uppercase text-primary hover:text-primary-hover flex items-center gap-1 mt-1 transition-colors cursor-pointer"
-                                >
-                                  + Tambah Kehadiran
-                                </button>
-                              )}
+
                             </div>
                           </td>
                         </tr>
@@ -1396,15 +1424,7 @@ export default function PresensiPage() {
                           );
                         })}
                         
-                        {/* Tambah Kehadiran Button */}
-                        {j.can_edit && (user.can_create_kehadiran || user.can_update_kehadiran) && (
-                          <button 
-                            onClick={() => handleAddNewPresence(j.jamaah_id)}
-                            className="w-full py-2 bg-slate-50 border border-dashed border-slate-205 text-primary hover:bg-primary-light hover:border-primary font-bold text-[10px] uppercase rounded-xl transition-all flex items-center justify-center gap-1 cursor-pointer"
-                          >
-                            + Tambah Kehadiran
-                          </button>
-                        )}
+
                       </div>
                     </div>
                   );
@@ -1685,8 +1705,8 @@ export default function PresensiPage() {
 
               {/* Target Desa */}
               <MultiSelectDropdown
-                label="Target Desa"
-                options={locations.map(d => d.nama_desa)}
+                label="Desa"
+                options={locations.map(d => d.nama_desa).filter(name => name && name !== '-')}
                 selected={newSesiDesas}
                 onChange={setNewSesiDesas}
                 placeholder="Pilih Desa..."
@@ -1696,11 +1716,13 @@ export default function PresensiPage() {
 
               {/* Target Kelompok */}
               <GroupedMultiSelectDropdown
-                label="Target Kelompok"
-                groupedOptions={locations.map(d => ({
-                  desa: d.nama_desa,
-                  kelompoks: d.kelompoks.map(k => k.nama_kelompok)
-                }))}
+                label="Kelompok"
+                groupedOptions={locations
+                  .filter(d => d.nama_desa && d.nama_desa !== '-')
+                  .map(d => ({
+                    desa: d.nama_desa,
+                    kelompoks: d.kelompoks.map(k => k.nama_kelompok).filter(name => name && name !== '-')
+                  }))}
                 selected={newSesiKelompoks}
                 onChange={setNewSesiKelompoks}
                 placeholder="Pilih Kelompok..."
@@ -1731,7 +1753,7 @@ export default function PresensiPage() {
 
               {/* Kategori Checklist */}
               <MultiSelectDropdown
-                label="Kategori Peserta"
+                label="Kategori"
                 options={getAvailableSesiKategoris(newSesiMarital)}
                 selected={newSesiKategoris}
                 onChange={setNewSesiKategoris}
