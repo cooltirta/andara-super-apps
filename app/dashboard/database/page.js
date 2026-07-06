@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { Users, Home, UserPlus, Search, Edit2, Trash2, X, Plus, AlertTriangle, CheckCircle, Info, Download, ChevronDown } from 'lucide-react';
 
@@ -23,6 +24,18 @@ export default function DatabasePage() {
   const [jamaahList, setJamaahList] = useState([]);
   const [keluargaList, setKeluargaList] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Printing state & effect
+  const [printList, setPrintList] = useState([]);
+  useEffect(() => {
+    if (printList.length > 0) {
+      const timer = setTimeout(() => {
+        window.print();
+        setPrintList([]);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [printList]);
 
   // Filters
   const [searchName, setSearchName] = useState('');
@@ -829,6 +842,131 @@ export default function DatabasePage() {
   const pendidikanStats = getFreqWithGender(statsActiveJamaah, 'pendidikan_terakhir');
   const statusPernikahanStats = getFreqWithGender(statsActiveJamaah, 'status_pernikahan');
 
+  const renderPrintPortal = () => {
+    if (printList.length === 0) return null;
+    return createPortal(
+      <div className="print-portal-container">
+        {printList.map((j) => (
+          <div 
+            key={j.id}
+            className="print-card-page"
+            style={{
+              pageBreakAfter: 'always',
+              breakAfter: 'page',
+              width: '1011px',
+              height: '639px',
+              position: 'relative',
+              backgroundImage: "url('/front-static.png')",
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              fontFamily: "'Cinzel', serif",
+              color: '#EBDCB9',
+              WebkitPrintColorAdjust: 'exact',
+              printColorAdjust: 'exact',
+              margin: '0 auto',
+              overflow: 'hidden',
+            }}
+          >
+            {/* Nama Jamaah */}
+            <div 
+              style={{
+                position: 'absolute',
+                left: '66px',
+                top: '55px',
+                width: '880px',
+                fontSize: '90.4px',
+                lineHeight: '1.1',
+                fontWeight: '400',
+                textTransform: 'uppercase',
+                textAlign: 'left',
+                wordWrap: 'break-word',
+              }}
+            >
+              {formatJamaahName(j.nama_lengkap)}
+            </div>
+
+            {/* Nama Kelompok */}
+            <div 
+              style={{
+                position: 'absolute',
+                left: '66px',
+                top: '310px',
+                width: '560px',
+                fontSize: '44.6px',
+                lineHeight: '1.2',
+                fontWeight: '400',
+                textTransform: 'uppercase',
+                textAlign: 'left',
+              }}
+            >
+              {j.kelompok ? j.kelompok.replace(/^Kelompok\s+/i, '') : ''}
+            </div>
+
+            {/* QR Code Container */}
+            <div 
+              style={{
+                position: 'absolute',
+                left: '66px',
+                bottom: '55px',
+                backgroundColor: '#ffffff',
+                padding: '15px',
+                borderRadius: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '180px',
+                height: '180px',
+              }}
+            >
+              <img 
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(
+                  typeof window !== 'undefined' 
+                    ? `${window.location.origin}/status/${j.id}`
+                    : `http://localhost:3000/status/${j.id}`
+                )}`} 
+                alt="QR Code" 
+                style={{
+                  width: '150px',
+                  height: '150px',
+                }}
+              />
+            </div>
+          </div>
+        ))}
+        <style dangerouslySetInnerHTML={{__html: `
+          @media print {
+            body > :not(.print-portal-container) {
+              display: none !important;
+            }
+            body {
+              margin: 0 !important;
+              padding: 0 !important;
+              background-color: #ffffff !important;
+            }
+            .print-portal-container {
+              display: block !important;
+              width: 1011px !important;
+              margin: 0 !important;
+              padding: 0 !important;
+            }
+            .print-card-page {
+              page-break-after: always !important;
+              break-after: page !important;
+              width: 1011px !important;
+              height: 639px !important;
+              position: relative !important;
+              box-shadow: none !important;
+              border: none !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+          }
+        `}} />
+      </div>,
+      document.body
+    );
+  };
+
   return (
     <div className="font-sans text-slate-800">
       {/* Header */}
@@ -846,6 +984,16 @@ export default function DatabasePage() {
             <button id="btn-modal-keluarga" onClick={openKeluargaModal} className="flex items-center gap-2 py-2 px-3.5 font-bold text-xs bg-white border border-slate-200 text-slate-650 hover:bg-slate-50 rounded-lg shadow-sm transition-all">
               <Home size={14} />
               <span>Buat Keluarga Baru</span>
+            </button>
+          )}
+          {user.can_read_jamaah && activeTab === 'jamaah' && filteredJamaah.length > 0 && (
+            <button 
+              id="btn-print-filtered" 
+              onClick={() => setPrintList(filteredJamaah)} 
+              className="flex items-center gap-2 py-2 px-3.5 font-bold text-xs bg-slate-800 hover:bg-slate-900 text-white rounded-lg shadow-md shadow-slate-800/10 transition-all cursor-pointer"
+            >
+              <Download size={14} />
+              <span>Cetak Semua Kartu ({filteredJamaah.length})</span>
             </button>
           )}
           {user.can_create_jamaah && (
@@ -2057,42 +2205,13 @@ export default function DatabasePage() {
               {/* Actions (Hidden on Print) */}
               <div className="flex justify-end gap-2.5 w-full border-t border-slate-100 pt-4 print:hidden">
                 <button type="button" className="py-2 px-4 font-bold text-xs bg-white border border-slate-200 hover:bg-slate-50 text-slate-650 rounded-lg transition-all" onClick={handleCloseQrModal}>Tutup</button>
-                <button type="button" className="py-2 px-4 font-bold text-xs bg-primary hover:bg-primary-hover text-white rounded-lg shadow-md shadow-primary/10 transition-all flex items-center gap-1.5" onClick={() => window.print()}>
+                <button type="button" className="py-2 px-4 font-bold text-xs bg-primary hover:bg-primary-hover text-white rounded-lg shadow-md shadow-primary/10 transition-all flex items-center gap-1.5" onClick={() => setPrintList([selectedQrJamaah])}>
                   <Download size={14} />
                   <span>Cetak Kartu</span>
                 </button>
               </div>
             </div>
           </div>
-          
-          {/* Printable CSS Override */}
-          <style dangerouslySetInnerHTML={{__html: `
-            @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700&display=swap');
-            @media print {
-              body * {
-                visibility: hidden !important;
-              }
-              #print-card-area, #print-card-area * {
-                visibility: visible !important;
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-              }
-              #print-card-area {
-                position: fixed !important;
-                left: 50% !important;
-                top: 50% !important;
-                transform: translate(-50%, -50%) scale(1.0) !important;
-                width: 1011px !important;
-                height: 639px !important;
-                margin: 0 !important;
-                box-shadow: none !important;
-                border: none !important;
-                background-image: url('/front-static.png') !important;
-                background-size: cover !important;
-                background-position: center !important;
-              }
-            }
-          `}} />
         </div>
       )}
 
@@ -2347,6 +2466,8 @@ export default function DatabasePage() {
           </div>
         ))}
       </div>
+      {/* Print Portal */}
+      {renderPrintPortal()}
     </div>
   );
 }
