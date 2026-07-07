@@ -48,8 +48,14 @@ export async function GET(request) {
 
     // Fetch all present attendance records
     const { rows: presentRows } = await db.query(
-      "SELECT jamaah_id, sesi_id, tanggal FROM kehadiran WHERE status = 'Hadir';"
+      "SELECT jamaah_id, sesi_id, tanggal, waktu_presensi FROM kehadiran WHERE status = 'Hadir';"
     );
+
+    const timeToMinutes = (t) => {
+      if (!t) return 0;
+      const [h, m] = t.split(':').map(Number);
+      return h * 60 + m;
+    };
 
     // Map sessions to include attendance stats
     const sessionsWithStats = filteredSessions.map(s => {
@@ -64,10 +70,20 @@ export async function GET(request) {
 
       const expectedIds = new Set(expectedJamaah.map(j => j.id));
 
+      const startMin = timeToMinutes(s.waktu_mulai) - 30;
+      const endMin = timeToMinutes(s.waktu_selesai);
+
       const presentCount = presentRows.filter(p => {
         if (!expectedIds.has(p.jamaah_id)) return false;
         if (p.sesi_id === s.id) return true;
-        if (!p.sesi_id && p.tanggal === s.tanggal) return true;
+        if (!p.sesi_id && p.tanggal === s.tanggal) {
+          if (!p.waktu_presensi) return false;
+          const timePart = p.waktu_presensi.split(' ')[1];
+          if (!timePart) return false;
+          const [h, m] = timePart.split(':').map(Number);
+          const checkInMin = h * 60 + m;
+          return checkInMin >= startMin && checkInMin <= endMin;
+        }
         return false;
       }).length;
 

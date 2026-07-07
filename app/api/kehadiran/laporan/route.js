@@ -13,6 +13,12 @@ export async function GET(request) {
     return NextResponse.json({ error: "Akses ditolak" }, { status: 403 });
   }
 
+  const timeToMinutes = (t) => {
+    if (!t) return 0;
+    const [h, m] = t.split(':').map(Number);
+    return h * 60 + m;
+  };
+
   const { searchParams } = new URL(request.url);
   const startDate = searchParams.get('start_date');
   const endDate = searchParams.get('end_date');
@@ -132,19 +138,23 @@ export async function GET(request) {
       WHERE tanggal >= $1 AND tanggal <= $2;
     `, [startDate, endDate]);
 
-    // Buat map kehadiran [jamaah_id][sesi_id]
-    const presenceMap = {};
-    presences.forEach(p => {
-      if (!presenceMap[p.jamaah_id]) {
-        presenceMap[p.jamaah_id] = {};
-      }
-      if (p.sesi_id) {
-        presenceMap[p.jamaah_id][p.sesi_id] = p.status;
-      }
-      if (!presenceMap[p.jamaah_id][p.tanggal]) {
-        presenceMap[p.jamaah_id][p.tanggal] = p.status;
-      }
-    });
+     // Buat map kehadiran
+     const presenceMap = {};
+     presences.forEach(p => {
+       if (!presenceMap[p.jamaah_id]) {
+         presenceMap[p.jamaah_id] = {};
+       }
+       if (p.sesi_id) {
+         presenceMap[p.jamaah_id][p.sesi_id] = p.status;
+       }
+       if (!presenceMap[p.jamaah_id][p.tanggal]) {
+         presenceMap[p.jamaah_id][p.tanggal] = [];
+       }
+       presenceMap[p.jamaah_id][p.tanggal].push({
+         status: p.status,
+         waktu_presensi: p.waktu_presensi
+       });
+     });
 
     // 4. Proses agregasi data per jamaah
     const overallStats = { total: 0, hadir: 0, ijin: 0, tidak_hadir: 0 };
@@ -178,7 +188,21 @@ export async function GET(request) {
           
           let status = presenceMap[j.jamaah_id]?.[s.id];
           if (!status) {
-            status = presenceMap[j.jamaah_id]?.[s.tanggal];
+            const dateEntries = presenceMap[j.jamaah_id]?.[s.tanggal] || [];
+            const matchingEntry = dateEntries.find(p => {
+              if (!p.waktu_presensi) return false;
+              const timePart = p.waktu_presensi.split(' ')[1];
+              if (!timePart) return false;
+              const [h, m] = timePart.split(':').map(Number);
+              const checkInMin = h * 60 + m;
+
+              const startMin = timeToMinutes(s.waktu_mulai) - 30;
+              const endMin = timeToMinutes(s.waktu_selesai);
+              return checkInMin >= startMin && checkInMin <= endMin;
+            });
+            if (matchingEntry) {
+              status = matchingEntry.status;
+            }
           }
 
           if (status === 'Hadir') {
