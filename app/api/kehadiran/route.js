@@ -101,14 +101,14 @@ export async function GET(request) {
     let presenceParams = [];
     if (sesiId) {
       presenceQuery = `
-        SELECT id as kehadiran_id, jamaah_id, status, waktu_presensi, recorded_by, sesi_id 
+        SELECT id as kehadiran_id, jamaah_id, status, waktu_presensi, recorded_by, sesi_id, tanggal
         FROM kehadiran 
-        WHERE sesi_id = $1;
+        WHERE sesi_id = $1 OR (sesi_id IS NULL AND tanggal = $2);
       `;
-      presenceParams = [sesiId];
+      presenceParams = [sesiId, querySession.tanggal];
     } else {
       presenceQuery = `
-        SELECT id as kehadiran_id, jamaah_id, status, waktu_presensi, recorded_by, sesi_id 
+        SELECT id as kehadiran_id, jamaah_id, status, waktu_presensi, recorded_by, sesi_id, tanggal
         FROM kehadiran 
         WHERE tanggal = $1;
       `;
@@ -145,11 +145,36 @@ export async function GET(request) {
       return true;
     }
 
+    const timeToMinutes = (t) => {
+      if (!t) return 0;
+      const [h, m] = t.split(':').map(Number);
+      return h * 60 + m;
+    };
+
     // 4. Bangun daftar structured (1 item per jamaah)
     const resultList = [];
     for (const j of jamaahs) {
       const jPresences = presenceMap[j.jamaah_id] || [];
       const canEdit = checkCanModifyAttendanceLocal(j, user) ? 1 : 0;
+      
+      let filteredPresences = jPresences;
+      if (sesiId && querySession) {
+        const startMin = timeToMinutes(querySession.waktu_mulai) - 30;
+        const endMin = timeToMinutes(querySession.waktu_selesai);
+
+        filteredPresences = jPresences.filter(p => {
+          if (p.sesi_id === sesiId) return true;
+          if (!p.sesi_id) {
+            if (!p.waktu_presensi) return false;
+            const timePart = p.waktu_presensi.split(' ')[1];
+            if (!timePart) return false;
+            const [h, m] = timePart.split(':').map(Number);
+            const checkInMin = h * 60 + m;
+            return checkInMin >= startMin && checkInMin <= endMin;
+          }
+          return false;
+        });
+      }
       
       resultList.push({
         jamaah_id: j.jamaah_id,
@@ -160,7 +185,7 @@ export async function GET(request) {
         kategori: j.kategori,
         status_pernikahan: j.status_pernikahan,
         can_edit: canEdit,
-        presences: jPresences.map(p => ({
+        presences: filteredPresences.map(p => ({
           kehadiran_id: p.kehadiran_id,
           status: p.status,
           waktu_presensi: p.waktu_presensi,
