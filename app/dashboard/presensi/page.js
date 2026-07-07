@@ -1948,9 +1948,9 @@ export default function PresensiPage() {
             {showReportFilters && (
               <>
                 {/* Dropdowns Row */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 border-t border-slate-50 pt-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-slate-50 pt-4">
                   <MultiSelectDropdown
-                    label="Target Desa"
+                    label="Desa"
                     options={locations.map(d => d.nama_desa)}
                     selected={reportDesas}
                     onChange={setReportDesas}
@@ -1960,7 +1960,7 @@ export default function PresensiPage() {
                   />
 
                   <GroupedMultiSelectDropdown
-                    label="Target Kelompok"
+                    label="Kelompok"
                     groupedOptions={locations.map(d => ({
                       desa: d.nama_desa,
                       kelompoks: d.kelompoks.map(k => k.nama_kelompok)
@@ -1968,36 +1968,6 @@ export default function PresensiPage() {
                     selected={reportKelompoks}
                     onChange={setReportKelompoks}
                     placeholder="Pilih Kelompok..."
-                  />
-
-                  <MultiSelectDropdown
-                    label="Jenis Kelamin"
-                    options={['Laki-laki', 'Perempuan']}
-                    selected={reportGenders}
-                    onChange={setReportGenders}
-                    placeholder="Pilih Gender..."
-                    allLabel="Semua Gender"
-                    badgeCountLabel="Gender Terpilih"
-                  />
-
-                  <MultiSelectDropdown
-                    label="Status Pernikahan"
-                    options={getAvailableMaritalStatuses(reportGenders, reportKategori)}
-                    selected={reportStatusPernikahan}
-                    onChange={setReportStatusPernikahan}
-                    placeholder="Pilih Status..."
-                    allLabel="Semua Status"
-                    badgeCountLabel="Status Terpilih"
-                  />
-
-                  <MultiSelectDropdown
-                    label="Kategori Jamaah"
-                    options={getAvailableKategoris(reportStatusPernikahan)}
-                    selected={reportKategori}
-                    onChange={setReportKategori}
-                    placeholder="Pilih Kategori..."
-                    allLabel="Semua Kategori"
-                    badgeCountLabel="Kategori Terpilih"
                   />
                 </div>
 

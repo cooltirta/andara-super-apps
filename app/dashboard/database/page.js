@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
-import { Users, Home, UserPlus, Search, Edit2, Trash2, X, Plus, AlertTriangle, CheckCircle, Info, Download, Upload, ChevronDown } from 'lucide-react';
+import { Users, Home, UserPlus, Search, Edit2, Trash2, X, Plus, AlertTriangle, CheckCircle, Info, Download, Upload, ChevronDown, FileText } from 'lucide-react';
 
 export default function DatabasePage() {
   const router = useRouter();
@@ -832,6 +832,170 @@ export default function DatabasePage() {
     return matchesSearch && matchesDesa && matchesKelompok;
   });
 
+  const handleDownloadReportPdf = async () => {
+    showToast("Sedang menyiapkan file PDF...", "info");
+
+    try {
+      const html2pdf = await new Promise((resolve, reject) => {
+        if (window.html2pdf) {
+          resolve(window.html2pdf);
+          return;
+        }
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+        script.onload = () => resolve(window.html2pdf);
+        script.onerror = () => reject(new Error("Gagal memuat library PDF"));
+        document.body.appendChild(script);
+      });
+
+      const totalJamaah = filteredJamaah.length;
+      const totalLaki = filteredJamaah.filter(j => j.jenis_kelamin === 'Laki-laki').length;
+      const totalPerempuan = filteredJamaah.filter(j => j.jenis_kelamin === 'Perempuan').length;
+
+      const familiesInFilter = keluargaList.filter(k => 
+        k.anggota.some(m => filteredJamaah.some(fj => fj.id === m.jamaah_id))
+      );
+      const totalKeluarga = familiesInFilter.length;
+
+      const categories = ['Balita', 'CBR/PAUD', 'Pra Remaja', 'Remaja', 'Pra Nikah', 'Dewasa', 'Lansia'];
+      const catData = categories.map(cat => {
+        const list = filteredJamaah.filter(j => j.kategori === cat);
+        const l = list.filter(j => j.jenis_kelamin === 'Laki-laki').length;
+        const p = list.filter(j => j.jenis_kelamin === 'Perempuan').length;
+        return { name: cat, l, p, total: list.length };
+      });
+
+      const maritalStatuses = ['Belum Menikah', 'Menikah', 'Janda', 'Duda'];
+      const maritalData = maritalStatuses.map(status => {
+        const list = filteredJamaah.filter(j => j.status_pernikahan === status || (status === 'Belum Menikah' && !j.status_pernikahan));
+        const l = list.filter(j => j.jenis_kelamin === 'Laki-laki').length;
+        const p = list.filter(j => j.jenis_kelamin === 'Perempuan').length;
+        return { name: status, l, p, total: list.length };
+      });
+
+      const activeDesas = filterDesas.length > 0 ? filterDesas.join(', ') : 'Semua Desa';
+      const activeKelompoks = filterKelompoks.length > 0 ? filterKelompoks.join(', ') : 'Semua Kelompok';
+      const activeKategoris = filterKategori.join(', ');
+      
+      const now = new Date();
+      const dateString = now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+      const timeString = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
+
+      const element = document.createElement('div');
+      element.style.padding = '40px';
+      element.style.fontFamily = "'Inter', Arial, sans-serif";
+      element.style.color = '#334155';
+      element.style.backgroundColor = '#ffffff';
+
+      element.innerHTML = `
+        <div style="border-bottom: 2px solid #0f766e; padding-bottom: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-end;">
+          <div>
+            <h1 style="margin: 0; color: #0f766e; font-size: 22px; font-weight: 800; letter-spacing: -0.5px;">LAPORAN AGREGAT DATA JAMAAH</h1>
+            <p style="margin: 3px 0 0 0; color: #64748b; font-size: 11px; font-weight: 600;">MASJID ANDARA &mdash; SISTEM INFORMASI MANAJEMEN</p>
+          </div>
+          <div style="text-align: right;">
+            <p style="margin: 0; color: #64748b; font-size: 10px; font-weight: 600; text-transform: uppercase;">Dicetak Pada</p>
+            <p style="margin: 2px 0 0 0; color: #1e293b; font-size: 11px; font-weight: 700;">${dateString}, ${timeString}</p>
+          </div>
+        </div>
+
+        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-bottom: 20px; font-size: 11px;">
+          <h3 style="margin: 0 0 6px 0; color: #0f766e; font-size: 10px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase;">Kriteria Penyaringan (Filter Aktif)</h3>
+          <div style="display: flex; gap: 20px;">
+            <div><strong>Desa:</strong> ${activeDesas}</div>
+            <div><strong>Kelompok:</strong> ${activeKelompoks}</div>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 15px; margin-bottom: 25px;">
+          <div style="flex: 1; background: linear-gradient(135deg, #0f766e, #115e59); color: white; padding: 15px; border-radius: 10px;">
+            <p style="margin: 0; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.9;">Total Jamaah Terfilter</p>
+            <h2 style="margin: 5px 0; font-size: 28px; font-weight: 800; line-height: 1;">${totalJamaah} <span style="font-size: 14px; font-weight: 500;">Orang</span></h2>
+            <div style="display: flex; gap: 12px; font-size: 11px; border-top: 1px solid rgba(255,255,255,0.2); margin-top: 8px; padding-top: 6px;">
+              <span><strong>Laki-laki:</strong> ${totalLaki}</span>
+              <span><strong>Perempuan:</strong> ${totalPerempuan}</span>
+            </div>
+          </div>
+          <div style="flex: 1; background: #ffffff; border: 1px solid #e2e8f0; padding: 15px; border-radius: 10px; display: flex; flex-direction: column; justify-content: center;">
+            <p style="margin: 0; font-size: 10px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Total Unit Keluarga</p>
+            <h2 style="margin: 5px 0; font-size: 28px; color: #0f766e; font-weight: 800; line-height: 1;">${totalKeluarga} <span style="font-size: 14px; font-weight: 500; color: #64748b;">Keluarga</span></h2>
+            <p style="margin: 0; font-size: 10px; color: #94a3b8; font-style: italic;">Rasio: ~${totalJamaah > 0 && totalKeluarga > 0 ? (totalJamaah / totalKeluarga).toFixed(1) : 0} anggota/keluarga</p>
+          </div>
+        </div>
+
+        <div style="margin-bottom: 25px;">
+          <h2 style="margin: 0 0 10px 0; font-size: 13px; color: #0f766e; font-weight: 800; text-transform: uppercase; border-bottom: 2px solid #f1f5f9; padding-bottom: 4px;">1. Distribusi per Kategori Jamaah</h2>
+          <table style="width: 100%; border-collapse: collapse; font-size: 11px; text-align: left;">
+            <thead>
+              <tr style="background-color: #f1f5f9; border-bottom: 2px solid #e2e8f0;">
+                <th style="padding: 8px; font-weight: 700; color: #475569;">Kategori</th>
+                <th style="padding: 8px; font-weight: 700; color: #475569; text-align: center;">Laki-laki</th>
+                <th style="padding: 8px; font-weight: 700; color: #475569; text-align: center;">Perempuan</th>
+                <th style="padding: 8px; font-weight: 700; color: #475569; text-align: center;">Total</th>
+                <th style="padding: 8px; font-weight: 700; color: #475569; text-align: right;">Persentase</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${catData.map((d, index) => `
+                <tr style="border-bottom: 1px solid #f1f5f9; background-color: ${index % 2 === 0 ? '#ffffff' : '#f8fafc'};">
+                  <td style="padding: 8px; font-weight: 700; color: #1e293b;">${d.name}</td>
+                  <td style="padding: 8px; text-align: center; color: #334155;">${d.l}</td>
+                  <td style="padding: 8px; text-align: center; color: #334155;">${d.p}</td>
+                  <td style="padding: 8px; text-align: center; font-weight: 700; color: #0f766e;">${d.total}</td>
+                  <td style="padding: 8px; text-align: right; font-weight: 600; color: #475569;">${totalJamaah > 0 ? ((d.total / totalJamaah) * 100).toFixed(1) : 0}%</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+
+        <div style="margin-bottom: 25px;">
+          <h2 style="margin: 0 0 10px 0; font-size: 13px; color: #0f766e; font-weight: 800; text-transform: uppercase; border-bottom: 2px solid #f1f5f9; padding-bottom: 4px;">2. Distribusi per Status Pernikahan</h2>
+          <table style="width: 100%; border-collapse: collapse; font-size: 11px; text-align: left;">
+            <thead>
+              <tr style="background-color: #f1f5f9; border-bottom: 2px solid #e2e8f0;">
+                <th style="padding: 8px; font-weight: 700; color: #475569;">Status Pernikahan</th>
+                <th style="padding: 8px; font-weight: 700; color: #475569; text-align: center;">Laki-laki</th>
+                <th style="padding: 8px; font-weight: 700; color: #475569; text-align: center;">Perempuan</th>
+                <th style="padding: 8px; font-weight: 700; color: #475569; text-align: center;">Total</th>
+                <th style="padding: 8px; font-weight: 700; color: #475569; text-align: right;">Persentase</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${maritalData.map((d, index) => `
+                <tr style="border-bottom: 1px solid #f1f5f9; background-color: ${index % 2 === 0 ? '#ffffff' : '#f8fafc'};">
+                  <td style="padding: 8px; font-weight: 700; color: #1e293b;">${d.name}</td>
+                  <td style="padding: 8px; text-align: center; color: #334155;">${d.l}</td>
+                  <td style="padding: 8px; text-align: center; color: #334155;">${d.p}</td>
+                  <td style="padding: 8px; text-align: center; font-weight: 700; color: #0f766e;">${d.total}</td>
+                  <td style="padding: 8px; text-align: right; font-weight: 600; color: #475569;">${totalJamaah > 0 ? ((d.total / totalJamaah) * 100).toFixed(1) : 0}%</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+
+        <div style="border-top: 1px solid #e2e8f0; padding-top: 10px; margin-top: 30px; text-align: center; font-size: 9px; color: #94a3b8;">
+          <p style="margin: 0;">Laporan ini dihasilkan secara otomatis oleh Sistem Andara Super Apps menggunakan data terbaru dari database.</p>
+        </div>
+      `;
+
+      const opt = {
+        margin:       15,
+        filename:     `Laporan_Agregat_Jamaah_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true, letterRendering: true },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
+
+      await html2pdf().from(element).save();
+      showToast("Laporan PDF berhasil diunduh!", "success");
+    } catch (err) {
+      console.error(err);
+      showToast("Gagal mengunduh laporan PDF: " + err.message, "error");
+    }
+  };
+
   // Available Desas for statistics filter based on user permissions/monitored scope
   const availableDesas = (() => {
     if (!user) return [];
@@ -1256,16 +1420,27 @@ export default function DatabasePage() {
                 <span className="text-xs font-bold text-slate-500">
                   Menampilkan <strong>{filteredJamaah.length}</strong> jamaah sesuai kriteria filter
                 </span>
-                {user.can_read_jamaah && filteredJamaah.length > 0 && (
-                  <button 
-                    id="btn-print-filtered" 
-                    onClick={() => setPrintList(filteredJamaah)} 
-                    className="flex items-center gap-2 py-1.5 px-3.5 font-bold text-xs bg-slate-800 hover:bg-slate-900 text-white rounded-lg shadow-md shadow-slate-800/10 transition-all cursor-pointer active:scale-95"
-                  >
-                    <Download size={13} />
-                    <span>Cetak Semua Kartu ({filteredJamaah.length})</span>
-                  </button>
-                )}
+                <div className="flex items-center gap-2">
+                  {user.can_read_jamaah && filteredJamaah.length > 0 && (
+                    <>
+                      <button 
+                        onClick={handleDownloadReportPdf} 
+                        className="flex items-center gap-2 py-1.5 px-3.5 font-bold text-xs bg-teal-700 hover:bg-teal-800 text-white rounded-lg shadow-md shadow-teal-700/10 transition-all cursor-pointer active:scale-95"
+                      >
+                        <FileText size={13} />
+                        <span>Download Laporan PDF</span>
+                      </button>
+                      <button 
+                        id="btn-print-filtered" 
+                        onClick={() => setPrintList(filteredJamaah)} 
+                        className="flex items-center gap-2 py-1.5 px-3.5 font-bold text-xs bg-slate-800 hover:bg-slate-900 text-white rounded-lg shadow-md shadow-slate-800/10 transition-all cursor-pointer active:scale-95"
+                      >
+                        <Download size={13} />
+                        <span>Cetak Semua Kartu ({filteredJamaah.length})</span>
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
 
               <div className="bg-white border border-slate-100 shadow-sm rounded-xl overflow-hidden">
