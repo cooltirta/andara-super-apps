@@ -198,7 +198,11 @@ export default function DatabasePage() {
         .filter(d => filterDesas.includes(d.nama_desa))
         .flatMap(d => d.kelompoks.map(k => k.nama_kelompok));
       
-      setFilterKelompoks(prev => prev.filter(k => validKelompoks.includes(k)));
+      setFilterKelompoks(prev => {
+        const next = prev.filter(k => validKelompoks.includes(k));
+        const isSame = prev.length === next.length && prev.every((v, i) => v === next[i]);
+        return isSame ? prev : next;
+      });
     }
   }, [filterDesas, locations]);
 
@@ -225,13 +229,21 @@ export default function DatabasePage() {
   // Sync Marital Status when Gender or Kategori changes
   useEffect(() => {
     const available = getAvailableMaritalStatuses(filterGenders, filterKategori);
-    setFilterMarital(prev => prev.filter(s => available.includes(s)));
+    setFilterMarital(prev => {
+      const next = prev.filter(s => available.includes(s));
+      const isSame = prev.length === next.length && prev.every((v, i) => v === next[i]);
+      return isSame ? prev : next;
+    });
   }, [filterGenders, filterKategori]);
 
   // Sync Kategori when Marital Status changes
   useEffect(() => {
     const available = getAvailableKategoris(filterMarital);
-    setFilterKategori(prev => prev.filter(c => available.includes(c)));
+    setFilterKategori(prev => {
+      const next = prev.filter(c => available.includes(c));
+      const isSame = prev.length === next.length && prev.every((v, i) => v === next[i]);
+      return isSame ? prev : next;
+    });
   }, [filterMarital]);
 
   // Fetch initial data
