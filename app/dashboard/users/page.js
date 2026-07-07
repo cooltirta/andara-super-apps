@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Shield, ShieldAlert, UserCheck, Trash2, X, AlertTriangle, CheckCircle, Info } from 'lucide-react';
+import { Shield, ShieldAlert, UserCheck, Trash2, X, AlertTriangle, CheckCircle, Info, ChevronDown } from 'lucide-react';
 
 export default function UserAccessPage() {
   const router = useRouter();
@@ -792,15 +792,13 @@ export default function UserAccessPage() {
                   )}
                 </div>
                 
-
-
-                {/* Monitored Locations Section (Modern Checkboxes) */}
+                {/* Monitored Locations Section (Dropdown Multi-Select) */}
                 <div className="border border-slate-100 rounded-xl p-4 bg-slate-50/20 flex flex-col gap-4">
                   <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block border-b border-slate-100 pb-1.5">
                     Konfigurasi Wilayah Terpantau
                   </span>
 
-                  {/* Desas monitored checklist */}
+                  {/* Desa Terpantau */}
                   <div className="flex flex-col gap-2">
                     <div className="flex justify-between items-center">
                       <span className="text-xs font-bold text-slate-605">Desa Terpantau</span>
@@ -820,34 +818,20 @@ export default function UserAccessPage() {
                         </label>
                       )}
                     </div>
-                    
                     {!monitorAllDesas && (
-                      <div className="flex flex-wrap gap-2.5 mt-1 bg-white p-2.5 rounded-lg border border-slate-200 max-h-[100px] overflow-y-auto">
-                        {(user.monitor_all_desas ? desas : (user.desas_pantau || [])).map(dName => {
-                          const isChecked = desasPantau.includes(dName);
-                          return (
-                            <label key={dName} className="flex items-center gap-1.5 text-xs font-semibold text-slate-650 cursor-pointer select-none">
-                              <input 
-                                type="checkbox"
-                                className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4"
-                                checked={isChecked}
-                                onChange={() => {
-                                  if (isChecked) {
-                                    setDesasPantau(prev => prev.filter(x => x !== dName));
-                                  } else {
-                                    setDesasPantau(prev => [...prev, dName]);
-                                  }
-                                }}
-                              />
-                              <span>Desa {dName}</span>
-                            </label>
-                          );
-                        })}
-                      </div>
+                      <MultiSelectDropdown
+                        label=""
+                        options={user.monitor_all_desas ? desas : (user.desas_pantau || [])}
+                        selected={desasPantau}
+                        onChange={setDesasPantau}
+                        placeholder="Pilih Desa Terpantau..."
+                        allLabel="Semua Desa"
+                        badgeCountLabel="Desa Terpilih"
+                      />
                     )}
                   </div>
 
-                  {/* Kelompoks monitored checklist */}
+                  {/* Kelompoks monitored dropdown */}
                   <div className="flex flex-col gap-2">
                     <div className="flex justify-between items-center">
                       <span className="text-xs font-bold text-slate-605">Kelompok Terpantau</span>
@@ -867,37 +851,22 @@ export default function UserAccessPage() {
                         </label>
                       )}
                     </div>
-
                     {!monitorAllKelompoks && (
-                      <div className="flex flex-wrap gap-2.5 mt-1 bg-white p-2.5 rounded-lg border border-slate-200 max-h-[120px] overflow-y-auto">
-                        {/* We fetch all kelompoks in monitored desas or user's allowed groups */}
-                        {(user.monitor_all_kelompoks 
-                          ? locations.filter(l => monitorAllDesas || desasPantau.includes(l.nama_desa)).flatMap(l => l.kelompoks.map(k => k.nama_kelompok))
-                          : (user.kelompoks_pantau || [])
-                        )
-                        .filter((value, index, self) => self.indexOf(value) === index) // Unique
-                        .sort((a, b) => a.localeCompare(b))
-                        .map(kName => {
-                          const isChecked = kelompoksPantau.includes(kName);
-                          return (
-                            <label key={kName} className="flex items-center gap-1.5 text-xs font-semibold text-slate-655 cursor-pointer select-none">
-                              <input 
-                                type="checkbox"
-                                className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4"
-                                checked={isChecked}
-                                onChange={() => {
-                                  if (isChecked) {
-                                    setKelompoksPantau(prev => prev.filter(x => x !== kName));
-                                  } else {
-                                    setKelompoksPantau(prev => [...prev, kName]);
-                                  }
-                                }}
-                              />
-                              <span>{kName}</span>
-                            </label>
-                          );
-                        })}
-                      </div>
+                      <GroupedMultiSelectDropdown
+                        label=""
+                        groupedOptions={locations
+                          .filter(l => monitorAllDesas || desasPantau.includes(l.nama_desa))
+                          .map(l => ({
+                            desa: l.nama_desa,
+                            kelompoks: l.kelompoks
+                              .filter(k => user.monitor_all_kelompoks || (user.kelompoks_pantau || []).includes(k.nama_kelompok))
+                              .map(k => k.nama_kelompok)
+                          }))
+                          .filter(g => g.kelompoks.length > 0)}
+                        selected={kelompoksPantau}
+                        onChange={setKelompoksPantau}
+                        placeholder="Pilih Kelompok Terpantau..."
+                      />
                     )}
                   </div>
                 </div>
@@ -908,9 +877,9 @@ export default function UserAccessPage() {
                     Kustomisasi Hak Akses Fungsional (Rinci)
                   </span>
 
-                  {/* Database Jamaah Section */}
+                  {/* 1. Daftar Jamaah */}
                   <div className="flex flex-col gap-2 text-left">
-                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">1. Database Jamaah</span>
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">1. Daftar Jamaah</span>
                     <div className="grid grid-cols-2 gap-2 bg-white p-2.5 rounded-lg border border-slate-200">
                       <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none">
                         <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer" checked={canReadJamaah} onChange={(e) => setCanReadJamaah(e.target.checked)} />
@@ -931,7 +900,7 @@ export default function UserAccessPage() {
                     </div>
                   </div>
 
-                  {/* Unit Keluarga Section */}
+                  {/* 2. Unit Keluarga */}
                   <div className="flex flex-col gap-2 text-left">
                     <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">2. Unit Keluarga</span>
                     <div className="grid grid-cols-2 gap-2 bg-white p-2.5 rounded-lg border border-slate-200">
@@ -954,36 +923,43 @@ export default function UserAccessPage() {
                     </div>
                   </div>
 
-                  {/* Presensi & Kehadiran Section */}
+                  {/* 3. Presensi & Kehadiran */}
                   <div className="flex flex-col gap-2 text-left">
                     <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">3. Presensi & Kehadiran</span>
                     <div className="grid grid-cols-2 gap-2 bg-white p-2.5 rounded-lg border border-slate-200">
                       <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none">
                         <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer" checked={canReadKehadiran} onChange={(e) => setCanReadKehadiran(e.target.checked)} />
-                        <span>Read Input</span>
+                        <span>Membaca (Read)</span>
                       </label>
                       <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none">
                         <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer" checked={canCreateKehadiran} onChange={(e) => setCanCreateKehadiran(e.target.checked)} />
-                        <span>Create Input</span>
+                        <span>Menambah (Create)</span>
                       </label>
                       <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none">
                         <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer" checked={canUpdateKehadiran} onChange={(e) => setCanUpdateKehadiran(e.target.checked)} />
-                        <span>Update Input</span>
+                        <span>Mengubah (Update)</span>
                       </label>
                       <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none">
                         <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer" checked={canDeleteKehadiran} onChange={(e) => setCanDeleteKehadiran(e.target.checked)} />
-                        <span>Delete Input</span>
-                      </label>
-                      <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none col-span-2 border-t border-slate-100 pt-1.5 mt-1">
-                        <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer" checked={canReadLaporan} onChange={(e) => setCanReadLaporan(e.target.checked)} />
-                        <span>Laporan Kehadiran (Read)</span>
+                        <span>Menghapus (Delete)</span>
                       </label>
                     </div>
                   </div>
 
-                  {/* User Access Section */}
+                  {/* 4. Laporan Kehadiran */}
                   <div className="flex flex-col gap-2 text-left">
-                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">4. User Access Management</span>
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">4. Laporan Kehadiran</span>
+                    <div className="grid grid-cols-2 gap-2 bg-white p-2.5 rounded-lg border border-slate-200">
+                      <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none col-span-2">
+                        <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer" checked={canReadLaporan} onChange={(e) => setCanReadLaporan(e.target.checked)} />
+                        <span>Membaca (Read)</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* 5. User Access */}
+                  <div className="flex flex-col gap-2 text-left">
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">5. User Access</span>
                     <div className="grid grid-cols-2 gap-2 bg-white p-2.5 rounded-lg border border-slate-200">
                       <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none">
                         <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer" checked={canReadUser} onChange={(e) => setCanReadUser(e.target.checked)} />
@@ -1004,29 +980,36 @@ export default function UserAccessPage() {
                     </div>
                   </div>
 
-                  {/* Lokasi & Rekam Jejak Section */}
+                  {/* 6. Manajemen Lokasi */}
                   <div className="flex flex-col gap-2 text-left">
-                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">5. Manajemen Lokasi & Log</span>
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">6. Manajemen Lokasi</span>
                     <div className="grid grid-cols-2 gap-2 bg-white p-2.5 rounded-lg border border-slate-200">
                       <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none">
                         <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer" checked={canReadLokasi} onChange={(e) => setCanReadLokasi(e.target.checked)} />
-                        <span>Read Lokasi</span>
+                        <span>Membaca (Read)</span>
                       </label>
                       <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none">
                         <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer" checked={canCreateLokasi} onChange={(e) => setCanCreateLokasi(e.target.checked)} />
-                        <span>Create Lokasi</span>
+                        <span>Menambah (Create)</span>
                       </label>
                       <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none">
                         <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer" checked={canUpdateLokasi} onChange={(e) => setCanUpdateLokasi(e.target.checked)} />
-                        <span>Update Lokasi</span>
+                        <span>Mengubah (Update)</span>
                       </label>
                       <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none">
                         <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer" checked={canDeleteLokasi} onChange={(e) => setCanDeleteLokasi(e.target.checked)} />
-                        <span>Delete Lokasi</span>
+                        <span>Menghapus (Delete)</span>
                       </label>
-                      <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none col-span-2 border-t border-slate-100 pt-1.5 mt-1">
+                    </div>
+                  </div>
+
+                  {/* 7. Rekam Jejak */}
+                  <div className="flex flex-col gap-2 text-left">
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">7. Rekam Jejak (Logs)</span>
+                    <div className="grid grid-cols-2 gap-2 bg-white p-2.5 rounded-lg border border-slate-200">
+                      <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none col-span-2">
                         <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer" checked={canReadLogs} onChange={(e) => setCanReadLogs(e.target.checked)} />
-                        <span>Membaca Rekam Jejak (Logs)</span>
+                        <span>Membaca (Read)</span>
                       </label>
                     </div>
                   </div>
@@ -1059,6 +1042,208 @@ export default function UserAccessPage() {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+// ================================================= HELPER COMPONENTS =================================================
+
+function MultiSelectDropdown({ 
+  label, 
+  options, 
+  selected, 
+  onChange, 
+  placeholder = "Pilih...", 
+  allLabel = "Semua",
+  badgeCountLabel = "terpilih"
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const toggleOption = (val) => {
+    if (selected.includes(val)) {
+      onChange(selected.filter(item => item !== val));
+    } else {
+      onChange([...selected, val]);
+    }
+  };
+
+  const isAllSelected = selected.length === options.length;
+
+  const toggleAll = () => {
+    if (isAllSelected) {
+      onChange([]);
+    } else {
+      onChange([...options]);
+    }
+  };
+
+  let displayText = placeholder;
+  if (selected.length === 0) {
+    displayText = "Tidak ada";
+  } else if (selected.length === options.length) {
+    displayText = `${allLabel} (${options.length})`;
+  } else if (selected.length <= 2) {
+    displayText = selected.join(', ');
+  } else {
+    displayText = `${selected.length} ${badgeCountLabel}`;
+  }
+
+  return (
+    <div className="flex flex-col gap-1.5 min-w-[150px] relative text-left" ref={dropdownRef}>
+      {label && <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">{label}</span>}
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-750 font-bold text-xs flex items-center justify-between hover:border-primary transition-all shadow-sm cursor-pointer outline-none min-h-[34px]"
+      >
+        <span className="truncate pr-1">{displayText}</span>
+        <ChevronDown size={14} className={`text-slate-400 transition-transform shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      {isOpen && (
+        <div className="absolute top-[100%] left-0 right-0 mt-1 bg-white border border-slate-150 rounded-xl shadow-xl z-50 p-2.5 max-h-60 overflow-y-auto min-w-[180px]">
+          <div className="flex justify-between items-center border-b border-slate-50 pb-1.5 mb-1.5">
+            <span className="text-[9px] font-extrabold text-slate-400 uppercase">Pilih Opsi</span>
+            <button
+              type="button"
+              onClick={toggleAll}
+              className="text-[9px] text-primary hover:underline font-extrabold cursor-pointer"
+            >
+              {isAllSelected ? "Hapus Semua" : "Pilih Semua"}
+            </button>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            {options.map(opt => {
+              const isChecked = selected.includes(opt);
+              return (
+                <label key={opt} className="flex items-center gap-2 px-1.5 py-1 rounded hover:bg-slate-50 cursor-pointer font-semibold text-slate-655 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={isChecked}
+                    onChange={() => toggleOption(opt)}
+                    className="rounded border-slate-350 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
+                  />
+                  <span className="truncate">{opt}</span>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function GroupedMultiSelectDropdown({ 
+  label, 
+  groupedOptions, 
+  selected, 
+  onChange, 
+  placeholder = "Pilih..." 
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const allKelompoks = groupedOptions.flatMap(g => g.kelompoks);
+  const isAllSelected = selected.length === allKelompoks.length;
+
+  const toggleAll = () => {
+    if (isAllSelected) {
+      onChange([]);
+    } else {
+      onChange([...allKelompoks]);
+    }
+  };
+
+  const toggleOption = (val) => {
+    if (selected.includes(val)) {
+      onChange(selected.filter(item => item !== val));
+    } else {
+      onChange([...selected, val]);
+    }
+  };
+
+  let displayText = placeholder;
+  if (selected.length === 0) {
+    displayText = "Tidak ada";
+  } else if (selected.length === allKelompoks.length) {
+    displayText = `Semua Kelompok (${allKelompoks.length})`;
+  } else if (selected.length <= 2) {
+    displayText = selected.join(', ');
+  } else {
+    displayText = `${selected.length} Kelompok`;
+  }
+
+  return (
+    <div className="flex flex-col gap-1.5 min-w-[150px] relative text-left" ref={dropdownRef}>
+      {label && <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">{label}</span>}
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-755 font-bold text-xs flex items-center justify-between hover:border-primary transition-all shadow-sm cursor-pointer outline-none min-h-[34px]"
+      >
+        <span className="truncate pr-1">{displayText}</span>
+        <ChevronDown size={14} className={`text-slate-400 transition-transform shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      {isOpen && (
+        <div className="absolute top-[100%] left-0 mt-1 bg-white border border-slate-150 rounded-xl shadow-xl z-50 p-3 max-h-60 overflow-y-auto min-w-[220px]">
+          <div className="flex justify-between items-center border-b border-slate-50 pb-1.5 mb-1.5">
+            <span className="text-[9px] font-extrabold text-slate-400 uppercase">Pilih Kelompok</span>
+            <button
+              type="button"
+              onClick={toggleAll}
+              className="text-[9px] text-primary hover:underline font-extrabold cursor-pointer"
+            >
+              {isAllSelected ? "Hapus Semua" : "Pilih Semua"}
+            </button>
+          </div>
+          <div className="flex flex-col gap-3">
+            {groupedOptions.map(g => (
+              <div key={g.desa} className="flex flex-col gap-1">
+                <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">{g.desa}</span>
+                <div className="flex flex-col gap-1.5 pl-1">
+                  {g.kelompoks.map(k => {
+                    const isChecked = selected.includes(k);
+                    return (
+                      <label key={k} className="flex items-center gap-2 px-1.5 py-0.5 rounded hover:bg-slate-50 cursor-pointer font-semibold text-slate-655 text-xs">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => toggleOption(k)}
+                          className="rounded border-slate-350 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
+                        />
+                        <span className="truncate">{k}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

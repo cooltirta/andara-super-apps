@@ -1,0 +1,67 @@
+kehadiran_id,tanggal,waktu_presensi,status,recorded_by,sesi_id,nama_lengkap,rfid,kelompok,desa,kategori,jenis_kelamin
+0f170250-58f7-4e6f-a4c3-36698b3d7582,2026-07-06,2026-07-06 20:29:19,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,IFAN TIRTA ADI,3820295150,Andara 2,Andara,Dewasa,Laki-laki
+d8493842-ee74-4238-884a-9795612c9189,2026-07-06,2026-07-06 20:29:32,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,RAHMAT DASUKI,3820303009,Andara 2,Andara,Dewasa,Laki-laki
+023231b6-ec6b-4a3f-bf99-486fad91effd,2026-07-06,2026-07-06 20:29:34,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,MARKHAMAH,3820293709,Andara 2,Andara,Dewasa,Perempuan
+d9ba28af-0cfd-4749-8483-9d0abdf7c392,2026-07-06,2026-07-06 20:29:50,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,RATNA DHITA CATUR RANI,3820267191,Andara 2,Andara,Dewasa,Perempuan
+9b1107e5-2430-4afc-bfa2-ee2cdbf01d6c,2026-07-06,2026-07-06 20:29:53,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,M. IHSAN RATNO SAPUTRO,3820259995,Andara 2,Andara,Dewasa,Laki-laki
+5b3d1ff4-24c3-4b3d-9ae0-5f6bde396429,2026-07-06,2026-07-06 20:32:43,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,IBNU FAUZAN,3820290867,Andara 2,Andara,Dewasa,Laki-laki
+ffdfd982-937c-4510-aae9-0572f74e1d96,2026-07-06,2026-07-06 20:36:28,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,REVINA HERTANTRI,3820169043,Andara 2,Andara,Dewasa,Perempuan
+e53bde7b-bf4d-4aa2-9763-1d8a751445ee,2026-07-06,2026-07-06 20:37:13,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,MUHAMMAD MIFTAHUL FAIZ,3819507036,Andara 2,Andara,Dewasa,Laki-laki
+8a25cee1-6f3f-4ea0-9b83-1f0fb1851c95,2026-07-06,2026-07-06 20:38:14,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,YENIAWATI,3820355219,Andara 2,Andara,Dewasa,Perempuan
+7ab5fe4f-096a-44ea-be5c-3604a843b389,2026-07-06,2026-07-06 20:49:53,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,IBNU ALI BADAR,3820266395,Andara 2,Andara,Dewasa,Laki-laki
+205a800f-ab6b-486d-96f9-8d00a848914b,2026-07-06,2026-07-06 20:49:55,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,WIDYA NINDY HERMAWAN,3820219398,Andara 2,Andara,Dewasa,Perempuan
+9346075d-30b3-40a3-964f-3189a1367ea9,2026-07-06,2026-07-06 20:50:02,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,LAZUARDI IMANI,3820236241,Andara 2,Andara,Dewasa,Laki-laki
+84525989-83e1-4b6e-8403-3962f99f6c69,2026-07-06,2026-07-06 21:16:14,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,AHATHO SITATI YANTO,3820238861,Andara 2,Andara,Dewasa,Laki-laki
+6a82be74-f547-4f6a-b32e-479d234c7323,2026-07-06,2026-07-06 21:16:17,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,ALVIN JANUAR RIZQI,3820258180,Andara 2,Andara,Pra Nikah,Laki-laki
+5ae1eb7d-f625-4624-92b1-06c318d0ba7f,2026-07-06,2026-07-06 21:16:21,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,ANDI,3820298915,Andara 2,Andara,Lansia,Laki-laki
+9a6acb5a-d98a-4319-8310-3edad73e8d10,2026-07-06,2026-07-06 21:16:27,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,ANNISA UL HUSNA,3820278410,Andara 2,Andara,Pra Nikah,Perempuan
+516d75a9-32e6-4f71-b9e9-86367f9d8bc2,2026-07-06,2026-07-06 21:16:29,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,ASIH SUMINARTI,3819543530,Andara 2,Andara,Dewasa,Perempuan
+a5f6d3a8-ebda-4b94-a55f-d833be6dcc1d,2026-07-06,2026-07-06 21:16:30,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,AZIZ ABDULLOH,3820322042,Andara 2,Andara,Dewasa,Laki-laki
+30f71af0-bf08-4be5-8b49-0dfc21fe5479,2026-07-06,2026-07-06 21:16:31,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,BAMBANG RIYADI,3820319940,Andara 2,Andara,Dewasa,Laki-laki
+dc9264d8-73b5-4173-9111-ec780e9d10b5,2026-07-06,2026-07-06 21:16:41,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,DEDI CAHYANTO,4096729274,Andara 2,Andara,Dewasa,Laki-laki
+4c9a26e8-b304-4ded-8342-84ce1b7ca0c5,2026-07-06,2026-07-06 21:16:47,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,DIDIK PUJI ISTANTO,4096756492,Andara 2,Andara,Lansia,Laki-laki
+df3a8a51-8879-45b2-9a13-02c346cf647a,2026-07-06,2026-07-06 21:16:49,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,ESTI SUKISWATI,3820243385,Andara 2,Andara,Dewasa,Perempuan
+98de91e7-1b0d-4074-bea4-929971044790,2026-07-06,2026-07-06 21:16:54,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,HALIYAH,3820238249,Andara 2,Andara,Dewasa,Perempuan
+a6cc474c-341b-4308-ae51-2ed30f1adb48,2026-07-06,2026-07-06 21:16:54,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,IBNU ALI BADAR,3820266395,Andara 2,Andara,Dewasa,Laki-laki
+d77f4368-039f-4152-a3c3-03bec9dbde4e,2026-07-06,2026-07-06 21:16:55,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,IBNU FAUZAN,3820290867,Andara 2,Andara,Dewasa,Laki-laki
+99d6e41b-120f-4ed7-a904-3e5d88cfbda0,2026-07-06,2026-07-06 21:16:57,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,IFAN TIRTA ADI,3820295150,Andara 2,Andara,Dewasa,Laki-laki
+645b2b09-347b-4988-98dc-b0995a34f65a,2026-07-06,2026-07-06 21:17:01,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,ISNAINI ASWI NUR HASANI,3819545841,Andara 2,Andara,Dewasa,Perempuan
+582e8128-6848-461d-bcc7-2e356cf32165,2026-07-06,2026-07-06 21:17:04,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,JOKO SANTOSO BUDI UTOMO,3820234121,Andara 2,Andara,Dewasa,Laki-laki
+6c228c40-84c9-4811-b34c-d3c01d9708fc,2026-07-06,2026-07-06 21:17:06,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,KOSIM MUH SHOBIRIN,4096765913,Andara 2,Andara,Lansia,Laki-laki
+be257a68-c3b4-4d95-8e0e-d8ead7507dda,2026-07-06,2026-07-06 21:17:08,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,LAZUARDI IMANI,3820236241,Andara 2,Andara,Dewasa,Laki-laki
+1d976654-c87a-41cc-8263-3045e3c14e79,2026-07-06,2026-07-06 21:17:15,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,M. IHSAN RATNO SAPUTRO,3820259995,Andara 2,Andara,Dewasa,Laki-laki
+2b8a3cc4-579a-4687-bd01-554fcc06151f,2026-07-06,2026-07-06 21:17:16,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,MARKHAMAH,3820293709,Andara 2,Andara,Dewasa,Perempuan
+8014663b-397e-45ba-8d23-3959514cdd5a,2026-07-06,2026-07-06 21:17:19,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,MUHAMMAD MIFTAHUL FAIZ,3819507036,Andara 2,Andara,Dewasa,Laki-laki
+2cb44655-8b58-45cf-894a-45e0d666d482,2026-07-06,2026-07-06 21:17:36,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,NURHASAN HABI BULOH,3820256835,Andara 2,Andara,Dewasa,Laki-laki
+b4c77107-ca96-4142-ae18-c373d982ac3a,2026-07-06,2026-07-06 21:17:40,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,PAMIYARTI,3820272769,Andara 2,Andara,Dewasa,Perempuan
+3ba31a3d-8bb4-461f-8c97-f097b1b81864,2026-07-06,2026-07-06 21:17:45,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,RAHMAN HARI CAHYANA,3820254130,Andara 2,Andara,Dewasa,Laki-laki
+7d50e395-0153-4772-8a91-80a6798d33fa,2026-07-06,2026-07-06 21:17:46,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,RAHMAT DASUKI,3820303009,Andara 2,Andara,Dewasa,Laki-laki
+7b692d5a-cc0a-445d-9229-283a7929f462,2026-07-06,2026-07-06 21:17:47,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,RATNA DHITA CATUR RANI,3820267191,Andara 2,Andara,Dewasa,Perempuan
+0ac2ef2f-4545-4f2d-aefa-ceaf4248a6f9,2026-07-06,2026-07-06 21:17:49,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,REVINA HERTANTRI,3820169043,Andara 2,Andara,Dewasa,Perempuan
+26f7e5e1-1b22-4e24-b6f5-c6e13b6eab97,2026-07-06,2026-07-06 21:17:57,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,SINTANI AYU FAUZIA,3820273568,Andara 2,Andara,Dewasa,Perempuan
+f49c56cf-4984-493b-8f85-6af87f77f631,2026-07-06,2026-07-06 21:17:59,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,SRI LESTARI,3819499549,Andara 2,Andara,Dewasa,Perempuan
+c5369911-47aa-4aaf-a435-70d2b37378f2,2026-07-06,2026-07-06 21:18:03,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,SUWARDI,4096763398,Andara 2,Andara,Lansia,Laki-laki
+5a811d53-20d8-4dc7-82c4-0f5cd9ddccc8,2026-07-06,2026-07-06 21:18:07,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,WARNO,3819475707,Andara 2,Andara,Lansia,Laki-laki
+333dabdb-7ddd-433c-b6e4-361f30fdb152,2026-07-06,2026-07-06 21:18:13,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,YENIAWATI,3820355219,Andara 2,Andara,Dewasa,Perempuan
+820584e0-16a2-4185-a888-30a8c40b6ce0,2026-07-06,2026-07-06 21:18:38,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,ADRIAN MAULANA PUTRA,3820307313,Andara 2,Andara,Pra Nikah,Laki-laki
+c23d26e0-e1d9-46a1-84c8-2719bd808aed,2026-07-06,2026-07-06 21:30:06,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,SUWARDI,4096763398,Andara 2,Andara,Lansia,Laki-laki
+439f9643-a689-42a5-a237-e27ff5ae6611,2026-07-06,2026-07-06 21:30:11,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,ANNISA UL HUSNA,3820278410,Andara 2,Andara,Pra Nikah,Perempuan
+74e3e6c3-f320-42ca-bb93-0868c86c27ab,2026-07-06,2026-07-06 21:30:13,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,ANAH SITI ROHANAH,3819510051,Andara 2,Andara,Dewasa,Perempuan
+8e8398df-e6d4-4574-8fe8-3d96335193b6,2026-07-06,2026-07-06 21:30:22,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,KOSIM MUH SHOBIRIN,4096765913,Andara 2,Andara,Lansia,Laki-laki
+7686af93-9d47-4fd5-8eb8-c6d33f26eb87,2026-07-06,2026-07-06 21:30:27,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,JOKO SANTOSO BUDI UTOMO,3820234121,Andara 2,Andara,Dewasa,Laki-laki
+2b9788d1-38f1-4f42-82e5-b2c6d065e44d,2026-07-06,2026-07-06 21:30:31,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,RAHMAN HARI CAHYANA,3820254130,Andara 2,Andara,Dewasa,Laki-laki
+0fecf676-e9e6-4159-9dbe-a38ffad42306,2026-07-06,2026-07-06 21:30:35,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,ANDI,3820298915,Andara 2,Andara,Lansia,Laki-laki
+d28862c0-12d4-4d4f-b705-b6e6520e9f10,2026-07-06,2026-07-06 21:30:46,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,NUR AFIFAH WIJAYANTI,4096390676,Andara 2,Andara,Pra Nikah,Perempuan
+6d5b038c-6a25-4538-8d15-be8f9c7f386e,2026-07-06,2026-07-06 21:30:48,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,DEDI CAHYANTO,4096729274,Andara 2,Andara,Dewasa,Laki-laki
+0aa4026f-929d-4a2a-9855-b53525c7039a,2026-07-06,2026-07-06 21:30:53,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,DIDIK PUJI ISTANTO,4096756492,Andara 2,Andara,Lansia,Laki-laki
+267a1605-edb4-4a52-9fed-66b4f8604dbd,2026-07-06,2026-07-06 21:31:15,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,LIZA MARINA,4096713242,Andara 2,Andara,Lansia,Perempuan
+66222860-c415-4298-b7a1-6077aea63c85,2026-07-06,2026-07-06 21:31:18,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,LATIFAH ASMARANI,3820351458,Andara 2,Andara,Pra Nikah,Perempuan
+05fd45ad-9f15-4f61-96f3-7f09f5b887e9,2026-07-06,2026-07-06 21:31:20,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,DESTYA INDRIATI,3820179195,Andara 2,Andara,Pra Nikah,Perempuan
+89fd1792-5d34-42b8-b471-d3082e1c6549,2026-07-06,2026-07-06 21:31:32,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,ESTI SUKISWATI,3820243385,Andara 2,Andara,Dewasa,Perempuan
+11a57a54-c55b-4c58-9492-3fb02a90a2e1,2026-07-06,2026-07-06 21:31:34,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,SRI LESTARI,3819499549,Andara 2,Andara,Dewasa,Perempuan
+35f4b215-0180-4e96-ad00-e1f03411dfcf,2026-07-06,2026-07-06 21:31:56,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,SUTINEM,3820211322,Andara 2,Andara,Dewasa,Perempuan
+464c1ee6-18db-4d51-a3b0-57979ff7a9f0,2026-07-06,2026-07-06 21:33:06,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,ADRIAN MAULANA PUTRA,3820307313,Andara 2,Andara,Pra Nikah,Laki-laki
+2c1f0036-061d-44cf-8b38-1368b35e350b,2026-07-06,2026-07-06 21:33:13,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,ALVIN JANUAR RIZQI,3820258180,Andara 2,Andara,Pra Nikah,Laki-laki
+85b8ec2c-fc44-4866-80ac-76f538ef696e,2026-07-06,2026-07-06 21:36:18,Hadir,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,AHATHO SITATI YANTO,3820238861,Andara 2,Andara,Dewasa,Laki-laki
+f1729c67-1dc6-49ee-82a6-2159adc34ad9,2026-07-06,,Ijin,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,YASSER SABILLA ROSYID,4096718556,Andara 2,Andara,Pra Nikah,Laki-laki
+471fe2d7-8094-4c1f-a3dc-747140f20a90,2026-07-06,,Ijin,cooltirta@gmail.com,58e740df-d3ce-46c6-89b8-3904c0af2b3a,WIJI ATIN,3820274218,Andara 2,Andara,Dewasa,Perempuan

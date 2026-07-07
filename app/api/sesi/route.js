@@ -41,7 +41,50 @@ export async function GET(request) {
       });
     }
 
-    return NextResponse.json(filteredSessions);
+    // Fetch all active jamaah
+    const { rows: allJamaah } = await db.query(
+      "SELECT id, desa, kelompok, jenis_kelamin, status_pernikahan, kategori FROM jamaah WHERE status_kehidupan = 'Hidup';"
+    );
+
+    // Fetch all present attendance records
+    const { rows: presentRows } = await db.query(
+      "SELECT jamaah_id, sesi_id, tanggal FROM kehadiran WHERE status = 'Hadir';"
+    );
+
+    // Map sessions to include attendance stats
+    const sessionsWithStats = filteredSessions.map(s => {
+      const expectedJamaah = allJamaah.filter(j => {
+        const matchesDesa = s.desas.includes(j.desa);
+        const matchesKelompok = s.kelompoks.includes(j.kelompok);
+        const matchesGender = s.genders.includes(j.jenis_kelamin);
+        const matchesMarital = s.marital_statuses.includes(j.status_pernikahan);
+        const matchesKategori = s.kategoris.includes(j.kategori);
+        return matchesDesa && matchesKelompok && matchesGender && matchesMarital && matchesKategori;
+      });
+
+      const expectedIds = new Set(expectedJamaah.map(j => j.id));
+
+      const presentCount = presentRows.filter(p => {
+        if (!expectedIds.has(p.jamaah_id)) return false;
+        if (p.sesi_id === s.id) return true;
+        if (!p.sesi_id && p.tanggal === s.tanggal) return true;
+        return false;
+      }).length;
+
+      const expectedCount = expectedJamaah.length;
+      const attendancePercentage = expectedCount > 0 
+        ? Math.round((presentCount / expectedCount) * 100) 
+        : 0;
+
+      return {
+        ...s,
+        totalExpected: expectedCount,
+        totalPresent: presentCount,
+        attendancePercentage
+      };
+    });
+
+    return NextResponse.json(sessionsWithStats);
   } catch (error) {
     console.error("GET /api/sesi error:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });

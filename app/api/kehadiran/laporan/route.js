@@ -20,8 +20,8 @@ export async function GET(request) {
   const desasStr = searchParams.get('desas') || '';
   const kelompoksStr = searchParams.get('kelompoks') || '';
   const gendersStr = searchParams.get('genders') || '';
-  const maritalStatusesStr = searchParams.get('marital_statuses') || '';
-  const kategorisStr = searchParams.get('kategoris') || '';
+  const maritalStatusesStr = searchParams.get('marital_statuses') || searchParams.get('status_pernikahan') || '';
+  const kategorisStr = searchParams.get('kategoris') || searchParams.get('kategori') || '';
   const sesiIdsStr = searchParams.get('sesi_ids') || '';
 
   if (!startDate || !endDate) {
@@ -232,7 +232,10 @@ export async function GET(request) {
       distKategori.TidakHadir[kat] = (distKategori.TidakHadir[kat] || 0) + tidak_hadir;
 
       // Marital status distribution helper
-      const mar = j.status_pernikahan || 'Belum Menikah';
+      let mar = j.status_pernikahan || 'Belum Menikah';
+      if (mar === 'Janda' || mar === 'Duda') {
+        mar = 'Janda/Duda';
+      }
       distStatusPernikahan.Hadir[mar] = (distStatusPernikahan.Hadir[mar] || 0) + hadir;
       distStatusPernikahan.Ijin[mar] = (distStatusPernikahan.Ijin[mar] || 0) + ijin;
       distStatusPernikahan.TidakHadir[mar] = (distStatusPernikahan.TidakHadir[mar] || 0) + tidak_hadir;

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
-import { Users, Home, UserPlus, Search, Edit2, Trash2, X, Plus, AlertTriangle, CheckCircle, Info, Download, ChevronDown } from 'lucide-react';
+import { Users, Home, UserPlus, Search, Edit2, Trash2, X, Plus, AlertTriangle, CheckCircle, Info, Download, Upload, ChevronDown } from 'lucide-react';
 
 export default function DatabasePage() {
   const router = useRouter();
@@ -95,6 +95,9 @@ export default function DatabasePage() {
 
   const [isKeluargaModalOpen, setIsKeluargaModalOpen] = useState(false);
   const [selectedKkId, setSelectedKkId] = useState('');
+  const [isEditKeluargaModalOpen, setIsEditKeluargaModalOpen] = useState(false);
+  const [editingKeluargaId, setEditingKeluargaId] = useState(null);
+  const [formKeluargaName, setFormKeluargaName] = useState('');
 
   const [isMemberModalOpen, setIsMemberModalOpen] = useState(false);
   const [selectedKeluargaId, setSelectedKeluargaId] = useState('');
@@ -637,6 +640,37 @@ export default function DatabasePage() {
     }
   };
 
+  const openEditKeluargaModal = (fam) => {
+    setEditingKeluargaId(fam.id);
+    setFormKeluargaName(fam.nama_keluarga);
+    setIsEditKeluargaModalOpen(true);
+  };
+
+  const handleEditKeluargaSubmit = async (e) => {
+    e.preventDefault();
+    if (!editingKeluargaId || !formKeluargaName.trim()) return;
+
+    try {
+      const res = await fetch(`/api/keluarga/${editingKeluargaId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nama_keluarga: formKeluargaName })
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        showToast("Nama unit keluarga berhasil diperbarui", "success");
+        setIsEditKeluargaModalOpen(false);
+        loadData();
+      } else {
+        showToast(data.error || "Gagal memperbarui nama keluarga", "error");
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("Gagal memperbarui nama keluarga", "error");
+    }
+  };
+
   const handleDeleteKeluarga = async (id) => {
     if (!confirm("Hapus unit keluarga ini? Anggota keluarga yang terhubung akan dilepaskan (tetapi tidak menghapus data jamaah itu sendiri).")) return;
 
@@ -1020,19 +1054,9 @@ export default function DatabasePage() {
               <span>Buat Keluarga Baru</span>
             </button>
           )}
-          {user.can_read_jamaah && activeTab === 'jamaah' && filteredJamaah.length > 0 && (
-            <button 
-              id="btn-print-filtered" 
-              onClick={() => setPrintList(filteredJamaah)} 
-              className="flex items-center gap-2 py-2 px-3.5 font-bold text-xs bg-slate-800 hover:bg-slate-900 text-white rounded-lg shadow-md shadow-slate-800/10 transition-all cursor-pointer"
-            >
-              <Download size={14} />
-              <span>Cetak Semua Kartu ({filteredJamaah.length})</span>
-            </button>
-          )}
           {user.can_create_jamaah && (
             <button id="btn-modal-csv" onClick={openCsvModal} className="flex items-center gap-2 py-2 px-3.5 font-bold text-xs bg-white border border-slate-200 text-slate-650 hover:bg-slate-50 rounded-lg shadow-sm transition-all cursor-pointer">
-              <Download size={14} />
+              <Upload size={14} />
               <span>Upload CSV</span>
             </button>
           )}
@@ -1214,7 +1238,25 @@ export default function DatabasePage() {
               <p className="font-bold text-sm">Tidak ada data jamaah ditemukan.</p>
             </div>
           ) : (
-            <div className="bg-white border border-slate-100 shadow-sm rounded-xl overflow-hidden">
+            <div className="flex flex-col gap-4">
+              {/* Table Action Bar */}
+              <div className="flex justify-between items-center bg-white border border-slate-100 shadow-sm rounded-xl p-4">
+                <span className="text-xs font-bold text-slate-500">
+                  Menampilkan <strong>{filteredJamaah.length}</strong> jamaah sesuai kriteria filter
+                </span>
+                {user.can_read_jamaah && filteredJamaah.length > 0 && (
+                  <button 
+                    id="btn-print-filtered" 
+                    onClick={() => setPrintList(filteredJamaah)} 
+                    className="flex items-center gap-2 py-1.5 px-3.5 font-bold text-xs bg-slate-800 hover:bg-slate-900 text-white rounded-lg shadow-md shadow-slate-800/10 transition-all cursor-pointer active:scale-95"
+                  >
+                    <Download size={13} />
+                    <span>Cetak Semua Kartu ({filteredJamaah.length})</span>
+                  </button>
+                )}
+              </div>
+
+              <div className="bg-white border border-slate-100 shadow-sm rounded-xl overflow-hidden">
               {/* Desktop Table View */}
               <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-left border-collapse">
@@ -1446,6 +1488,7 @@ export default function DatabasePage() {
                 )}
               </div>
             </div>
+            </div>
           )
         ) : activeTab === 'keluarga' ? (
           <>
@@ -1510,20 +1553,34 @@ export default function DatabasePage() {
                 <p className="font-bold text-sm">Belum ada data keluarga dibuat atau tidak sesuai filter.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {filteredKeluarga.map(f => {
-                  return (
-                    <div key={f.id} className="bg-white border border-slate-100 shadow-sm rounded-xl p-5 flex flex-col justify-between min-h-[260px] hover:shadow-md transition-all duration-200">
-                      <div>
-                        {/* Family card Header */}
-                        <div className="flex justify-between items-start mb-4 border-b border-slate-100 pb-3">
-                          <h4 className="font-bold text-slate-800 text-sm leading-tight">{f.nama_keluarga}</h4>
-                          {user.can_delete_keluarga && (
-                            <button className="text-slate-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-slate-50 transition-all shrink-0 cursor-pointer" onClick={() => handleDeleteKeluarga(f.id)} title="Hapus Unit Keluarga">
-                              <Trash2 size={15} />
-                            </button>
-                          )}
-                        </div>
+              <div className="flex flex-col gap-4 w-full">
+                {/* Table Action Bar */}
+                <div className="flex justify-between items-center bg-white border border-slate-100 shadow-sm rounded-xl p-4">
+                  <span className="text-xs font-bold text-slate-500 text-left">
+                    Menampilkan <strong>{filteredKeluarga.length}</strong> unit keluarga sesuai kriteria filter
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                  {filteredKeluarga.map(f => {
+                    return (
+                      <div key={f.id} className="bg-white border border-slate-100 shadow-sm rounded-xl p-5 flex flex-col justify-between min-h-[260px] hover:shadow-md transition-all duration-200">
+                        <div>
+                          {/* Family card Header */}
+                          <div className="flex justify-between items-start mb-4 border-b border-slate-100 pb-3">
+                            <h4 className="font-bold text-slate-800 text-sm leading-tight">{f.nama_keluarga}</h4>
+                            <div className="flex items-center gap-1 shrink-0">
+                              {user.can_update_keluarga && (
+                                <button className="text-slate-400 hover:text-primary p-1.5 rounded-lg hover:bg-slate-50 transition-all cursor-pointer" onClick={() => openEditKeluargaModal(f)} title="Edit Nama Keluarga">
+                                  <Edit2 size={13} />
+                                </button>
+                              )}
+                              {user.can_delete_keluarga && (
+                                <button className="text-slate-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-slate-50 transition-all shrink-0 cursor-pointer" onClick={() => handleDeleteKeluarga(f.id)} title="Hapus Unit Keluarga">
+                                  <Trash2 size={13} />
+                                </button>
+                              )}
+                            </div>
+                          </div>
                         
                         {/* Members list */}
                         <div className="mb-6">
@@ -1579,9 +1636,10 @@ export default function DatabasePage() {
                   );
                 })}
               </div>
-            )}
-          </>
-        ) : (
+            </div>
+          )}
+        </>
+      ) : (
             <div className="flex flex-col gap-6 animate-fadeIn">
               {/* Baseline calculation info badge */}
               <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-start gap-3 text-emerald-850 text-xs font-semibold leading-relaxed">
@@ -2061,6 +2119,39 @@ export default function DatabasePage() {
                 </div>
                 <div className="flex justify-end gap-2.5 border-t border-slate-100 pt-5 mt-2">
                   <button type="button" className="py-2 px-4 font-bold text-xs bg-white border border-slate-200 hover:bg-slate-50 text-slate-650 rounded-lg transition-all" onClick={() => setIsKeluargaModalOpen(false)}>Batal</button>
+                  <button type="submit" className="py-2 px-4 font-bold text-xs bg-primary hover:bg-primary-hover text-white rounded-lg shadow-md shadow-primary/10 transition-all">Simpan</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* 2b. Edit Keluarga Name Modal */}
+      {isEditKeluargaModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-sm p-4 animate-fadeIn">
+          <div className="bg-white rounded-xl border border-slate-100 shadow-xl max-w-md w-full animate-scaleIn">
+            <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100">
+              <h2 className="text-base font-bold text-slate-850 tracking-tight">Ubah Nama Keluarga</h2>
+              <button className="p-1 rounded-lg text-slate-400 hover:bg-slate-50 hover:text-slate-700 transition-colors" onClick={() => setIsEditKeluargaModalOpen(false)}>
+                <X size={18} />
+              </button>
+            </div>
+            <div className="p-6">
+              <form id="edit-keluarga-form" onSubmit={handleEditKeluargaSubmit} className="flex flex-col gap-4 text-left">
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="form-fam-name" className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Nama Unit Keluarga</label>
+                  <input 
+                    type="text" 
+                    id="form-fam-name" 
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-primary outline-none bg-white text-slate-700 text-xs font-bold"
+                    value={formKeluargaName}
+                    onChange={(e) => setFormKeluargaName(e.target.value)}
+                    required
+                    placeholder="Contoh: Keluarga Ahmad"
+                  />
+                </div>
+                <div className="flex justify-end gap-2.5 border-t border-slate-100 pt-5 mt-2">
+                  <button type="button" className="py-2 px-4 font-bold text-xs bg-white border border-slate-200 hover:bg-slate-50 text-slate-650 rounded-lg transition-all" onClick={() => setIsEditKeluargaModalOpen(false)}>Batal</button>
                   <button type="submit" className="py-2 px-4 font-bold text-xs bg-primary hover:bg-primary-hover text-white rounded-lg shadow-md shadow-primary/10 transition-all">Simpan</button>
                 </div>
               </form>

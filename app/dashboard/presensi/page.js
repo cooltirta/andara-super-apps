@@ -1544,9 +1544,16 @@ export default function PresensiPage() {
                             Pukul: {s.waktu_mulai} - {s.waktu_selesai} WIB
                           </span>
                         </div>
-                        <span className={`px-2.5 py-1 rounded-md border text-[10px] font-extrabold uppercase tracking-wider shrink-0 ${badgeColor}`}>
-                          {s.jenis_pengajian}
-                        </span>
+                        <div className="flex flex-col items-end gap-1.5 shrink-0">
+                          <span className={`px-2.5 py-1 rounded-md border text-[10px] font-extrabold uppercase tracking-wider ${badgeColor}`}>
+                            {s.jenis_pengajian}
+                          </span>
+                          {s.attendancePercentage !== undefined && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-pastel-green text-pastel-green-text border border-pastel-green-text/20 shadow-sm">
+                              Hadir: {s.attendancePercentage}%
+                            </span>
+                          )}
+                        </div>
                       </div>
 
                       {/* Criteria Details */}
@@ -2112,7 +2119,7 @@ export default function PresensiPage() {
                     <Calendar size={20} />
                   </div>
                   <div className="flex flex-col">
-                    <span className="text-xl font-bold text-slate-800">{reportData.totalSessions} Hari</span>
+                    <span className="text-xl font-bold text-slate-800">{reportData.totalSessions} Sesi</span>
                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Total Pengajian</span>
                   </div>
                 </div>
