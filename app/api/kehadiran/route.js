@@ -434,8 +434,31 @@ export async function DELETE(request) {
     let paramIdx = 1;
 
     if (sesiId) {
-      deleteQuery += `sesi_id = $${paramIdx++}`;
-      deleteParams.push(sesiId);
+      const { rows: sessionRows } = await db.query("SELECT * FROM sesi WHERE id = $1;", [sesiId]);
+      const querySession = sessionRows[0];
+      
+      if (querySession) {
+        const timeToMinutes = (t) => {
+          if (!t) return 0;
+          const [h, m] = t.split(':').map(Number);
+          return h * 60 + m;
+        };
+        const minutesToTime = (min) => {
+          const h = Math.floor(min / 60);
+          const m = min % 60;
+          return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+        };
+
+        const startMin = timeToMinutes(querySession.waktu_mulai) - 30;
+        const startMinStr = minutesToTime(startMin);
+        const endMinStr = querySession.waktu_selesai;
+
+        deleteQuery += `(sesi_id = $${paramIdx++} OR (sesi_id IS NULL AND tanggal = $${paramIdx++} AND SUBSTRING(waktu_presensi, 12, 5) >= $${paramIdx++} AND SUBSTRING(waktu_presensi, 12, 5) <= $${paramIdx++}))`;
+        deleteParams.push(sesiId, querySession.tanggal, startMinStr, endMinStr);
+      } else {
+        deleteQuery += `sesi_id = $${paramIdx++}`;
+        deleteParams.push(sesiId);
+      }
     } else {
       deleteQuery += `tanggal = $${paramIdx++}`;
       deleteParams.push(date);
