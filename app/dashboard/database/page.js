@@ -988,8 +988,33 @@ export default function DatabasePage() {
         jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
       };
 
-      await html2pdf().from(element).save();
-      showToast("Laporan PDF berhasil diunduh!", "success");
+      // Temporarily disable stylesheets to prevent html2canvas parsing crashes on modern CSS functions (like oklch/lab)
+      const disabledSheets = [];
+      const sheets = Array.from(document.styleSheets);
+      sheets.forEach(sheet => {
+        try {
+          if (!sheet.disabled) {
+            sheet.disabled = true;
+            disabledSheets.push(sheet);
+          }
+        } catch (e) {
+          // ignore CORS issues
+        }
+      });
+
+      try {
+        await html2pdf().from(element).set(opt).save();
+        showToast("Laporan PDF berhasil diunduh!", "success");
+      } finally {
+        // Always restore stylesheets
+        disabledSheets.forEach(sheet => {
+          try {
+            sheet.disabled = false;
+          } catch (e) {
+            // ignore
+          }
+        });
+      }
     } catch (err) {
       console.error(err);
       showToast("Gagal mengunduh laporan PDF: " + err.message, "error");
