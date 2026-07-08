@@ -31,13 +31,7 @@ export default function PresensiPage() {
   const [newSesiMarital, setNewSesiMarital] = useState(['Belum Menikah', 'Menikah', 'Janda/Duda']);
   const [newSesiKategoris, setNewSesiKategoris] = useState(['Balita', 'CBR/PAUD', 'Pra Remaja', 'Remaja', 'Pra Nikah', 'Dewasa', 'Lansia']);
 
-  // Sync Sesi States
-  const [showSyncModal, setShowSyncModal] = useState(false);
-  const [syncingSession, setSyncingSession] = useState(null);
-  const [syncSchedules, setSyncSchedules] = useState([]);
-  const [selectedSyncSchedule, setSelectedSyncSchedule] = useState('');
-  const [loadingSyncSchedules, setLoadingSyncSchedules] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
+
 
   // Input Tab States
   const [selectedDate, setSelectedDate] = useState('');
@@ -662,59 +656,25 @@ export default function PresensiPage() {
   };
 
   // 3d. Sync ke Ngajiku Handlers
-  const handleOpenSyncModal = async (session) => {
-    setSyncingSession(session);
-    setShowSyncModal(true);
-    setLoadingSyncSchedules(true);
-    setSelectedSyncSchedule('');
-    setSyncSchedules([]);
+  const [syncingSessionId, setSyncingSessionId] = useState(null);
+
+  const handleSyncNgajiku = async (session) => {
+    if (syncingSessionId) return;
+    
+    setSyncingSessionId(session.id);
+    showToast("Memulai sinkronisasi otomatis dengan Ngajiku...", "info");
     
     try {
-      const res = await fetch(`/api/sesi/${session.id}/sync`);
-      const data = await res.json();
-      if (res.ok) {
-        setSyncSchedules(data);
-      } else {
-        showToast(data.error || "Gagal mengambil jadwal Ngajiku", "error");
-      }
-    } catch (err) {
-      console.error(err);
-      showToast("Gagal menghubungi server untuk mengambil jadwal", "error");
-    } finally {
-      setLoadingSyncSchedules(false);
-    }
-  };
-
-  const handleExecuteSync = async () => {
-    if (!selectedSyncSchedule) {
-      showToast("Silakan pilih jadwal terlebih dahulu", "error");
-      return;
-    }
-
-    let parsedSchedule;
-    try {
-      parsedSchedule = JSON.parse(selectedSyncSchedule);
-    } catch (e) {
-      showToast("Format jadwal tidak valid", "error");
-      return;
-    }
-
-    setIsSyncing(true);
-    try {
-      const res = await fetch(`/api/sesi/${syncingSession.id}/sync`, {
+      const res = await fetch(`/api/sesi/${session.id}/sync`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tanggal: parsedSchedule.tanggal,
-          kelas: parsedSchedule.kelas
-        })
+        body: JSON.stringify({})
       });
       const data = await res.json();
       if (res.ok) {
         showToast(data.message || "Sinkronisasi berhasil!", "success");
-        setShowSyncModal(false);
         await loadSessions();
-        if (selectedSessionId === syncingSession.id) {
+        if (selectedSessionId === session.id) {
           loadInputAttendance();
         }
       } else {
@@ -724,7 +684,7 @@ export default function PresensiPage() {
       console.error(err);
       showToast("Terjadi kesalahan koneksi server saat sinkronisasi", "error");
     } finally {
-      setIsSyncing(false);
+      setSyncingSessionId(null);
     }
   };
 
@@ -1688,11 +1648,12 @@ export default function PresensiPage() {
                         </button>
 
                         <button
-                          onClick={() => handleOpenSyncModal(s)}
-                          className="flex items-center gap-1 py-1 px-2 rounded text-[11px] font-bold text-teal-650 hover:bg-teal-50 transition-colors cursor-pointer"
+                          onClick={() => handleSyncNgajiku(s)}
+                          disabled={syncingSessionId !== null}
+                          className="flex items-center gap-1 py-1 px-2 rounded text-[11px] font-bold text-teal-650 hover:bg-teal-50 transition-colors cursor-pointer disabled:opacity-50"
                           title="Sync ke Ngajiku"
                         >
-                          <RefreshCw size={12} />
+                          <RefreshCw size={12} className={syncingSessionId === s.id ? "animate-spin" : ""} />
                           <span>Sync</span>
                         </button>
 
@@ -1729,88 +1690,7 @@ export default function PresensiPage() {
         </div>
       )}
 
-      {/* Sync Sesi Modal */}
-      {showSyncModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl p-6 flex flex-col gap-5 animate-scaleIn">
-            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-              <h2 className="text-base font-black text-slate-800">Sinkronisasi Kehadiran Ngajiku</h2>
-              <button 
-                onClick={() => setShowSyncModal(false)}
-                className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-all"
-                disabled={isSyncing}
-              >
-                <X size={18} />
-              </button>
-            </div>
 
-            {syncingSession && (
-              <div className="text-xs font-bold text-slate-500 flex flex-col gap-1.5">
-                <div>
-                  <span className="text-[10px] text-slate-400 block uppercase">Sesi Target</span>
-                  <span className="text-slate-700 font-semibold">{syncingSession.jenis_pengajian} ({syncingSession.tanggal})</span>
-                </div>
-                <div>
-                  <span className="text-[10px] text-slate-400 block uppercase">Kelompok</span>
-                  <span className="text-slate-700 font-semibold">{syncingSession.kelompoks.join(', ')}</span>
-                </div>
-              </div>
-            )}
-
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-black text-slate-700">Pilih Jadwal Sambung di Ngajiku:</label>
-              {loadingSyncSchedules ? (
-                <div className="flex items-center gap-2 py-3 justify-center text-xs font-bold text-slate-400">
-                  <RefreshCw size={14} className="animate-spin text-teal-650" />
-                  <span>Mengambil jadwal dari Ngajiku...</span>
-                </div>
-              ) : syncSchedules.length === 0 ? (
-                <div className="bg-slate-50 rounded-xl p-4 text-center text-xs font-bold text-slate-450">
-                  Tidak ada jadwal yang cocok untuk kelompok ini di Ngajiku.
-                </div>
-              ) : (
-                <select
-                  value={selectedSyncSchedule}
-                  onChange={(e) => setSelectedSyncSchedule(e.target.value)}
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 focus:outline-none focus:border-primary"
-                  disabled={isSyncing}
-                >
-                  <option value="">-- Pilih Jadwal Sambung --</option>
-                  {syncSchedules.map((sc, index) => (
-                    <option key={index} value={JSON.stringify(sc)}>
-                      {sc.kelas} ({sc.tanggal})
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
-
-            <div className="border-t border-slate-100 pt-4 flex justify-end gap-3">
-              <button
-                onClick={() => setShowSyncModal(false)}
-                className="py-2 px-4 rounded-xl text-xs font-bold border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors cursor-pointer"
-                disabled={isSyncing}
-              >
-                Batal
-              </button>
-              <button
-                onClick={handleExecuteSync}
-                className="py-2 px-4 rounded-xl text-xs font-bold bg-teal-700 text-white hover:bg-teal-850 shadow-md shadow-teal-700/10 transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                disabled={isSyncing || !selectedSyncSchedule || syncSchedules.length === 0}
-              >
-                {isSyncing ? (
-                  <>
-                    <RefreshCw size={12} className="animate-spin" />
-                    <span>Mensinkronisasi...</span>
-                  </>
-                ) : (
-                  <span>Mulai Sinkronisasi</span>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Create Sesi Modal */}
       {showCreateSesiModal && (

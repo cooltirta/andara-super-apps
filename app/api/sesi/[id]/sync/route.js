@@ -26,6 +26,41 @@ async function getSupabaseToken() {
   return loginData.access_token;
 }
 
+function getNgajikuClass(localSession) {
+  const genders = localSession.genders || [];
+  const marital = localSession.marital_statuses || [];
+  const categories = localSession.kategoris || [];
+
+  // 1. Ibu2 Klp: Only Perempuan, Only Menikah
+  if (genders.length === 1 && genders[0] === 'Perempuan') {
+    if (marital.includes('Menikah') && !marital.includes('Belum Menikah')) {
+      return 'Ibu2 Klp';
+    }
+  }
+
+  // 2. Asad Pr: Only Perempuan, contains Pra Nikah/Remaja
+  if (genders.length === 1 && genders[0] === 'Perempuan') {
+    if (categories.includes('Pra Nikah') || categories.includes('Remaja')) {
+      return 'Asad Pr';
+    }
+  }
+
+  // 3. Asad Lk: Only Laki-laki, contains Pra Nikah/Remaja
+  if (genders.length === 1 && genders[0] === 'Laki-laki') {
+    if (categories.includes('Pra Nikah') || categories.includes('Remaja')) {
+      return 'Asad Lk';
+    }
+  }
+
+  // 4. 5 Unsur: Only Menikah (both genders)
+  if (marital.includes('Menikah') && !marital.includes('Belum Menikah')) {
+    return '5 Unsur';
+  }
+
+  // Default
+  return 'Ngaji Klp';
+}
+
 export async function GET(request, { params }) {
   try {
     const emailCookie = request.cookies.get('user_email');
@@ -35,7 +70,7 @@ export async function GET(request, { params }) {
 
     const { id } = await params;
 
-    // 1. Fetch local session to know kelompoks
+    // 1. Fetch local session
     const { rows: sessionRows } = await db.query("SELECT * FROM sesi WHERE id = $1;", [id]);
     const localSession = sessionRows[0];
     if (!localSession) {
@@ -93,46 +128,52 @@ export async function POST(request, { params }) {
     const adminEmail = emailCookie.value;
 
     const { id } = await params;
-    const body = await request.json();
-    const { tanggal, kelas } = body;
-
-    if (!tanggal || !kelas) {
-      return NextResponse.json({ error: "Tanggal dan kelas wajib dipilih" }, { status: 400 });
-    }
-
-    // 1. Fetch local session
+    
+    // 1. Fetch local session details
     const { rows: sessionRows } = await db.query("SELECT * FROM sesi WHERE id = $1;", [id]);
     const localSession = sessionRows[0];
     if (!localSession) {
       return NextResponse.json({ error: "Sesi tidak ditemukan" }, { status: 404 });
     }
 
+    const tanggal = localSession.tanggal;
+    const kelas = getNgajikuClass(localSession);
+    const kelompok = localSession.kelompoks && localSession.kelompoks[0] ? localSession.kelompoks[0] : "";
+
+    if (!kelompok) {
+      return NextResponse.json({ error: "Kelompok pada sesi lokal kosong" }, { status: 400 });
+    }
+
     // 2. Login to Supabase
     const token = await getSupabaseToken();
 
-    // 3. Fetch live jamaah list to map liveId -> Name
-    const kelompoksParam = localSession.kelompoks.map(k => `"${k}"`).join(',');
-    const jamaahUrl = `${supabaseUrl}/rest/v1/jamaah?select=id,nama&kelompok=in.(${kelompoksParam})`;
-    const jamRes = await fetch(jamaahUrl, {
+    // 3. Fetch live jamaah of this kelompok from Supabase to map liveId -> Name
+    const liveJamaahUrl = `${supabaseUrl}/rest/v1/jamaah?select=id,nama&kelompok=eq.${encodeURIComponent(kelompok)}`;
+    const liveJamRes = await fetch(liveJamaahUrl, {
       headers: {
         "apikey": supabaseKey,
         "Authorization": `Bearer ${token}`
       }
     });
 
-    if (!jamRes.ok) {
-      const errText = await jamRes.text();
+    if (!liveJamRes.ok) {
+      const errText = await liveJamRes.text();
       return NextResponse.json({ error: `Gagal menarik data jamaah dari Supabase: ${errText}` }, { status: 500 });
     }
 
-    const liveJamaah = await jamRes.json();
+    const liveJamaahList = await liveJamRes.json();
     const liveIdToNameMap = {};
-    liveJamaah.forEach(j => {
-      liveIdToNameMap[j.id] = j.nama ? j.nama.trim().toLowerCase() : "";
+    const liveNameToIdMap = {};
+    liveJamaahList.forEach(j => {
+      const sanitizedName = j.nama ? j.nama.trim().toLowerCase() : "";
+      liveIdToNameMap[j.id] = sanitizedName;
+      if (sanitizedName) {
+        liveNameToIdMap[sanitizedName] = j.id;
+      }
     });
 
-    // 4. Fetch live presence records
-    const presenceUrl = `${supabaseUrl}/rest/v1/presensi?kelompok=in.(${kelompoksParam})&kelas=eq.${encodeURIComponent(kelas)}&tanggal=eq.${tanggal}`;
+    // 4. Fetch live presence records from Supabase for this date/kelas/kelompok
+    const presenceUrl = `${supabaseUrl}/rest/v1/presensi?kelompok=eq.${encodeURIComponent(kelompok)}&kelas=eq.${encodeURIComponent(kelas)}&tanggal=eq.${tanggal}`;
     const presRes = await fetch(presenceUrl, {
       headers: {
         "apikey": supabaseKey,
@@ -146,13 +187,6 @@ export async function POST(request, { params }) {
     }
 
     const livePresences = await presRes.json();
-    const nameToStatusMap = {};
-    livePresences.forEach(p => {
-      const name = liveIdToNameMap[p.jamaahId];
-      if (name) {
-        nameToStatusMap[name] = p.status; // 'H', 'I', 'A'
-      }
-    });
 
     // 5. Fetch local jamaah in scope
     const localJamaahQuery = `
@@ -175,84 +209,212 @@ export async function POST(request, { params }) {
 
     // 6. Fetch existing local attendance for this session
     const { rows: existingKehadiran } = await db.query(
-      "SELECT id, jamaah_id FROM kehadiran WHERE sesi_id = $1;",
+      "SELECT id, jamaah_id, status FROM kehadiran WHERE sesi_id = $1;",
       [id]
     );
     const existingMap = {};
     existingKehadiran.forEach(k => {
-      existingMap[k.jamaah_id] = k.id;
+      existingMap[k.jamaah_id] = k;
     });
 
-    // 7. Perform PostgreSQL transaction to update
-    await db.query("BEGIN;");
-    try {
-      // A. Update local session date
-      await db.query("UPDATE sesi SET tanggal = $1 WHERE id = $2;", [tanggal, id]);
+    // Check if there are local marked presence records (status: 'Hadir' or 'Ijin')
+    const hasLocalMarkedAttendance = existingKehadiran.some(k => k.status === 'Hadir' || k.status === 'Ijin');
 
-      // B. Update/Insert/Delete attendance records
-      for (const lj of localJamaahs) {
-        const nameKey = lj.nama_lengkap.trim().toLowerCase();
-        const liveStatus = nameToStatusMap[nameKey]; // 'H', 'I', 'A' or undefined
+    if (hasLocalMarkedAttendance) {
+      // CASE A: Push local presence to Supabase Ngajiku
+      console.log(`Pushing Andara presence to Ngajiku for date ${tanggal}, kelas ${kelas}, kelompok ${kelompok}...`);
+      
+      const livePresencesByJamaahId = {};
+      livePresences.forEach(p => {
+        livePresencesByJamaahId[p.jamaahId] = p;
+      });
 
-        // Status mapping
-        let localStatus = 'Tidak Hadir';
-        if (liveStatus === 'H') {
-          localStatus = 'Hadir';
-        } else if (liveStatus === 'I') {
-          localStatus = 'Ijin';
+      // Prepare local attendance status by name map
+      const localNameToStatusMap = {};
+      localJamaahs.forEach(lj => {
+        const existingK = existingMap[lj.jamaah_id];
+        let status = 'A'; // default 'Alpha'
+        if (existingK) {
+          if (existingK.status === 'Hadir') status = 'H';
+          if (existingK.status === 'Ijin') status = 'I';
         }
+        localNameToStatusMap[lj.nama_lengkap.trim().toLowerCase()] = status;
+      });
 
-        const existingId = existingMap[lj.jamaah_id];
+      // Update or insert records in Supabase
+      for (const sj of liveJamaahList) {
+        const sanitizedName = sj.nama ? sj.nama.trim().toLowerCase() : "";
+        const targetStatus = localNameToStatusMap[sanitizedName] || 'A';
+        const existingLive = livePresencesByJamaahId[sj.id];
 
-        if (localStatus === 'Tidak Hadir') {
-          // Absent - delete row if exists in local PostgreSQL db
-          if (existingId) {
-            await db.query("DELETE FROM kehadiran WHERE id = $1;", [existingId]);
+        if (existingLive) {
+          // If status is different, update it
+          if (existingLive.status !== targetStatus) {
+            const updateUrl = `${supabaseUrl}/rest/v1/presensi?id=eq.${existingLive.id}`;
+            await fetch(updateUrl, {
+              method: 'PATCH',
+              headers: {
+                "apikey": supabaseKey,
+                "Authorization": `Bearer ${token}`,
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({ status: targetStatus })
+            });
           }
         } else {
-          // Hadir or Ijin
-          let timeVal = null;
-          if (localStatus === 'Hadir') {
-            timeVal = `${tanggal} 08:00:00`; // Default time representation
-          }
-          
-          if (existingId) {
-            // Update
-            await db.query(
-              "UPDATE kehadiran SET status = $1, waktu_presensi = $2, recorded_by = $3 WHERE id = $4;",
-              [localStatus, timeVal, adminEmail, existingId]
-            );
-          } else {
-            // Insert
-            const newId = crypto.randomUUID();
-            await db.query(
-              "INSERT INTO kehadiran (id, jamaah_id, tanggal, waktu_presensi, status, recorded_by, sesi_id) VALUES ($1, $2, $3, $4, $5, $6, $7);",
-              [newId, lj.jamaah_id, tanggal, timeVal, localStatus, adminEmail, id]
-            );
-          }
+          // Insert new record
+          const insertUrl = `${supabaseUrl}/rest/v1/presensi`;
+          const newId = `pres-${crypto.randomBytes(5).toString('hex').slice(0, 9)}`;
+          await fetch(insertUrl, {
+            method: 'POST',
+            headers: {
+              "apikey": supabaseKey,
+              "Authorization": `Bearer ${token}`,
+              "Content-Type": "application/json",
+              "Prefer": "return=minimal"
+            },
+            body: JSON.stringify({
+              id: newId,
+              jamaahId: sj.id,
+              tanggal: tanggal,
+              kelas: kelas,
+              status: targetStatus,
+              kelompok: kelompok
+            })
+          });
         }
       }
 
-      await db.query("COMMIT;");
-    } catch (txErr) {
-      await db.query("ROLLBACK;");
-      throw txErr;
+      await logActivity(
+        adminEmail, 
+        'SYNC_ATTENDANCE', 
+        'KEHADIRAN', 
+        id, 
+        `Sinkronisasi otomatis (PUSH): Berhasil mengunggah data absensi kelompok ${kelompok} kelas ${kelas} ke Ngajiku.`
+      );
+
+      return NextResponse.json({
+        success: true,
+        message: `Sinkronisasi berhasil! Absensi kelompok ${kelompok} (${kelas}) telah diunggah ke Ngajiku.`
+      });
+
+    } else {
+      // CASE B: Pull Ngajiku presence to local
+      console.log(`Pulling Ngajiku presence to Andara for date ${tanggal}, kelas ${kelas}, kelompok ${kelompok}...`);
+
+      // If no schedule exists in Ngajiku, create it as default Alpha ('A') so that it's initialized
+      if (livePresences.length === 0) {
+        console.log(`No schedule found in Ngajiku. Initializing default Alpha schedule...`);
+        const insertBatch = [];
+        for (const sj of liveJamaahList) {
+          const newId = `pres-${crypto.randomBytes(5).toString('hex').slice(0, 9)}`;
+          insertBatch.push({
+            id: newId,
+            jamaahId: sj.id,
+            tanggal: tanggal,
+            kelas: kelas,
+            status: 'A',
+            kelompok: kelompok
+          });
+        }
+
+        if (insertBatch.length > 0) {
+          const insertUrl = `${supabaseUrl}/rest/v1/presensi`;
+          await fetch(insertUrl, {
+            method: 'POST',
+            headers: {
+              "apikey": supabaseKey,
+              "Authorization": `Bearer ${token}`,
+              "Content-Type": "application/json",
+              "Prefer": "return=minimal"
+            },
+            body: JSON.stringify(insertBatch)
+          });
+        }
+      }
+
+      // Re-fetch live presences after potential initialization
+      let actualLivePresences = livePresences;
+      if (livePresences.length === 0) {
+        const refetchRes = await fetch(presenceUrl, {
+          headers: {
+            "apikey": supabaseKey,
+            "Authorization": `Bearer ${token}`
+          }
+        });
+        if (refetchRes.ok) {
+          actualLivePresences = await refetchRes.json();
+        }
+      }
+
+      const nameToStatusMap = {};
+      actualLivePresences.forEach(p => {
+        const name = liveIdToNameMap[p.jamaahId];
+        if (name) {
+          nameToStatusMap[name] = p.status;
+        }
+      });
+
+      // Update local PostgreSQL database
+      await db.query("BEGIN;");
+      try {
+        for (const lj of localJamaahs) {
+          const nameKey = lj.nama_lengkap.trim().toLowerCase();
+          const liveStatus = nameToStatusMap[nameKey]; // 'H', 'I', 'A' or undefined
+
+          let localStatus = 'Tidak Hadir';
+          if (liveStatus === 'H') {
+            localStatus = 'Hadir';
+          } else if (liveStatus === 'I') {
+            localStatus = 'Ijin';
+          }
+
+          const existingK = existingMap[lj.jamaah_id];
+
+          if (localStatus === 'Tidak Hadir') {
+            if (existingK) {
+              await db.query("DELETE FROM kehadiran WHERE id = $1;", [existingK.id]);
+            }
+          } else {
+            let timeVal = null;
+            if (localStatus === 'Hadir') {
+              timeVal = `${tanggal} 08:00:00`;
+            }
+
+            if (existingK) {
+              await db.query(
+                "UPDATE kehadiran SET status = $1, waktu_presensi = $2, recorded_by = $3 WHERE id = $4;",
+                [localStatus, timeVal, adminEmail, existingK.id]
+              );
+            } else {
+              const newId = crypto.randomUUID();
+              await db.query(
+                "INSERT INTO kehadiran (id, jamaah_id, tanggal, waktu_presensi, status, recorded_by, sesi_id) VALUES ($1, $2, $3, $4, $5, $6, $7);",
+                [newId, lj.jamaah_id, tanggal, timeVal, localStatus, adminEmail, id]
+              );
+            }
+          }
+        }
+        await db.query("COMMIT;");
+      } catch (txErr) {
+        await db.query("ROLLBACK;");
+        throw txErr;
+      }
+
+      await logActivity(
+        adminEmail, 
+        'SYNC_ATTENDANCE', 
+        'KEHADIRAN', 
+        id, 
+        `Sinkronisasi otomatis (PULL): Berhasil mengunduh data absensi kelompok ${kelompok} kelas ${kelas} dari Ngajiku.`
+      );
+
+      return NextResponse.json({
+        success: true,
+        message: `Sinkronisasi berhasil! Absensi kelompok ${kelompok} (${kelas}) telah diunduh dari Ngajiku.`
+      });
     }
 
-    // Log the sync activity
-    await logActivity(
-      adminEmail, 
-      'SYNC_ATTENDANCE', 
-      'KEHADIRAN', 
-      id, 
-      `Sinkronisasi sesi dengan Ngajiku: ${kelas} (${tanggal}) - Sesi ID: ${id}`
-    );
-
-    return NextResponse.json({
-      success: true,
-      message: "Sinkronisasi dengan Ngajiku berhasil.",
-      syncedCount: localJamaahs.length
-    });
   } catch (error) {
     console.error("POST /api/sesi/[id]/sync error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
