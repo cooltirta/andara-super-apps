@@ -1021,6 +1021,138 @@ export default function DatabasePage() {
     }
   };
 
+  const handleExportCsv = () => {
+    try {
+      showToast("Sedang menyiapkan file CSV...", "info");
+
+      const toTitleCase = (str) => {
+        if (!str) return '';
+        return str.toLowerCase().split(' ').map(word => {
+          return word.charAt(0).toUpperCase() + word.slice(1);
+        }).join(' ');
+      };
+
+      const getNoInduk = (id) => {
+        let hash = 0;
+        for (let i = 0; i < id.length; i++) {
+          hash = id.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        const code = Math.abs(hash) % 90000000 + 10000000;
+        return code.toString();
+      };
+
+      const calculateAge = (birthDateStr) => {
+        if (!birthDateStr) return 0;
+        let birthDate = new Date(birthDateStr);
+        if (isNaN(birthDate.getTime())) {
+          const parts = birthDateStr.split('-');
+          if (parts.length === 3) {
+            if (parts[0].length === 4) {
+              birthDate = new Date(parts[0], parts[1] - 1, parts[2]);
+            } else {
+              birthDate = new Date(parts[2], parts[1] - 1, parts[0]);
+            }
+          }
+        }
+        if (isNaN(birthDate.getTime())) return 0;
+        
+        const today = new Date();
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const m = today.getMonth() - birthDate.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+          age--;
+        }
+        return age;
+      };
+
+      const headers = [
+        "No Induk",
+        "Nama",
+        "Gender",
+        "Kelas",
+        "Sambung",
+        "Kelompok",
+        "Status Pernikahan",
+        "Status Dapukan",
+        "Kepala Keluarga",
+        "Kode RFID"
+      ];
+
+      const csvRows = [headers.join(',')];
+
+      filteredJamaah.forEach(j => {
+        const noInduk = getNoInduk(j.id);
+        const nama = toTitleCase(j.nama_lengkap);
+        const gender = j.jenis_kelamin === 'Laki-laki' ? 'L' : 'P';
+        
+        let kelas = j.kategori;
+        if (j.kategori === 'CBR/PAUD') {
+          const age = calculateAge(j.tanggal_lahir);
+          if (age >= 5 && age <= 6) {
+            kelas = 'AUD';
+          } else {
+            kelas = 'Cabe Rawit';
+          }
+        }
+
+        const sambung = "Ngaji Klp, Hasda Klp, 5 Unsur, Ibu2 Klp, Musy Klp, Musy KBM, Asad Lk, Asad Pr, Hasda Org, Hasda PPG, Ngaji Desa";
+        const kelompok = j.kelompok || '';
+        
+        let statusPernikahan = j.status_pernikahan || 'Belum Menikah';
+        if (statusPernikahan === 'Janda/Duda') {
+          statusPernikahan = j.jenis_kelamin === 'Laki-laki' ? 'Duda' : 'Janda';
+        }
+
+        const statusDapukan = "";
+        const kepalaKeluarga = j.jenis_anggota === 'Kepala Keluarga' ? 'Ya' : 'Tidak';
+        const kodeRfid = j.rfid || '';
+
+        const sanitize = (val) => {
+          if (val === null || val === undefined) return '';
+          const str = String(val).trim();
+          if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+            return `"${str.replace(/"/g, '""')}"`;
+          }
+          return str;
+        };
+
+        const row = [
+          sanitize(noInduk),
+          sanitize(nama),
+          sanitize(gender),
+          sanitize(kelas),
+          sanitize(sambung),
+          sanitize(kelompok),
+          sanitize(statusPernikahan),
+          sanitize(statusDapukan),
+          sanitize(kepalaKeluarga),
+          sanitize(kodeRfid)
+        ];
+
+        csvRows.push(row.join(','));
+      });
+
+      const csvString = csvRows.join('\n');
+      const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvString], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      
+      const now = new Date();
+      const dateSuffix = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+      link.setAttribute("download", `Export_Data_Jamaah_${dateSuffix}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      showToast("Data jamaah berhasil diexport ke CSV!", "success");
+    } catch (error) {
+      console.error(error);
+      showToast("Gagal melakukan export CSV: " + error.message, "error");
+    }
+  };
+
   // Available Desas for statistics filter based on user permissions/monitored scope
   const availableDesas = (() => {
     if (!user) return [];
@@ -1454,6 +1586,13 @@ export default function DatabasePage() {
                       >
                         <FileText size={13} />
                         <span>Download Laporan PDF</span>
+                      </button>
+                      <button 
+                        onClick={handleExportCsv} 
+                        className="flex items-center gap-2 py-1.5 px-3.5 font-bold text-xs bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg shadow-md shadow-emerald-700/10 transition-all cursor-pointer active:scale-95"
+                      >
+                        <Download size={13} />
+                        <span>Export CSV</span>
                       </button>
                       <button 
                         id="btn-print-filtered" 
