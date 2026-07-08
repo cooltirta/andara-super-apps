@@ -128,6 +128,8 @@ export async function POST(request, { params }) {
     const adminEmail = emailCookie.value;
 
     const { id } = await params;
+    const body = await request.json().catch(() => ({}));
+    const requestKelas = body.kelas;
     
     // 1. Fetch local session details
     const { rows: sessionRows } = await db.query("SELECT * FROM sesi WHERE id = $1;", [id]);
@@ -137,7 +139,7 @@ export async function POST(request, { params }) {
     }
 
     const tanggal = localSession.tanggal;
-    const kelas = getNgajikuClass(localSession);
+    const kelas = requestKelas || getNgajikuClass(localSession);
     const kelompok = localSession.kelompoks && localSession.kelompoks[0] ? localSession.kelompoks[0] : "";
 
     if (!kelompok) {
