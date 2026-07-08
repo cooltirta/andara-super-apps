@@ -31,7 +31,11 @@ export default function PresensiPage() {
   const [newSesiMarital, setNewSesiMarital] = useState(['Belum Menikah', 'Menikah', 'Janda/Duda']);
   const [newSesiKategoris, setNewSesiKategoris] = useState(['Balita', 'CBR/PAUD', 'Pra Remaja', 'Remaja', 'Pra Nikah', 'Dewasa', 'Lansia']);
 
-
+  // Sync Sesi States
+  const [showSyncModal, setShowSyncModal] = useState(false);
+  const [syncingSession, setSyncingSession] = useState(null);
+  const [selectedKelas, setSelectedKelas] = useState('Ngaji Klp');
+  const [isSyncing, setIsSyncing] = useState(false);
 
   // Input Tab States
   const [selectedDate, setSelectedDate] = useState('');
@@ -656,25 +660,33 @@ export default function PresensiPage() {
   };
 
   // 3d. Sync ke Ngajiku Handlers
-  const [syncingSessionId, setSyncingSessionId] = useState(null);
+  const handleOpenSyncModal = (session) => {
+    setSyncingSession(session);
+    setSelectedKelas('Ngaji Klp');
+    setShowSyncModal(true);
+  };
 
-  const handleSyncNgajiku = async (session) => {
-    if (syncingSessionId) return;
-    
-    setSyncingSessionId(session.id);
-    showToast("Memulai sinkronisasi otomatis dengan Ngajiku...", "info");
-    
+  const handleExecuteSync = async () => {
+    if (!selectedKelas) {
+      showToast("Silakan pilih Jadwal Sambung terlebih dahulu", "error");
+      return;
+    }
+
+    setIsSyncing(true);
     try {
-      const res = await fetch(`/api/sesi/${session.id}/sync`, {
+      const res = await fetch(`/api/sesi/${syncingSession.id}/sync`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({})
+        body: JSON.stringify({
+          kelas: selectedKelas
+        })
       });
       const data = await res.json();
       if (res.ok) {
         showToast(data.message || "Sinkronisasi berhasil!", "success");
+        setShowSyncModal(false);
         await loadSessions();
-        if (selectedSessionId === session.id) {
+        if (selectedSessionId === syncingSession.id) {
           loadInputAttendance();
         }
       } else {
@@ -684,7 +696,7 @@ export default function PresensiPage() {
       console.error(err);
       showToast("Terjadi kesalahan koneksi server saat sinkronisasi", "error");
     } finally {
-      setSyncingSessionId(null);
+      setIsSyncing(false);
     }
   };
 
@@ -1648,12 +1660,11 @@ export default function PresensiPage() {
                         </button>
 
                         <button
-                          onClick={() => handleSyncNgajiku(s)}
-                          disabled={syncingSessionId !== null}
-                          className="flex items-center gap-1 py-1 px-2 rounded text-[11px] font-bold text-teal-650 hover:bg-teal-50 transition-colors cursor-pointer disabled:opacity-50"
+                          onClick={() => handleOpenSyncModal(s)}
+                          className="flex items-center gap-1 py-1 px-2 rounded text-[11px] font-bold text-teal-650 hover:bg-teal-50 transition-colors cursor-pointer"
                           title="Sync ke Ngajiku"
                         >
-                          <RefreshCw size={12} className={syncingSessionId === s.id ? "animate-spin" : ""} />
+                          <RefreshCw size={12} />
                           <span>Sync</span>
                         </button>
 
@@ -1689,8 +1700,83 @@ export default function PresensiPage() {
         })()}
         </div>
       )}
+      {/* Sync Sesi Modal */}
+      {showSyncModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl p-6 flex flex-col gap-5 animate-scaleIn">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <h2 className="text-base font-black text-slate-800">Sinkronisasi Kehadiran Ngajiku</h2>
+              <button 
+                onClick={() => setShowSyncModal(false)}
+                className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-all"
+                disabled={isSyncing}
+              >
+                <X size={18} />
+              </button>
+            </div>
 
+            {syncingSession && (
+              <div className="text-xs font-bold text-slate-500 flex flex-col gap-1.5">
+                <div>
+                  <span className="text-[10px] text-slate-400 block uppercase">Sesi Target</span>
+                  <span className="text-slate-700 font-semibold">{syncingSession.jenis_pengajian} ({syncingSession.tanggal})</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400 block uppercase">Kelompok</span>
+                  <span className="text-slate-700 font-semibold">{syncingSession.kelompoks.join(', ')}</span>
+                </div>
+              </div>
+            )}
 
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-black text-slate-700">Jadwal Sambung (Jenis Kelas):</label>
+              <select
+                value={selectedKelas}
+                onChange={(e) => setSelectedKelas(e.target.value)}
+                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-700 focus:outline-none focus:border-primary bg-white cursor-pointer"
+                disabled={isSyncing}
+              >
+                <option value="">-- Pilih Sambung --</option>
+                <option value="Ngaji Klp">Ngaji Klp</option>
+                <option value="Hasda Klp">Hasda Klp</option>
+                <option value="5 Unsur">5 Unsur</option>
+                <option value="Ibu2 Klp">Ibu2 Klp</option>
+                <option value="Musy Klp">Musy Klp</option>
+                <option value="Musy KBM">Musy KBM</option>
+                <option value="Asad Lk">Asad Lk</option>
+                <option value="Asad Pr">Asad Pr</option>
+                <option value="Hasda Org">Hasda Org</option>
+                <option value="Hasda PPG">Hasda PPG</option>
+                <option value="Ngaji Desa">Ngaji Desa</option>
+              </select>
+            </div>
+
+            <div className="border-t border-slate-100 pt-4 flex justify-end gap-3">
+              <button
+                onClick={() => setShowSyncModal(false)}
+                className="py-2 px-4 rounded-xl text-xs font-bold border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors cursor-pointer"
+                disabled={isSyncing}
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleExecuteSync}
+                className="py-2 px-4 rounded-xl text-xs font-bold bg-teal-700 text-white hover:bg-teal-850 shadow-md shadow-teal-700/10 transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                disabled={isSyncing || !selectedKelas}
+              >
+                {isSyncing ? (
+                  <>
+                    <RefreshCw size={12} className="animate-spin" />
+                    <span>Sinkronisasi...</span>
+                  </>
+                ) : (
+                  <span>Mulai Sinkronisasi</span>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Create Sesi Modal */}
       {showCreateSesiModal && (
