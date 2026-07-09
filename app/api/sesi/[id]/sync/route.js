@@ -3,6 +3,8 @@ import db from '@/lib/db';
 import { logActivity } from '@/lib/activity';
 import crypto from 'crypto';
 
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
 export const dynamic = 'force-dynamic';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -243,47 +245,62 @@ export async function POST(request, { params }) {
         localNameToStatusMap[lj.nama_lengkap.trim().toLowerCase()] = status;
       });
 
-      // Update or insert records in Supabase
+      // Update, insert, or delete records in Supabase (only sync non-Alpha H/I)
       for (const sj of liveJamaahList) {
         const sanitizedName = sj.nama ? sj.nama.trim().toLowerCase() : "";
         const targetStatus = localNameToStatusMap[sanitizedName] || 'A';
         const existingLive = livePresencesByJamaahId[sj.id];
 
-        if (existingLive) {
-          // If status is different, update it
-          if (existingLive.status !== targetStatus) {
-            const updateUrl = `${supabaseUrl}/rest/v1/presensi?id=eq.${existingLive.id}`;
-            await fetch(updateUrl, {
-              method: 'PATCH',
+        if (targetStatus === 'H' || targetStatus === 'I') {
+          if (existingLive) {
+            // If status is different, update it
+            if (existingLive.status !== targetStatus) {
+              const updateUrl = `${supabaseUrl}/rest/v1/presensi?id=eq.${existingLive.id}`;
+              await fetch(updateUrl, {
+                method: 'PATCH',
+                headers: {
+                  "apikey": supabaseKey,
+                  "Authorization": `Bearer ${token}`,
+                  "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ status: targetStatus })
+              });
+            }
+          } else {
+            // Insert new record
+            const insertUrl = `${supabaseUrl}/rest/v1/presensi`;
+            const newId = `pres-${crypto.randomBytes(5).toString('hex').slice(0, 9)}`;
+            await fetch(insertUrl, {
+              method: 'POST',
               headers: {
                 "apikey": supabaseKey,
                 "Authorization": `Bearer ${token}`,
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
+                "Prefer": "return=minimal"
               },
-              body: JSON.stringify({ status: targetStatus })
+              body: JSON.stringify({
+                id: newId,
+                jamaahId: sj.id,
+                tanggal: tanggal,
+                kelas: kelas,
+                status: targetStatus,
+                kelompok: kelompok
+              })
             });
           }
         } else {
-          // Insert new record
-          const insertUrl = `${supabaseUrl}/rest/v1/presensi`;
-          const newId = `pres-${crypto.randomBytes(5).toString('hex').slice(0, 9)}`;
-          await fetch(insertUrl, {
-            method: 'POST',
-            headers: {
-              "apikey": supabaseKey,
-              "Authorization": `Bearer ${token}`,
-              "Content-Type": "application/json",
-              "Prefer": "return=minimal"
-            },
-            body: JSON.stringify({
-              id: newId,
-              jamaahId: sj.id,
-              tanggal: tanggal,
-              kelas: kelas,
-              status: targetStatus,
-              kelompok: kelompok
-            })
-          });
+          // targetStatus is 'A' (Alpha). We don't want it to exist in Supabase!
+          if (existingLive) {
+            // Delete record
+            const deleteUrl = `${supabaseUrl}/rest/v1/presensi?id=eq.${existingLive.id}`;
+            await fetch(deleteUrl, {
+              method: 'DELETE',
+              headers: {
+                "apikey": supabaseKey,
+                "Authorization": `Bearer ${token}`
+              }
+            });
+          }
         }
       }
 
@@ -304,53 +321,8 @@ export async function POST(request, { params }) {
       // CASE B: Pull Ngajiku presence to local
       console.log(`Pulling Ngajiku presence to Andara for date ${tanggal}, kelas ${kelas}, kelompok ${kelompok}...`);
 
-      // If no schedule exists in Ngajiku, create it as default Alpha ('A') so that it's initialized
-      if (livePresences.length === 0) {
-        console.log(`No schedule found in Ngajiku. Initializing default Alpha schedule...`);
-        const insertBatch = [];
-        for (const sj of liveJamaahList) {
-          const newId = `pres-${crypto.randomBytes(5).toString('hex').slice(0, 9)}`;
-          insertBatch.push({
-            id: newId,
-            jamaahId: sj.id,
-            tanggal: tanggal,
-            kelas: kelas,
-            status: 'A',
-            kelompok: kelompok
-          });
-        }
-
-        if (insertBatch.length > 0) {
-          const insertUrl = `${supabaseUrl}/rest/v1/presensi`;
-          await fetch(insertUrl, {
-            method: 'POST',
-            headers: {
-              "apikey": supabaseKey,
-              "Authorization": `Bearer ${token}`,
-              "Content-Type": "application/json",
-              "Prefer": "return=minimal"
-            },
-            body: JSON.stringify(insertBatch)
-          });
-        }
-      }
-
-      // Re-fetch live presences after potential initialization
-      let actualLivePresences = livePresences;
-      if (livePresences.length === 0) {
-        const refetchRes = await fetch(presenceUrl, {
-          headers: {
-            "apikey": supabaseKey,
-            "Authorization": `Bearer ${token}`
-          }
-        });
-        if (refetchRes.ok) {
-          actualLivePresences = await refetchRes.json();
-        }
-      }
-
       const nameToStatusMap = {};
-      actualLivePresences.forEach(p => {
+      livePresences.forEach(p => {
         const name = liveIdToNameMap[p.jamaahId];
         if (name) {
           nameToStatusMap[name] = p.status;
