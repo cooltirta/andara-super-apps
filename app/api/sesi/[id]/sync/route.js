@@ -304,17 +304,38 @@ export async function POST(request, { params }) {
         }
       }
 
+      const localCount = Object.values(localNameToStatusMap).filter(status => status === 'H' || status === 'I').length;
+
+      // Re-fetch to get the final synced counts in Supabase
+      const finalRes = await fetch(presenceUrl, {
+        headers: {
+          "apikey": supabaseKey,
+          "Authorization": `Bearer ${token}`
+        }
+      });
+      let supabaseCount = 0;
+      if (finalRes.ok) {
+        const finalPresences = await finalRes.json();
+        supabaseCount = finalPresences.filter(p => p.status === 'H' || p.status === 'I').length;
+      }
+
+      const diffMsg = localCount === supabaseCount
+        ? `Seluruh data (${localCount} orang) telah sinkron sempurna antara Andara & Ngajiku.`
+        : `⚠️ Perhatian! Ada perbedaan data: Andara memiliki ${localCount} data hadir/izin, sedangkan Ngajiku mendeteksi ${supabaseCount} data. Silakan sinkronkan kembali jika diperlukan.`;
+
       await logActivity(
         adminEmail, 
         'SYNC_ATTENDANCE', 
         'KEHADIRAN', 
         id, 
-        `Sinkronisasi otomatis (PUSH): Berhasil mengunggah data absensi kelompok ${kelompok} kelas ${kelas} ke Ngajiku.`
+        `Sinkronisasi otomatis (PUSH): Berhasil mengunggah data absensi kelompok ${kelompok} kelas ${kelas} ke Ngajiku. (Local: ${localCount}, Supabase: ${supabaseCount})`
       );
 
       return NextResponse.json({
         success: true,
-        message: `Sinkronisasi berhasil! Absensi kelompok ${kelompok} (${kelas}) telah diunggah ke Ngajiku.`
+        message: `Sinkronisasi selesai! ${diffMsg}`,
+        localCount,
+        supabaseCount
       });
 
     } else {
@@ -375,17 +396,31 @@ export async function POST(request, { params }) {
         throw txErr;
       }
 
+      // Count final local presence records
+      const { rows: localCountRows } = await db.query(
+        "SELECT COUNT(*) as count FROM kehadiran WHERE sesi_id = $1 AND (status = 'Hadir' OR status = 'Ijin');",
+        [id]
+      );
+      const localCount = parseInt(localCountRows[0].count);
+      const supabaseCount = livePresences.filter(p => p.status === 'H' || p.status === 'I').length;
+
+      const diffMsg = localCount === supabaseCount
+        ? `Seluruh data (${localCount} orang) telah sinkron sempurna antara Ngajiku & Andara.`
+        : `⚠️ Perhatian! Ada perbedaan data: Ngajiku memiliki ${supabaseCount} data hadir/izin, sedangkan lokal Andara mendeteksi ${localCount} data.`;
+
       await logActivity(
         adminEmail, 
         'SYNC_ATTENDANCE', 
         'KEHADIRAN', 
         id, 
-        `Sinkronisasi otomatis (PULL): Berhasil mengunduh data absensi kelompok ${kelompok} kelas ${kelas} dari Ngajiku.`
+        `Sinkronisasi otomatis (PULL): Berhasil mengunduh data absensi kelompok ${kelompok} kelas ${kelas} dari Ngajiku. (Local: ${localCount}, Supabase: ${supabaseCount})`
       );
 
       return NextResponse.json({
         success: true,
-        message: `Sinkronisasi berhasil! Absensi kelompok ${kelompok} (${kelas}) telah diunduh dari Ngajiku.`
+        message: `Sinkronisasi selesai! ${diffMsg}`,
+        localCount,
+        supabaseCount
       });
     }
 
