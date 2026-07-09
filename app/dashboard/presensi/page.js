@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Calendar, Search, Users, CheckCircle, AlertTriangle, Info, Clock, Download, RefreshCw, Trash2, X, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Edit2, ArrowLeft } from 'lucide-react';
+import { Calendar, Search, Users, CheckCircle, AlertTriangle, Info, Clock, Download, RefreshCw, Trash2, X, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Edit2, ArrowLeft, Copy } from 'lucide-react';
 
 export default function PresensiPage() {
   const router = useRouter();
@@ -36,6 +36,7 @@ export default function PresensiPage() {
   const [syncingSession, setSyncingSession] = useState(null);
   const [selectedKelas, setSelectedKelas] = useState('Ngaji Klp');
   const [isSyncing, setIsSyncing] = useState(false);
+  const [copyingSessionId, setCopyingSessionId] = useState(null);
 
   // Input Tab States
   const [selectedDate, setSelectedDate] = useState('');
@@ -928,6 +929,48 @@ export default function PresensiPage() {
     }
   };
 
+  const handleCopySesiStatus = async (s) => {
+    if (copyingSessionId) return;
+    setCopyingSessionId(s.id);
+    try {
+      const res = await fetch(`/api/kehadiran?sesi_id=${s.id}`);
+      if (!res.ok) throw new Error("Gagal mengambil data kehadiran");
+      const data = await res.json();
+
+      // Format date in Indonesian
+      const [year, month, day] = s.tanggal.split('-').map(Number);
+      const d = new Date(year, month - 1, day);
+      const dateStr = d.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+      const waktuMulai = s.waktu_mulai; // format 24 jam
+
+      let text = `> 📢 Laporan Kehadiran\nPengajian ${s.jenis_pengajian}\n${dateStr} ${waktuMulai}\n\n`;
+
+      data.forEach(j => {
+        const statusChar = j.presences && j.presences.length > 0
+          ? (j.presences[0].status === 'Hadir' ? '✅' : (j.presences[0].status === 'Ijin' ? '☝️' : '🚫'))
+          : '🚫';
+        text += `${j.nama_lengkap.toUpperCase()} ${statusChar}\n`;
+      });
+
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textArea);
+      }
+      showToast("Laporan kehadiran disalin ke clipboard", "success");
+    } catch (err) {
+      console.error(err);
+      showToast("Gagal menyalin laporan kehadiran", "error");
+    } finally {
+      setCopyingSessionId(null);
+    }
+  };
+
   const filteredInputList = jamaahList.filter(j => {
     const matchName = j.nama_lengkap.toLowerCase().includes(searchName.toLowerCase().trim());
     const matchDesa = filterDesas.length === 0 || filterDesas.includes(j.desa);
@@ -1666,6 +1709,20 @@ export default function PresensiPage() {
                         >
                           <RefreshCw size={12} />
                           <span>Sync</span>
+                        </button>
+
+                        <button
+                          onClick={() => handleCopySesiStatus(s)}
+                          className="flex items-center gap-1 py-1 px-2 rounded text-[11px] font-bold text-indigo-600 hover:bg-indigo-50 transition-colors cursor-pointer"
+                          title="Copy Laporan Kehadiran"
+                          disabled={copyingSessionId === s.id}
+                        >
+                          {copyingSessionId === s.id ? (
+                            <div className="w-3 h-3 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <Copy size={12} />
+                          )}
+                          <span>{copyingSessionId === s.id ? "Copying..." : "Copy"}</span>
                         </button>
 
                         {user.can_delete_kehadiran && (
