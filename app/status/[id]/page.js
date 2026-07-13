@@ -52,63 +52,44 @@ export default async function JamaahStatusPage({ params }) {
     );
   }
 
-  // 2. Fetch all-time presence counts
-  const { rows: presenceCounts } = await db.query(
-    "SELECT status, COUNT(*)::int as count FROM kehadiran WHERE jamaah_id = $1 GROUP BY status;",
+  // 2. Fetch all targeted sessions for this jamaah and their attendance status
+  const { rows: allTargetedSessions } = await db.query(
+    `WITH session_attendance AS (
+      SELECT DISTINCT ON (s.id)
+        s.id as sesi_id, 
+        s.tanggal, 
+        s.jenis_pengajian,
+        s.waktu_mulai,
+        k.status, 
+        k.waktu_presensi
+      FROM sesi s
+      JOIN jamaah j ON j.id = $1
+      LEFT JOIN kehadiran k ON k.jamaah_id = j.id AND (k.sesi_id::text = s.id::text OR (k.sesi_id IS NULL AND k.tanggal = s.tanggal))
+      WHERE j.kelompok = ANY(s.kelompoks)
+        AND j.desa = ANY(s.desas)
+        AND j.jenis_kelamin = ANY(s.genders)
+        AND j.status_pernikahan = ANY(s.marital_statuses)
+        AND j.kategori = ANY(s.kategoris)
+      ORDER BY s.id, k.status DESC, k.waktu_presensi DESC
+    )
+    SELECT * 
+    FROM session_attendance
+    ORDER BY tanggal DESC, waktu_mulai DESC;`,
     [id]
   );
-  
-  const totalHadir = presenceCounts.find(r => r.status === 'Hadir')?.count || 0;
-  const totalIjin = presenceCounts.find(r => r.status === 'Ijin')?.count || 0;
 
-  // 3. Fetch total sessions held for this kelompok
-  const { rows: sessionCounts } = await db.query(
-    `SELECT COUNT(DISTINCT k.tanggal)::int as count 
-     FROM kehadiran k
-     JOIN jamaah j ON k.jamaah_id = j.id
-     WHERE j.kelompok = $1 AND j.desa = $2;`,
-    [jamaah.kelompok, jamaah.desa]
-  );
-  
-  const totalSessions = sessionCounts[0]?.count || 0;
-  const totalAlpha = Math.max(0, totalSessions - (totalHadir + totalIjin));
+  const totalSessions = allTargetedSessions.length;
+  const totalHadir = allTargetedSessions.filter(r => r.status === 'Hadir').length;
+  const totalIjin = allTargetedSessions.filter(r => r.status === 'Ijin').length;
+  const totalAlpha = allTargetedSessions.filter(r => !r.status || r.status === 'Tidak Hadir').length;
   const attendanceRate = totalSessions > 0 ? Math.round((totalHadir / totalSessions) * 100) : 0;
 
-  // 4. Fetch last 30 sessions of their kelompok
-  const { rows: sessionDates } = await db.query(
-    `SELECT DISTINCT k.tanggal 
-     FROM kehadiran k
-     JOIN jamaah j ON k.jamaah_id = j.id
-     WHERE j.kelompok = $1 AND j.desa = $2
-     ORDER BY k.tanggal DESC
-     LIMIT 30;`,
-    [jamaah.kelompok, jamaah.desa]
-  );
-
-  let historyList = [];
-  if (sessionDates.length > 0) {
-    const datesArray = sessionDates.map(d => d.tanggal);
-    const { rows: historyRows } = await db.query(
-      `SELECT tanggal, status, waktu_presensi 
-       FROM kehadiran 
-       WHERE jamaah_id = $1 AND tanggal = ANY($2);`,
-      [id, datesArray]
-    );
-    
-    const presenceMap = {};
-    historyRows.forEach(row => {
-      presenceMap[row.tanggal] = row;
-    });
-    
-    historyList = datesArray.map(tanggal => {
-      const record = presenceMap[tanggal];
-      return {
-        tanggal,
-        status: record ? record.status : 'Tidak Hadir',
-        waktu_presensi: record ? record.waktu_presensi : null
-      };
-    });
-  }
+  // 3. Slice the first 30 sessions for the timeline history display
+  const historyList = allTargetedSessions.slice(0, 30).map(r => ({
+    tanggal: r.tanggal,
+    status: r.status || 'Tidak Hadir',
+    waktu_presensi: r.waktu_presensi
+  }));
 
   // Get color for attendance percentage (light theme)
   const getRateColor = (rate) => {
