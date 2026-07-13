@@ -26,8 +26,23 @@ function formatIndonesianDate(dateStr) {
   return `${days[date.getDay()]}, ${parseInt(day)} ${months[date.getMonth()]} ${year}`;
 }
 
-export default async function JamaahStatusPage({ params }) {
+export default async function JamaahStatusPage({ params, searchParams }) {
   const { id } = await params;
+  const sParams = await searchParams;
+
+  // Helper to get GMT+7 dates
+  const now = new Date();
+  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+  const gmt7 = new Date(utc + (3600000 * 7));
+  const y = gmt7.getFullYear();
+  const m = String(gmt7.getMonth() + 1).padStart(2, '0');
+  const d = String(gmt7.getDate()).padStart(2, '0');
+  
+  const todayStr = `${y}-${m}-${d}`;
+  const startOfMonthStr = `${y}-${m}-01`;
+
+  const startDateVal = sParams.start_date || startOfMonthStr;
+  const endDateVal = sParams.end_date || todayStr;
 
   // 1. Fetch Jamaah Profile
   const { rows: jamaahRows } = await db.query(
@@ -52,7 +67,7 @@ export default async function JamaahStatusPage({ params }) {
     );
   }
 
-  // 2. Fetch all targeted sessions for this jamaah and their attendance status
+  // 2. Fetch all targeted sessions for this jamaah and their attendance status within date range
   const { rows: allTargetedSessions } = await db.query(
     `WITH session_attendance AS (
       SELECT DISTINCT ON (s.id)
@@ -70,12 +85,14 @@ export default async function JamaahStatusPage({ params }) {
         AND j.jenis_kelamin = ANY(s.genders)
         AND j.status_pernikahan = ANY(s.marital_statuses)
         AND j.kategori = ANY(s.kategoris)
+        AND s.tanggal >= $2
+        AND s.tanggal <= $3
       ORDER BY s.id, k.status DESC, k.waktu_presensi DESC
     )
     SELECT * 
     FROM session_attendance
     ORDER BY tanggal DESC, waktu_mulai DESC;`,
-    [id]
+    [id, startDateVal, endDateVal]
   );
 
   const totalSessions = allTargetedSessions.length;
@@ -141,13 +158,44 @@ export default async function JamaahStatusPage({ params }) {
           </div>
         </div>
 
+        {/* Date Filter Form */}
+        <form method="GET" className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+          <div className="flex justify-between items-center border-b border-slate-50 pb-2">
+            <h3 className="text-[10px] font-black text-slate-800 uppercase tracking-wider">Filter Tanggal</h3>
+            <Link href={`/status/${id}`} className="text-[9px] font-bold text-teal-700 hover:underline">Reset</Link>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1">
+              <label className="text-[9px] font-black text-slate-450 uppercase">Mulai</label>
+              <input 
+                type="date" 
+                name="start_date" 
+                defaultValue={startDateVal}
+                className="border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-700 focus:outline-none focus:border-teal-600 bg-slate-50 cursor-pointer"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-[9px] font-black text-slate-450 uppercase">Sampai</label>
+              <input 
+                type="date" 
+                name="end_date" 
+                defaultValue={endDateVal}
+                className="border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-700 focus:outline-none focus:border-teal-600 bg-slate-50 cursor-pointer"
+              />
+            </div>
+          </div>
+          <button type="submit" className="w-full py-2 bg-teal-700 hover:bg-teal-850 text-white font-extrabold text-xs rounded-xl shadow-sm cursor-pointer transition-all">
+            Terapkan Filter
+          </button>
+        </form>
+
         {/* Attendance Rate Display */}
         <div className={`border rounded-2xl p-6 text-center flex flex-col items-center gap-1.5 shadow-sm shadow-slate-100/40 ${rateClass}`}>
           <TrendingUp size={24} className="mb-0.5" />
           <span className="text-4xl font-mono font-black tracking-tight">{attendanceRate}%</span>
           <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500">PERSENTASE KEHADIRAN</span>
           <span className="text-[9px] font-bold text-slate-500/80 mt-1">
-            Dihitung dari {totalSessions} total sesi pengajian kelompok Anda
+            Dihitung dari {totalSessions} sesi dalam rentang tanggal terpilih
           </span>
         </div>
 
