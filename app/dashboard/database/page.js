@@ -435,8 +435,8 @@ export default function DatabasePage() {
       'Kelompok'
     ];
     const sampleRows = [
-      ['Budi Santoso', 'L', 'Menikah', 'O', 'Dewasa', 'S1', '11223344', 'Andara', 'Andara 2'],
-      ['Siti Aminah', 'P', 'Janda', 'B', 'Dewasa', 'SMA', '99887766', 'Andara', 'Andara 2']
+      ['BUDI SANTOSO', 'L', 'Menikah', 'O', 'Dewasa', 'S1', '11223344', 'Andara', 'Andara 2'],
+      ['SITI AMINAH', 'P', 'Janda', 'B', 'Dewasa', 'SMA', '99887766', 'Andara', 'Andara 2']
     ];
     
     const csvContent = "\uFEFF" + [

@@ -97,7 +97,7 @@ export async function POST(request) {
         const row = rows[i];
         
         let nama_lengkap = row.nama_lengkap || row['Nama Lengkap'] || row.nama || row['Nama'] || '';
-        nama_lengkap = nama_lengkap.toString().trim();
+        nama_lengkap = nama_lengkap.toString().trim().toUpperCase();
         
         if (!nama_lengkap) {
           totalSkipped++;

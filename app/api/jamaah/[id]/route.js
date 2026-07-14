@@ -31,7 +31,7 @@ export async function PUT(request, { params }) {
     }
 
     const data = await request.json();
-    let nama_lengkap = data.nama_lengkap;
+    let nama_lengkap = data.nama_lengkap ? data.nama_lengkap.trim().toUpperCase() : '';
     let jenis_kelamin = data.jenis_kelamin;
     let tempat_lahir = data.tempat_lahir || null;
     let status_kehidupan = data.status_kehidupan || "Hidup";
