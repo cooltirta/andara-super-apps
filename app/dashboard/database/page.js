@@ -422,6 +422,38 @@ export default function DatabasePage() {
     setCsvParsedRows([]);
   };
 
+  const handleDownloadTemplate = () => {
+    const headers = [
+      'Nama Lengkap',
+      'Jenis Kelamin',
+      'Status Pernikahan',
+      'Golongan Darah',
+      'Kategori',
+      'Pendidikan Terakhir',
+      'RFID',
+      'Desa',
+      'Kelompok'
+    ];
+    const sampleRows = [
+      ['Ifan Tirta Adi', 'L', 'Menikah', 'O', 'Dewasa', 'S1', '12345678', 'Andara', 'Andara 2'],
+      ['Sri Lestari', 'P', 'Janda', 'B', 'Dewasa', 'SMA', '3819499549', 'Andara', 'Andara 2']
+    ];
+    
+    const csvContent = "\uFEFF" + [
+      headers.join(','),
+      ...sampleRows.map(row => row.map(val => `"${val.replace(/"/g, '""')}"`).join(','))
+    ].join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", "template_import_jamaah.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const handleCsvFileChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -2841,21 +2873,30 @@ export default function DatabasePage() {
             
             {/* Body */}
             <div className="p-6 flex flex-col gap-5">
-              <div className="bg-slate-50 border border-slate-150 rounded-xl p-4 text-[11px] font-semibold text-slate-600 leading-relaxed text-left">
-                <p className="font-extrabold text-xs text-slate-750 mb-1">Panduan Format Kolom CSV:</p>
-                <ul className="list-disc pl-4 flex flex-col gap-0.5">
-                  <li>Kolom wajib: <span className="text-red-650 font-bold">Nama Lengkap</span> (atau <span className="font-bold text-slate-700">Nama</span>).</li>
-                  <li>Kolom opsional: <span className="font-bold text-slate-700">Jenis Kelamin</span> (L/P), <span className="font-bold text-slate-700">Status Pernikahan</span>, <span className="font-bold text-slate-700">Golongan Darah</span>, <span className="font-bold text-slate-700">Kategori</span> (Balita/Remaja/Dewasa/Lansia), <span className="font-bold text-slate-700">Pendidikan Terakhir</span>, <span className="font-bold text-slate-700">RFID</span>, <span className="font-bold text-slate-700">Desa</span>, <span className="font-bold text-slate-700">Kelompok</span>.</li>
-                  <li>Nilai default otomatis jika dikosongkan:
-                    <ul className="list-disc pl-4 font-bold text-primary flex flex-wrap gap-x-4 mt-0.5">
-                      <li>Status Pernikahan: Belum Menikah</li>
-                      <li>Gol. Darah: Tidak Diketahui</li>
-                      <li>Status Kehidupan: Hidup</li>
-                      <li>Kategori: Dewasa</li>
-                      <li>Pendidikan: Tidak Sekolah</li>
-                    </ul>
-                  </li>
-                </ul>
+              <div className="bg-slate-50 border border-slate-150 rounded-xl p-4 text-[11px] font-semibold text-slate-600 leading-relaxed text-left flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div className="flex-1">
+                  <p className="font-extrabold text-xs text-slate-750 mb-1">Panduan Format Kolom CSV:</p>
+                  <ul className="list-disc pl-4 flex flex-col gap-0.5">
+                    <li>Kolom wajib: <span className="text-red-650 font-bold">Nama Lengkap</span> (atau <span className="font-bold text-slate-700">Nama</span>).</li>
+                    <li>Kolom opsional: <span className="font-bold text-slate-700">Jenis Kelamin</span> (L/P), <span className="font-bold text-slate-700">Status Pernikahan</span>, <span className="font-bold text-slate-700">Golongan Darah</span>, <span className="font-bold text-slate-700">Kategori</span> (Balita/Remaja/Dewasa/Lansia), <span className="font-bold text-slate-700">Pendidikan Terakhir</span>, <span className="font-bold text-slate-700">RFID</span>, <span className="font-bold text-slate-700">Desa</span>, <span className="font-bold text-slate-700">Kelompok</span>.</li>
+                    <li>Nilai default otomatis jika dikosongkan:
+                      <ul className="list-disc pl-4 font-bold text-primary flex flex-wrap gap-x-4 mt-0.5">
+                        <li>Status Pernikahan: Belum Menikah</li>
+                        <li>Gol. Darah: Tidak Diketahui</li>
+                        <li>Status Kehidupan: Hidup</li>
+                        <li>Kategori: Dewasa</li>
+                        <li>Pendidikan: Tidak Sekolah</li>
+                      </ul>
+                    </li>
+                  </ul>
+                </div>
+                <button
+                  onClick={handleDownloadTemplate}
+                  className="py-2 px-3 shrink-0 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-[10px] uppercase tracking-wider flex items-center gap-1.5 shadow-sm cursor-pointer transition-all self-stretch md:self-auto justify-center"
+                >
+                  <Download size={12} className="text-primary" />
+                  <span>Download Template</span>
+                </button>
               </div>
 
               {/* Upload Drop Zone */}
