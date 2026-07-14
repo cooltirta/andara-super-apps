@@ -15,6 +15,11 @@ export default function PresensiPage() {
   const [sessions, setSessions] = useState([]);
   const [filterSesiYear, setFilterSesiYear] = useState(() => new Date().getFullYear().toString());
   const [filterSesiMonth, setFilterSesiMonth] = useState(() => (new Date().getMonth() + 1).toString());
+  const [filterSesiDesa, setFilterSesiDesa] = useState('');
+  const [filterSesiKelompok, setFilterSesiKelompok] = useState('');
+  const [filterSesiJenis, setFilterSesiJenis] = useState('');
+  const [showSesiFilters, setShowSesiFilters] = useState(true);
+  const [reportPage, setReportPage] = useState(1);
   const [selectedSessionId, setSelectedSessionId] = useState('');
   const [loadingSessions, setLoadingSessions] = useState(false);
   const [showCreateSesiModal, setShowCreateSesiModal] = useState(false);
@@ -70,6 +75,16 @@ export default function PresensiPage() {
   const [reportData, setReportData] = useState(null);
   const [loadingReport, setLoadingReport] = useState(false);
   const [showReportFilters, setShowReportFilters] = useState(true);
+
+  // Helper to determine multi-kelompok access permission
+  const hasMultiKelompokAccess = () => {
+    if (!user) return false;
+    if (user.role === 'Super Admin') return true;
+    if (user.monitor_all_desas || user.monitor_all_kelompoks) return true;
+    if (user.desas_pantau && user.desas_pantau.length > 0) return true;
+    if (user.kelompoks_pantau && user.kelompoks_pantau.length > 1) return true;
+    return false;
+  };
 
   // Helper to filter marital status based on gender and kategori selection
   const getAvailableMaritalStatuses = (selectedGenders, selectedKategoris) => {
@@ -707,6 +722,7 @@ export default function PresensiPage() {
       showToast("Mulai dan selesai wajib diisi", "error");
       return;
     }
+    setReportPage(1);
     setLoadingReport(true);
 
     const desasParam = reportDesas.join(',');
@@ -1009,7 +1025,60 @@ export default function PresensiPage() {
   });
 
   return (
-    <div className="font-sans text-slate-800">
+    <>
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media print {
+          body {
+            background: white !important;
+            color: black !important;
+          }
+          #main-dashboard-layout,
+          #sidebar,
+          #navbar,
+          header,
+          nav,
+          aside,
+          button,
+          .no-print,
+          .toast-container,
+          .screen-only-view {
+            display: none !important;
+            visibility: hidden !important;
+            height: 0 !important;
+            overflow: hidden !important;
+          }
+          .print-area {
+            display: block !important;
+            visibility: visible !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 20px !important;
+          }
+          .print-table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+            margin-top: 15px !important;
+          }
+          .print-table th, .print-table td {
+            border: 1px solid #999 !important;
+            padding: 8px !important;
+            text-align: left !important;
+            font-size: 11px !important;
+            color: black !important;
+          }
+          .print-table th {
+            background-color: #eaeaea !important;
+            font-weight: bold !important;
+          }
+        }
+        @media screen {
+          .print-area {
+            display: none !important;
+          }
+        }
+      `}} />
+
+      <div className="font-sans text-slate-800 screen-only-view">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 mb-6">
         <div>
@@ -1561,29 +1630,108 @@ export default function PresensiPage() {
           </div>
 
           {/* Filters Panel */}
-          <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-5 flex flex-wrap items-center justify-between gap-6">
-            <div className="flex items-center gap-6">
-              <SesiMonthPicker 
-                selectedYear={filterSesiYear} 
-                selectedMonth={filterSesiMonth} 
-                onChange={(year, month) => {
-                  setFilterSesiYear(year);
-                  setFilterSesiMonth(month);
-                }} 
-                sessions={sessions}
-              />
+          <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-5 flex flex-col gap-5 text-left text-xs font-bold text-slate-700">
+            {/* Header & Collapsible Toggle */}
+            <div className="flex flex-wrap items-center justify-between gap-5 pb-1">
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowSesiFilters(!showSesiFilters)}
+                  className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-500 cursor-pointer transition-all flex items-center justify-center"
+                  title={showSesiFilters ? "Sembunyikan Kriteria" : "Tampilkan Kriteria"}
+                >
+                  {showSesiFilters ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                </button>
+                <div className="flex flex-col">
+                  <span className="text-xs font-black text-slate-800 uppercase tracking-wider">Kriteria & Saringan Sesi</span>
+                  <span className="text-[10px] text-slate-450 font-bold mt-0.5">
+                    {showSesiFilters ? "Saring sesi berdasarkan bulan, wilayah (desa/kelompok), atau jenis pengajian" : "Kriteria disembunyikan. Gunakan tombol di sebelah kiri untuk melihat/mengubah"}
+                  </span>
+                </div>
+              </div>
             </div>
 
-            {(filterSesiYear !== new Date().getFullYear().toString() || filterSesiMonth !== (new Date().getMonth() + 1).toString()) && (
-              <button
-                onClick={() => {
-                  setFilterSesiYear(new Date().getFullYear().toString());
-                  setFilterSesiMonth((new Date().getMonth() + 1).toString());
-                }}
-                className="text-xs font-bold text-red-500 hover:text-red-650 transition-colors py-1.5 px-3 rounded-lg hover:bg-red-50 cursor-pointer"
-              >
-                Reset Filter
-              </button>
+            {showSesiFilters && (
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 border-t border-slate-50 pt-4">
+                {/* Month Picker */}
+                <SesiMonthPicker 
+                  selectedYear={filterSesiYear} 
+                  selectedMonth={filterSesiMonth} 
+                  onChange={(year, month) => {
+                    setFilterSesiYear(year);
+                    setFilterSesiMonth(month);
+                  }} 
+                  sessions={sessions}
+                />
+                
+                {/* Desa Filter */}
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Filter Desa</span>
+                  <select
+                    value={filterSesiDesa}
+                    onChange={(e) => {
+                      setFilterSesiDesa(e.target.value);
+                      setFilterSesiKelompok(''); // Reset kelompok when desa changes
+                    }}
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-750 font-bold text-xs hover:border-primary transition-all shadow-sm outline-none min-h-[34px] cursor-pointer"
+                  >
+                    <option value="">Semua Desa</option>
+                    {locations.map(d => (
+                      <option key={d.nama_desa} value={d.nama_desa}>{d.nama_desa}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Kelompok Filter */}
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Filter Kelompok</span>
+                  <select
+                    value={filterSesiKelompok}
+                    onChange={(e) => setFilterSesiKelompok(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-750 font-bold text-xs hover:border-primary transition-all shadow-sm outline-none min-h-[34px] cursor-pointer"
+                  >
+                    <option value="">Semua Kelompok</option>
+                    {(filterSesiDesa 
+                      ? locations.find(d => d.nama_desa === filterSesiDesa)?.kelompoks.map(k => k.nama_kelompok) || []
+                      : locations.flatMap(d => d.kelompoks.map(k => k.nama_kelompok))
+                    ).map(kName => (
+                      <option key={kName} value={kName}>{kName}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Jenis Pengajian Filter */}
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Jenis Pengajian</span>
+                  <select
+                    value={filterSesiJenis}
+                    onChange={(e) => setFilterSesiJenis(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-750 font-bold text-xs hover:border-primary transition-all shadow-sm outline-none min-h-[34px] cursor-pointer"
+                  >
+                    <option value="">Semua Jenis</option>
+                    <option value="Kelompok">Kelompok</option>
+                    <option value="Desa">Desa</option>
+                    <option value="Daerah">Daerah</option>
+                  </select>
+                </div>
+              </div>
+            )}
+            
+            {showSesiFilters && (filterSesiYear !== new Date().getFullYear().toString() || filterSesiMonth !== (new Date().getMonth() + 1).toString() || filterSesiDesa !== '' || filterSesiKelompok !== '' || filterSesiJenis !== '') && (
+              <div className="flex justify-end border-t border-slate-50 pt-3">
+                <button
+                  onClick={() => {
+                    setFilterSesiYear(new Date().getFullYear().toString());
+                    setFilterSesiMonth((new Date().getMonth() + 1).toString());
+                    setFilterSesiDesa('');
+                    setFilterSesiKelompok('');
+                    setFilterSesiJenis('');
+                  }}
+                  className="text-xs font-bold text-red-500 hover:text-red-655 transition-colors py-1.5 px-3 rounded-lg hover:bg-red-50 cursor-pointer"
+                >
+                  Reset Filter
+                </button>
+              </div>
             )}
           </div>
 
@@ -1593,7 +1741,10 @@ export default function PresensiPage() {
               const [yStr, mStr] = s.tanggal.split('-');
               const matchesYear = filterSesiYear ? yStr === filterSesiYear : true;
               const matchesMonth = filterSesiMonth ? parseInt(mStr).toString() === filterSesiMonth : true;
-              return matchesYear && matchesMonth;
+              const matchesDesa = filterSesiDesa ? s.desas.includes(filterSesiDesa) : true;
+              const matchesKelompok = filterSesiKelompok ? s.kelompoks.includes(filterSesiKelompok) : true;
+              const matchesJenis = filterSesiJenis ? s.jenis_pengajian === filterSesiJenis : true;
+              return matchesYear && matchesMonth && matchesDesa && matchesKelompok && matchesJenis;
             });
 
             if (filteredSessions.length === 0) {
@@ -1638,11 +1789,26 @@ export default function PresensiPage() {
                           <span className={`px-2.5 py-1 rounded-md border text-[10px] font-extrabold uppercase tracking-wider ${badgeColor}`}>
                             {s.jenis_pengajian}
                           </span>
-                          {s.attendancePercentage !== undefined && (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-pastel-green text-pastel-green-text border border-pastel-green-text/20 shadow-sm">
-                              Hadir: {s.attendancePercentage}%
-                            </span>
-                          )}
+                          <div className="flex flex-wrap justify-end items-center gap-1.5 mt-0.5">
+                            {s.attendancePercentage !== undefined && (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-pastel-green text-pastel-green-text border border-pastel-green-text/20 shadow-sm font-sans">
+                                Hadir: {s.attendancePercentage}%
+                              </span>
+                            )}
+                            <button
+                              onClick={() => handleCopySesiStatus(s)}
+                              className="flex items-center gap-1 py-0.5 px-2 rounded-full text-[9px] font-black uppercase tracking-wider bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/50 transition-colors cursor-pointer"
+                              title="Salin Rekap Absensi"
+                              disabled={copyingSessionId === s.id}
+                            >
+                              {copyingSessionId === s.id ? (
+                                <div className="w-2.5 h-2.5 border-2 border-indigo-650 border-t-transparent rounded-full animate-spin" />
+                              ) : (
+                                <Copy size={10} />
+                              )}
+                              <span>{copyingSessionId === s.id ? "Copying..." : "Copy Rekap Absen"}</span>
+                            </button>
+                          </div>
                         </div>
                       </div>
 
@@ -1709,20 +1875,6 @@ export default function PresensiPage() {
                         >
                           <RefreshCw size={12} />
                           <span>Sync</span>
-                        </button>
-
-                        <button
-                          onClick={() => handleCopySesiStatus(s)}
-                          className="flex items-center gap-1 py-1 px-2 rounded text-[11px] font-bold text-indigo-600 hover:bg-indigo-50 transition-colors cursor-pointer"
-                          title="Copy Laporan Kehadiran"
-                          disabled={copyingSessionId === s.id}
-                        >
-                          {copyingSessionId === s.id ? (
-                            <div className="w-3 h-3 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-                          ) : (
-                            <Copy size={12} />
-                          )}
-                          <span>{copyingSessionId === s.id ? "Copying..." : "Copy"}</span>
                         </button>
 
                         {user.can_delete_kehadiran && (
@@ -2405,7 +2557,7 @@ export default function PresensiPage() {
               </div>
 
               {/* Group Distribution */}
-              {reportData.distribusiKelompok.length > 0 && (
+              {reportData.distribusiKelompok.length > 0 && hasMultiKelompokAccess() && (
                 <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-5">
                   <h3 className="font-bold text-xs text-slate-500 uppercase tracking-wider mb-4 border-b border-slate-50 pb-2">Distribusi Per Kelompok</h3>
                   <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4 text-center">
@@ -2437,95 +2589,133 @@ export default function PresensiPage() {
                 </div>
                 {/* Desktop View */}
                 <div className="hidden md:block overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-slate-50/50 border-b border-slate-150 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                        <th className="px-6 py-4">Nama Lengkap</th>
-                        <th className="px-6 py-4">Desa</th>
-                        <th className="px-6 py-4">Kelompok</th>
-                        <th className="px-6 py-4">Gender</th>
-                        <th className="px-6 py-4 text-center">Hadir</th>
-                        <th className="px-6 py-4 text-center">Ijin</th>
-                        <th className="px-6 py-4 text-center">Absen</th>
-                        <th className="px-6 py-4 text-center">Rasio</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-50">
-                      {reportData.rekapJamaah.map(rj => {
-                        const totalActive = rj.hadir + rj.ijin + rj.tidak_hadir;
-                        const ratio = totalActive > 0 ? Math.round((rj.hadir / totalActive) * 100) : 0;
-                        return (
-                          <tr key={rj.jamaah_id} className="hover:bg-slate-50/50 transition-colors text-xs font-semibold text-slate-650">
-                            <td className="px-6 py-4 font-bold text-slate-800">{rj.nama_lengkap}</td>
-                            <td className="px-6 py-4 text-slate-500">{rj.desa}</td>
-                            <td className="px-6 py-4">
-                              <span className="inline-block px-2 py-0.5 rounded bg-slate-100 text-slate-605 font-bold text-[9px]">
-                                {rj.kelompok}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4">{rj.jenis_kelamin}</td>
-                            <td className="px-6 py-4 text-center font-bold text-pastel-green-text">{rj.hadir}x</td>
-                            <td className="px-6 py-4 text-center font-bold text-pastel-yellow-text">{rj.ijin}x</td>
-                            <td className="px-6 py-4 text-center font-bold text-pastel-red-text">{rj.tidak_hadir}x</td>
-                            <td className="px-6 py-4 text-center">
-                              <span className={`inline-block px-2 py-0.5 rounded-full font-extrabold text-[9px] ${
-                                ratio >= 75 ? 'bg-pastel-green text-pastel-green-text' : 
-                                ratio >= 50 ? 'bg-pastel-yellow text-pastel-yellow-text' : 
-                                'bg-pastel-red text-pastel-red-text'
-                              }`}>
-                                {ratio}%
-                              </span>
-                            </td>
+                  {(() => {
+                    const paginatedRekap = reportData.rekapJamaah.slice((reportPage - 1) * 10, reportPage * 10);
+                    return (
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="bg-slate-50/50 border-b border-slate-150 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                            <th className="px-6 py-4">Nama Lengkap</th>
+                            <th className="px-6 py-4">Desa</th>
+                            <th className="px-6 py-4">Kelompok</th>
+                            <th className="px-6 py-4">Gender</th>
+                            <th className="px-6 py-4 text-center">Hadir</th>
+                            <th className="px-6 py-4 text-center">Ijin</th>
+                            <th className="px-6 py-4 text-center">Absen</th>
+                            <th className="px-6 py-4 text-center">Rasio</th>
                           </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50">
+                          {paginatedRekap.map(rj => {
+                            const totalActive = rj.hadir + rj.ijin + rj.tidak_hadir;
+                            const ratio = totalActive > 0 ? Math.round((rj.hadir / totalActive) * 100) : 0;
+                            return (
+                              <tr key={rj.jamaah_id} className="hover:bg-slate-50/50 transition-colors text-xs font-semibold text-slate-650">
+                                <td className="px-6 py-4 font-bold text-slate-800">{rj.nama_lengkap}</td>
+                                <td className="px-6 py-4 text-slate-500">{rj.desa}</td>
+                                <td className="px-6 py-4">
+                                  <span className="inline-block px-2 py-0.5 rounded bg-slate-100 text-slate-605 font-bold text-[9px]">
+                                    {rj.kelompok}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4">{rj.jenis_kelamin}</td>
+                                <td className="px-6 py-4 text-center font-bold text-pastel-green-text">{rj.hadir}x</td>
+                                <td className="px-6 py-4 text-center font-bold text-pastel-yellow-text">{rj.ijin}x</td>
+                                <td className="px-6 py-4 text-center font-bold text-pastel-red-text">{rj.tidak_hadir}x</td>
+                                <td className="px-6 py-4 text-center">
+                                  <span className={`inline-block px-2 py-0.5 rounded-full font-extrabold text-[9px] ${
+                                    ratio >= 75 ? 'bg-pastel-green text-pastel-green-text' : 
+                                    ratio >= 50 ? 'bg-pastel-yellow text-pastel-yellow-text' : 
+                                    'bg-pastel-red text-pastel-red-text'
+                                  }`}>
+                                    {ratio}%
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    );
+                  })()}
                 </div>
 
                 {/* Mobile Report Card List */}
                 <div className="block md:hidden divide-y divide-slate-100 bg-white">
-                  {reportData.rekapJamaah.map(rj => {
-                    const totalActive = rj.hadir + rj.ijin + rj.tidak_hadir;
-                    const ratio = totalActive > 0 ? Math.round((rj.hadir / totalActive) * 100) : 0;
-                    return (
-                      <div key={rj.jamaah_id} className="p-4 flex flex-col gap-3 hover:bg-slate-50/30 transition-colors">
-                        {/* Name & Ratio */}
-                        <div className="flex justify-between items-start gap-2">
-                          <div className="flex flex-col gap-0.5 min-w-0">
-                            <span className="text-sm font-bold text-slate-800 truncate">{rj.nama_lengkap}</span>
-                            <span className="text-[10px] text-slate-400 font-semibold">
-                              {rj.desa} &bull; {rj.kelompok}
+                  {(() => {
+                    const paginatedRekap = reportData.rekapJamaah.slice((reportPage - 1) * 10, reportPage * 10);
+                    return paginatedRekap.map(rj => {
+                      const totalActive = rj.hadir + rj.ijin + rj.tidak_hadir;
+                      const ratio = totalActive > 0 ? Math.round((rj.hadir / totalActive) * 100) : 0;
+                      return (
+                        <div key={rj.jamaah_id} className="p-4 flex flex-col gap-3 hover:bg-slate-50/30 transition-colors">
+                          {/* Name & Ratio */}
+                          <div className="flex justify-between items-start gap-2">
+                            <div className="flex flex-col gap-0.5 min-w-0">
+                              <span className="text-sm font-bold text-slate-800 truncate">{rj.nama_lengkap}</span>
+                              <span className="text-[10px] text-slate-400 font-semibold">
+                                {rj.desa} &bull; {rj.kelompok}
+                              </span>
+                            </div>
+                            <span className={`inline-block px-2.5 py-0.5 rounded-full font-extrabold text-[10px] shrink-0 ${
+                              ratio >= 75 ? 'bg-pastel-green text-pastel-green-text' : 
+                              ratio >= 50 ? 'bg-pastel-yellow text-pastel-yellow-text' : 
+                              'bg-pastel-red text-pastel-red-text'
+                            }`}>
+                              Rasio: {ratio}%
                             </span>
                           </div>
-                          <span className={`inline-block px-2.5 py-0.5 rounded-full font-extrabold text-[10px] shrink-0 ${
-                            ratio >= 75 ? 'bg-pastel-green text-pastel-green-text' : 
-                            ratio >= 50 ? 'bg-pastel-yellow text-pastel-yellow-text' : 
-                            'bg-pastel-red text-pastel-red-text'
-                          }`}>
-                            Rasio: {ratio}%
-                          </span>
-                        </div>
 
-                        {/* Counts row */}
-                        <div className="grid grid-cols-3 gap-2 bg-slate-50/70 p-2 rounded-xl border border-slate-100 text-center">
-                          <div>
-                            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">Hadir</span>
-                            <span className="text-xs font-black text-pastel-green-text">{rj.hadir}x</span>
-                          </div>
-                          <div>
-                            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">Ijin</span>
-                            <span className="text-xs font-black text-pastel-yellow-text">{rj.ijin}x</span>
-                          </div>
-                          <div>
-                            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">Absen</span>
-                            <span className="text-xs font-black text-pastel-red-text">{rj.tidak_hadir}x</span>
+                          {/* Counts row */}
+                          <div className="grid grid-cols-3 gap-2 bg-slate-50/70 p-2 rounded-xl border border-slate-100 text-center text-xs font-bold">
+                            <div>
+                              <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">Hadir</span>
+                              <span className="text-xs font-black text-pastel-green-text">{rj.hadir}x</span>
+                            </div>
+                            <div>
+                              <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">Ijin</span>
+                              <span className="text-xs font-black text-pastel-yellow-text">{rj.ijin}x</span>
+                            </div>
+                            <div>
+                              <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">Absen</span>
+                              <span className="text-xs font-black text-pastel-red-text">{rj.tidak_hadir}x</span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    });
+                  })()}
                 </div>
+
+                {/* Pagination Controls */}
+                {reportData.rekapJamaah.length > 10 && (
+                  <div className="flex justify-between items-center px-6 py-4 border-t border-slate-100 bg-slate-50/50 no-print">
+                    <span className="text-[11px] font-bold text-slate-500">
+                      Menampilkan {Math.min(reportData.rekapJamaah.length, (reportPage - 1) * 10 + 1)} - {Math.min(reportData.rekapJamaah.length, reportPage * 10)} dari {reportData.rekapJamaah.length} jamaah
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => setReportPage(prev => Math.max(prev - 1, 1))}
+                        disabled={reportPage === 1}
+                        className="p-1 px-2.5 rounded-lg border border-slate-200 bg-white text-[11px] font-bold text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all flex items-center gap-1"
+                      >
+                        <ChevronLeft size={12} />
+                        <span>Sebelumnya</span>
+                      </button>
+                      <span className="text-[11px] font-black text-slate-700 px-2">
+                        {reportPage} / {Math.ceil(reportData.rekapJamaah.length / 10)}
+                      </span>
+                      <button
+                        onClick={() => setReportPage(prev => Math.min(prev + 1, Math.ceil(reportData.rekapJamaah.length / 10)))}
+                        disabled={reportPage === Math.ceil(reportData.rekapJamaah.length / 10)}
+                        className="p-1 px-2.5 rounded-lg border border-slate-200 bg-white text-[11px] font-bold text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all flex items-center gap-1"
+                      >
+                        <span>Selanjutnya</span>
+                        <ChevronRight size={12} />
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           ) : (
@@ -2553,6 +2743,96 @@ export default function PresensiPage() {
         ))}
       </div>
     </div>
+
+    {/* Print Only View */}
+      {reportData && (
+        <div className="print-area font-sans text-xs">
+          <div className="text-center mb-6">
+            <h1 className="text-lg font-bold uppercase tracking-wide">Laporan Rekapitulasi Kehadiran Jamaah</h1>
+            <p className="text-[10px] font-bold text-slate-500 uppercase mt-1">ANDARA SUPER APPS &bull; PLATFORM DATA KONSOLIDASI</p>
+            <div className="w-24 h-0.5 bg-slate-800 mx-auto mt-2"></div>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4 mb-6 border border-slate-200 p-4 rounded-lg bg-slate-50/50">
+            <div>
+              <p className="font-bold text-[10px] text-slate-400 uppercase">Periode Laporan</p>
+              <p className="font-semibold text-slate-700 mt-0.5">
+                {reportStartDate ? new Date(reportStartDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'} 
+                &nbsp;s.d.&nbsp; 
+                {reportEndDate ? new Date(reportEndDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'}
+              </p>
+            </div>
+            <div>
+              <p className="font-bold text-[10px] text-slate-400 uppercase">Wilayah Target</p>
+              <p className="font-semibold text-slate-700 mt-0.5 truncate">
+                Desa: {reportDesas.join(', ') || 'Semua Desa'} &bull; Kelompok: {reportKelompoks.join(', ') || 'Semua Kelompok'}
+              </p>
+            </div>
+            <div>
+              <p className="font-bold text-[10px] text-slate-400 uppercase">Demografi Target</p>
+              <p className="font-semibold text-slate-700 mt-0.5">
+                Gender: {reportGenders.join(', ') || 'Semua'} &bull; Status Nikah: {reportStatusPernikahan.join(', ') || 'Semua'}
+              </p>
+            </div>
+            <div>
+              <p className="font-bold text-[10px] text-slate-400 uppercase">Kategori & Sesi</p>
+              <p className="font-semibold text-slate-700 mt-0.5">
+                Kategori: {reportKategori.join(', ') || 'Semua'} &bull; Jumlah Sesi Teranalisis: {selectedReportSessionIds.length} Sesi
+              </p>
+            </div>
+          </div>
+
+          <table className="print-table">
+            <thead>
+              <tr>
+                <th style={{ width: '40px', textTransform: 'uppercase' }}>No</th>
+                <th style={{ textTransform: 'uppercase' }}>Nama Lengkap</th>
+                <th style={{ textTransform: 'uppercase' }}>Desa</th>
+                <th style={{ textTransform: 'uppercase' }}>Kelompok</th>
+                <th style={{ textTransform: 'uppercase' }}>Gender</th>
+                <th style={{ width: '70px', textAlign: 'center', textTransform: 'uppercase' }}>Hadir</th>
+                <th style={{ width: '70px', textAlign: 'center', textTransform: 'uppercase' }}>Ijin</th>
+                <th style={{ width: '70px', textAlign: 'center', textTransform: 'uppercase' }}>Absen</th>
+                <th style={{ width: '70px', textAlign: 'center', textTransform: 'uppercase' }}>Rasio</th>
+              </tr>
+            </thead>
+            <tbody>
+              {reportData.rekapJamaah.map((rj, idx) => {
+                const totalActive = rj.hadir + rj.ijin + rj.tidak_hadir;
+                const ratio = totalActive > 0 ? Math.round((rj.hadir / totalActive) * 150 - 50) : 0; // standard percentage ratio
+                const finalRatio = Math.min(Math.max(ratio, 0), 100);
+                return (
+                  <tr key={rj.jamaah_id}>
+                    <td>{idx + 1}</td>
+                    <td style={{ fontWeight: 'bold' }}>{rj.nama_lengkap}</td>
+                    <td>{rj.desa}</td>
+                    <td>{rj.kelompok}</td>
+                    <td>{rj.jenis_kelamin}</td>
+                    <td style={{ textAlign: 'center' }}>{rj.hadir}x</td>
+                    <td style={{ textAlign: 'center' }}>{rj.ijin}x</td>
+                    <td style={{ textAlign: 'center' }}>{rj.tidak_hadir}x</td>
+                    <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{totalActive > 0 ? Math.round((rj.hadir / totalActive) * 100) : 0}%</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+
+          <div className="mt-12 flex justify-between items-start">
+            <div className="text-center">
+              <p className="font-bold text-[10px] text-slate-400 uppercase">Mengetahui,</p>
+              <p className="font-semibold text-slate-700 mt-12">( _______________________ )</p>
+              <p className="text-[10px] text-slate-400 font-bold mt-1 uppercase">Pengurus Desa</p>
+            </div>
+            <div className="text-center">
+              <p className="font-bold text-[10px] text-slate-400 uppercase">Dibuat Oleh,</p>
+              <p className="font-bold text-slate-800 mt-12">{user?.nama_lengkap || 'Admin Desa'}</p>
+              <p className="text-[10px] text-slate-450 font-bold mt-1 uppercase">{user?.role || 'Administrator'}</p>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -2859,27 +3139,38 @@ function SesiMonthPicker({ selectedYear, selectedMonth, onChange, sessions }) {
 
           {/* Month Grid */}
           <div className="grid grid-cols-4 gap-2 text-center">
-            {months.map(m => {
-              const isSelected = selectedYear === activeYear && selectedMonth === m.value;
-              const isMonthDisabled = parseInt(activeYear) > currentYear || (parseInt(activeYear) === currentYear && parseInt(m.value) > currentMonth);
-              return (
-                <button
-                  key={m.value}
-                  type="button"
-                  disabled={isMonthDisabled}
-                  onClick={() => !isMonthDisabled && handleMonthClick(m.value)}
-                  className={`py-2 px-1 rounded-lg font-bold text-xs transition-all ${
-                    isMonthDisabled
-                      ? 'text-slate-300 opacity-40 cursor-not-allowed'
-                      : isSelected 
-                        ? 'bg-primary text-white shadow-md shadow-primary/10 cursor-pointer' 
-                        : 'text-slate-655 hover:bg-slate-50 hover:text-slate-900 cursor-pointer'
-                  }`}
-                >
-                  {m.label}
-                </button>
-              );
-            })}
+            {(() => {
+              const hasSessions = (year, monthVal) => {
+                if (!sessions || !Array.isArray(sessions)) return false;
+                return sessions.some(s => {
+                  if (!s.tanggal) return false;
+                  const [sYear, sMonth] = s.tanggal.split('-');
+                  return sYear === year && parseInt(sMonth).toString() === monthVal;
+                });
+              };
+
+              return months.map(m => {
+                const isSelected = selectedYear === activeYear && selectedMonth === m.value;
+                const isMonthDisabled = !hasSessions(activeYear, m.value);
+                return (
+                  <button
+                    key={m.value}
+                    type="button"
+                    disabled={isMonthDisabled}
+                    onClick={() => !isMonthDisabled && handleMonthClick(m.value)}
+                    className={`py-2 px-1 rounded-lg font-bold text-xs transition-all ${
+                      isMonthDisabled
+                        ? 'text-slate-300 opacity-40 cursor-not-allowed bg-slate-50'
+                        : isSelected 
+                          ? 'bg-primary text-white shadow-md shadow-primary/10 cursor-pointer' 
+                          : 'text-slate-655 hover:bg-slate-50 hover:text-slate-900 cursor-pointer'
+                    }`}
+                  >
+                    {m.label}
+                  </button>
+                );
+              });
+            })()}
           </div>
 
           {/* Reset/Clear Button */}

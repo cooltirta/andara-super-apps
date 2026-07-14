@@ -253,28 +253,28 @@ export default function RfidKioskPage() {
       return {
         bg: 'bg-emerald-950/70 border-emerald-500/30 text-emerald-400',
         card: 'bg-emerald-900/60 border-emerald-500/50 shadow-emerald-950/40',
-        icon: <CheckCircle2 className="w-16 h-16 text-emerald-400 animate-bounce" />,
+        icon: <CheckCircle2 className="w-12 h-12 text-emerald-400 animate-bounce" />,
         glow: 'shadow-emerald-500/10'
       };
     } else if (status === 'cooldown') {
       return {
         bg: 'bg-amber-950/70 border-amber-500/30 text-amber-400',
         card: 'bg-amber-900/60 border-amber-500/50 shadow-amber-950/40',
-        icon: <AlertTriangle className="w-16 h-16 text-amber-400 animate-pulse" />,
+        icon: <AlertTriangle className="w-12 h-12 text-amber-400 animate-pulse" />,
         glow: 'shadow-amber-500/10'
       };
     } else if (status === 'error') {
       return {
         bg: 'bg-red-950/70 border-red-500/30 text-red-400',
         card: 'bg-red-900/60 border-red-500/50 shadow-red-950/40',
-        icon: <AlertCircle className="w-16 h-16 text-red-400 animate-pulse" />,
+        icon: <AlertCircle className="w-12 h-12 text-red-400 animate-pulse" />,
         glow: 'shadow-red-500/10'
       };
     } else if (status === 'loading') {
       return {
         bg: 'bg-slate-850 border-slate-700/30 text-slate-400',
         card: 'bg-slate-800/80 border-slate-700 shadow-slate-950/40',
-        icon: <RefreshCw className="w-16 h-16 text-primary animate-spin" />,
+        icon: <RefreshCw className="w-12 h-12 text-primary animate-spin" />,
         glow: 'shadow-primary/5'
       };
     }
@@ -282,7 +282,7 @@ export default function RfidKioskPage() {
     return {
       bg: 'bg-slate-900/40 border-slate-800 text-slate-400',
       card: 'bg-slate-850/60 border-slate-800/60 shadow-slate-950/50',
-      icon: <Radio className="w-16 h-16 text-emerald-500 animate-pulse" />,
+      icon: <Radio className="w-12 h-12 text-emerald-500 animate-pulse" />,
       glow: 'shadow-emerald-950/20'
     };
   };
@@ -311,18 +311,9 @@ export default function RfidKioskPage() {
         </div>
       </div>
 
-      {/* Main Kiosk Area */}
-      <div className="flex-1 flex flex-col items-center justify-center max-w-2xl w-full mx-auto gap-6 z-10 py-6">
-        {/* Real-time Clock */}
-        <div className="text-center flex flex-col gap-1">
-          <h2 className="text-5xl font-mono font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-400 drop-shadow-sm">
-            {timeStr}
-          </h2>
-          <p className="text-xs font-extrabold tracking-wider text-slate-400 uppercase mt-0.5">
-            {dateStr}
-          </p>
-        </div>
-
+      {/* Main Grid Layout */}
+      <div className="flex-1 grid grid-cols-1 md:grid-cols-5 gap-6 items-stretch justify-center w-full max-w-5xl mx-auto z-10 py-4 my-auto overflow-hidden">
+        
         {/* Hidden RFID Input Capture */}
         <form onSubmit={handleScanSubmit} className="absolute opacity-0 pointer-events-none">
           <input 
@@ -335,81 +326,97 @@ export default function RfidKioskPage() {
           />
         </form>
 
-        {/* Big Scanner Card Display */}
-        <div className={`w-full max-w-md border rounded-3xl p-8 text-center flex flex-col items-center gap-6 shadow-2xl transition-all duration-300 ${style.bg} ${style.card} ${style.glow}`}>
-          
-          {/* Status Icon */}
-          <div className="mb-2">
-            {style.icon}
+        {/* Left Side: Scanner (occupies 3/5 width on md+) */}
+        <div className="md:col-span-3 flex flex-col items-center justify-center gap-4 bg-slate-900/30 border border-slate-900/60 rounded-3xl p-5 shadow-2xl">
+          {/* Real-time Clock */}
+          <div className="text-center flex flex-col gap-0.5">
+            <h2 className="text-4xl font-mono font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-400 drop-shadow-sm">
+              {timeStr}
+            </h2>
+            <p className="text-[10px] font-extrabold tracking-wider text-slate-400 uppercase mt-0.5">
+              {dateStr}
+            </p>
           </div>
 
-          {/* Status Message */}
-          <div className="flex flex-col gap-2 w-full px-4">
-            <h3 className="text-lg font-black tracking-tight leading-snug text-white">
-              {statusMessage}
-            </h3>
+          {/* Big Scanner Card Display */}
+          <div className={`w-full max-w-md border rounded-2xl p-5 text-center flex flex-col items-center gap-4 shadow-xl transition-all duration-300 ${style.bg} ${style.card} ${style.glow}`}>
             
-            {/* Show details if we scanned a jamaah */}
-            {scannedJamaah && (status === 'success' || status === 'cooldown') && (
-              <div className="flex flex-col items-center mt-3 animate-fadeIn">
-                <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block">NAMA JAMAAH</span>
-                <span className="text-xl font-black text-white tracking-wide mt-1 block truncate max-w-[340px]">
-                  {scannedJamaah.nama_lengkap}
-                </span>
-                
-                <span className="text-[11px] font-bold text-teal-400 mt-1 uppercase tracking-widest">
-                  {scannedJamaah.kelompok} &bull; {scannedJamaah.desa}
-                </span>
+            {/* Status Icon */}
+            <div>
+              {style.icon}
+            </div>
 
-                {status === 'cooldown' && (
-                  <span className="text-[9px] font-extrabold text-amber-500 mt-2 block bg-amber-950/60 px-3 py-1 rounded-full border border-amber-500/20">
-                    COOLDOWN AKTIF (TAP DIABAIKAN)
+            {/* Status Message */}
+            <div className="flex flex-col gap-1 w-full px-2">
+              <h3 className="text-base font-black tracking-tight leading-snug text-white">
+                {statusMessage}
+              </h3>
+              
+              {/* Show details if we scanned a jamaah */}
+              {scannedJamaah && (status === 'success' || status === 'cooldown') && (
+                <div className="flex flex-col items-center mt-2 animate-fadeIn">
+                  <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest block">NAMA JAMAAH</span>
+                  <span className="text-lg font-black text-white tracking-wide mt-0.5 block truncate max-w-[280px]">
+                    {scannedJamaah.nama_lengkap}
                   </span>
-                )}
-              </div>
-            )}
+                  
+                  <span className="text-[10px] font-bold text-teal-400 mt-0.5 uppercase tracking-widest">
+                    {scannedJamaah.kelompok} &bull; {scannedJamaah.desa}
+                  </span>
 
-            {status === 'error' && lastScannedUid && (
-              <div className="flex flex-col items-center mt-2 animate-fadeIn">
-                <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest block">UID KARTU</span>
-                <span className="text-sm font-mono font-black text-red-400 tracking-wider mt-1 block bg-red-950/40 px-4 py-1.5 rounded-xl border border-red-500/25">
-                  {lastScannedUid}
-                </span>
+                  {status === 'cooldown' && (
+                    <span className="text-[8px] font-extrabold text-amber-500 mt-1.5 block bg-amber-950/60 px-2.5 py-0.5 rounded-full border border-amber-500/20">
+                      COOLDOWN AKTIF (TAP DIABAIKAN)
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {status === 'error' && lastScannedUid && (
+                <div className="flex flex-col items-center mt-1 animate-fadeIn">
+                  <span className="text-[8px] font-extrabold text-slate-400 uppercase tracking-widest block">UID KARTU</span>
+                  <span className="text-xs font-mono font-black text-red-400 tracking-wider mt-0.5 block bg-red-950/40 px-3 py-1 rounded-lg border border-red-500/25">
+                    {lastScannedUid}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Right Side: Log Kehadiran Terbaru (occupies 2/5 width on md+) */}
+        <div className="md:col-span-2 flex flex-col justify-start bg-slate-900/30 border border-slate-900/60 rounded-3xl p-5 shadow-2xl text-left">
+          <h4 className="text-[9px] font-extrabold tracking-wider text-slate-400 uppercase mb-3 text-center border-b border-slate-900 pb-2 shrink-0">
+            LOG KEHADIRAN TERBARU (MAKS 5 DATA)
+          </h4>
+
+          <div className="flex-1 overflow-y-auto">
+            {history.length === 0 ? (
+              <div className="text-center py-8 bg-slate-950/20 border border-slate-900/30 rounded-2xl text-slate-500 text-xs font-bold my-auto">
+                Belum ada absensi terekam saat ini.
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {history.map(item => (
+                  <div 
+                    key={item.id} 
+                    className="flex justify-between items-center bg-slate-900/50 border border-slate-900/80 hover:bg-slate-900/70 p-2.5 rounded-xl text-xs font-semibold text-slate-350 animate-slideIn transition-all"
+                  >
+                    <div className="flex flex-col gap-0.5 text-left min-w-0">
+                      <span className="font-extrabold text-white truncate max-w-[180px]">{item.nama_lengkap}</span>
+                      <span className="text-[8px] font-bold text-slate-500 uppercase">{item.kelompok} &bull; {item.desa}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-right shrink-0">
+                      <Clock size={10} className="text-emerald-500" />
+                      <span className="font-mono text-emerald-400 font-bold text-[10px]">{item.time} WIB</span>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
         </div>
-      </div>
 
-      {/* Log Kehadiran Terbaru (Bottom) */}
-      <div className="max-w-2xl w-full mx-auto border-t border-slate-900/60 pt-6 mt-auto z-10">
-        <h4 className="text-[10px] font-extrabold tracking-wider text-slate-500 uppercase mb-4 text-center">
-          LOG KEHADIRAN TERBARU (MAKS 5 DATA)
-        </h4>
-
-        {history.length === 0 ? (
-          <div className="text-center py-4 bg-slate-950/40 border border-slate-900/60 rounded-2xl text-slate-500 text-xs font-bold">
-            Belum ada absensi terekam saat ini.
-          </div>
-        ) : (
-          <div className="flex flex-col gap-2.5">
-            {history.map(item => (
-              <div 
-                key={item.id} 
-                className="flex justify-between items-center bg-slate-900/50 border border-slate-900/80 hover:bg-slate-900/70 p-3 rounded-2xl text-xs font-semibold text-slate-300 animate-slideIn transition-all"
-              >
-                <div className="flex flex-col gap-0.5 text-left min-w-0">
-                  <span className="font-extrabold text-white truncate max-w-[320px]">{item.nama_lengkap}</span>
-                  <span className="text-[9px] font-bold text-slate-500 uppercase">{item.kelompok} &bull; {item.desa}</span>
-                </div>
-                <div className="flex items-center gap-2 text-right shrink-0">
-                  <Clock size={11} className="text-emerald-500" />
-                  <span className="font-mono text-emerald-400 font-bold">{item.time} WIB</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );
