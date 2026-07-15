@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { RefreshCw } from 'lucide-react';
+
 
 export default function DashboardHome() {
   const router = useRouter();
@@ -40,18 +40,12 @@ export default function DashboardHome() {
 
   return (
     <div className="font-sans text-slate-750">
-      <div className="mb-6 flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Beranda</h1>
-        </div>
-        <button onClick={fetchData} className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 text-slate-650 hover:bg-slate-50 rounded-lg text-xs font-bold transition-all cursor-pointer">
-          <RefreshCw size={12} />
-          <span>Segarkan</span>
-        </button>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Beranda</h1>
       </div>
 
       {/* Main Content Card: Tentang Taqlima */}
-      <div className="bg-white border border-slate-100 shadow-sm rounded-2xl p-8 mb-8 max-w-4xl">
+      <div className="bg-white border border-slate-100 shadow-sm rounded-2xl p-8 mb-8 w-full">
         <div className="flex flex-col md:flex-row gap-8 items-center md:items-start">
           {/* Left side: Logo */}
           <div className="w-32 shrink-0 flex items-center justify-center p-4 bg-slate-50 rounded-2xl border border-slate-100 animate-fadeIn">
