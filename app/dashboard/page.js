@@ -225,18 +225,15 @@ export default function DashboardHome() {
         </div>
 
         {/* Dynamic Greeting Banner */}
-        <div className="bg-gradient-to-br from-slate-900 via-stone-900 to-stone-950 text-white rounded-2xl p-6 shadow-md border border-amber-500/10 relative overflow-hidden mb-8">
-          <div className="absolute -right-8 -top-8 w-32 h-32 rounded-full bg-white/5 pointer-events-none"></div>
-          <div className="absolute -left-8 -bottom-8 w-24 h-24 rounded-full bg-white/5 pointer-events-none"></div>
-          
+        <div className="bg-white border border-slate-100 shadow-sm rounded-2xl p-6 relative overflow-hidden mb-8">
           <div className="z-10 relative">
-            <span className="text-[9px] font-extrabold uppercase tracking-widest text-amber-400 bg-white/10 px-2.5 py-1 rounded-full">
+            <span className="text-[9px] font-extrabold uppercase tracking-widest text-teal-600 bg-teal-50 px-2.5 py-1 rounded-full">
               Sistem Informasi Taqlima
             </span>
-            <h2 className="text-xl font-black tracking-tight mt-4 mb-1">
+            <h2 className="text-xl font-extrabold text-slate-800 tracking-tight mt-4 mb-1">
               {getGreeting()}!
             </h2>
-            <p className="text-xs text-stone-300 font-semibold opacity-90">Hari ini Anda memiliki akses penuh ke seluruh database jamaah dan rekapitulasi kehadiran.</p>
+            <p className="text-xs text-slate-500 font-semibold opacity-90">Hari ini Anda memiliki akses penuh ke seluruh database jamaah dan rekapitulasi kehadiran.</p>
           </div>
         </div>
 
@@ -371,18 +368,15 @@ export default function DashboardHome() {
         </div>
 
         {/* Dynamic Greeting Banner */}
-        <div className="bg-gradient-to-br from-slate-900 via-stone-900 to-stone-950 text-white rounded-2xl p-6 shadow-md border border-amber-500/10 relative overflow-hidden mb-8">
-          <div className="absolute -right-8 -top-8 w-32 h-32 rounded-full bg-white/5 pointer-events-none"></div>
-          <div className="absolute -left-8 -bottom-8 w-24 h-24 rounded-full bg-white/5 pointer-events-none"></div>
-          
+        <div className="bg-white border border-slate-100 shadow-sm rounded-2xl p-6 relative overflow-hidden mb-8">
           <div className="z-10 relative">
-            <span className="text-[9px] font-extrabold uppercase tracking-widest text-amber-400 bg-white/10 px-2.5 py-1 rounded-full">
+            <span className="text-[9px] font-extrabold uppercase tracking-widest text-teal-600 bg-teal-50 px-2.5 py-1 rounded-full">
               Sistem Informasi Taqlima — Desa {user.desa}
             </span>
-            <h2 className="text-xl font-black tracking-tight mt-4 mb-1">
+            <h2 className="text-xl font-extrabold text-slate-800 tracking-tight mt-4 mb-1">
               {getGreeting()}!
             </h2>
-            <p className="text-xs text-stone-300 font-semibold opacity-90">Memantau dan mengelola data jamaah aktif di Desa {user.desa} secara terpusat.</p>
+            <p className="text-xs text-slate-500 font-semibold opacity-90">Memantau dan mengelola data jamaah aktif di Desa {user.desa} secara terpusat.</p>
           </div>
         </div>
 
