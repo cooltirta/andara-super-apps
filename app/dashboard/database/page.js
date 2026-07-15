@@ -183,6 +183,15 @@ export default function DatabasePage() {
     }
   }, [isRfidModalOpen, rfidInputMode]);
 
+  // Adjust invalid marital status based on gender in forms
+  useEffect(() => {
+    if (formGender === 'Laki-laki' && formStatusPernikahan === 'Janda') {
+      setFormStatusPernikahan('Duda');
+    } else if (formGender === 'Perempuan' && formStatusPernikahan === 'Duda') {
+      setFormStatusPernikahan('Janda');
+    }
+  }, [formGender, formStatusPernikahan]);
+
   // Toasts
   const [toasts, setToasts] = useState([]);
 
@@ -208,6 +217,19 @@ export default function DatabasePage() {
       age--;
     }
     return `${age} Tahun`;
+  };
+
+  const calculateMarriageAge = (weddingDateStr) => {
+    if (!weddingDateStr) return null;
+    const weddingDate = new Date(weddingDateStr);
+    if (isNaN(weddingDate.getTime())) return null;
+    const today = new Date();
+    let age = today.getFullYear() - weddingDate.getFullYear();
+    const m = today.getMonth() - weddingDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < weddingDate.getDate())) {
+      age--;
+    }
+    return age;
   };
 
   // Helpers and useEffects for interdependent filters
@@ -2059,6 +2081,9 @@ export default function DatabasePage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                   {paginatedKeluarga.map(f => {
                     const isExpanded = !!expandedKeluarga[f.id];
+                    const kepalaKeluarga = f.anggota.find(m => m.jenis_anggota === 'Kepala Keluarga');
+                    const weddingDate = kepalaKeluarga?.tanggal_pernikahan || f.anggota.find(m => m.tanggal_pernikahan)?.tanggal_pernikahan;
+                    const marriageAge = calculateMarriageAge(weddingDate);
                     return (
                       <div key={f.id} className="bg-white border border-slate-100 shadow-sm rounded-xl p-5 flex flex-col justify-between hover:shadow-md transition-all duration-200">
                         <div>
@@ -2076,6 +2101,7 @@ export default function DatabasePage() {
                               </h4>
                               <span className="text-[10px] text-slate-450 font-bold mt-1 block pl-5">
                                 {f.anggota.length} Anggota Keluarga
+                                {marriageAge !== null && ` • Usia Pernikahan: ${marriageAge} Tahun`}
                               </span>
                             </div>
                             <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
@@ -2507,8 +2533,8 @@ export default function DatabasePage() {
                     >
                       <option value="Belum Menikah">Belum Menikah</option>
                       <option value="Menikah">Menikah</option>
-                      <option value="Janda">Janda</option>
-                      <option value="Duda">Duda</option>
+                      {formGender !== 'Laki-laki' && <option value="Janda">Janda</option>}
+                      {formGender !== 'Perempuan' && <option value="Duda">Duda</option>}
                     </select>
                   </div>
                 </div>

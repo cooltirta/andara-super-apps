@@ -44,7 +44,7 @@ export async function GET() {
 
     for (const fam of keluarga_list) {
       const { rows: memberRows } = await db.query(`
-        SELECT ak.id as anggota_id, ak.jenis_anggota, j.id as jamaah_id, j.nama_lengkap, j.kelompok, j.status_kehidupan, j.desa
+        SELECT ak.id as anggota_id, ak.jenis_anggota, j.id as jamaah_id, j.nama_lengkap, j.kelompok, j.status_kehidupan, j.desa, j.tanggal_pernikahan
         FROM anggota_keluarga ak
         JOIN jamaah j ON ak.jamaah_id = j.id
         WHERE ak.keluarga_id = $1;
