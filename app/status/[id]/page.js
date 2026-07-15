@@ -129,8 +129,8 @@ export default async function JamaahStatusPage({ params, searchParams }) {
         {/* Header Branding */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-teal-600 flex items-center justify-center font-black text-white text-sm">
-              T
+            <div className="w-8 h-8 flex items-center justify-center">
+              <img src="/logo.png" alt="Taqlima Logo" className="w-full h-full object-contain" />
             </div>
             <span className="text-xs font-black tracking-widest text-slate-800 uppercase">TAQLIMA</span>
           </div>

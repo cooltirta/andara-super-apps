@@ -107,18 +107,8 @@ export default function Sidebar({ user }) {
       >
         <div className="flex flex-col gap-6">
           {/* Logo Brand Header */}
-          <div className="flex items-center gap-3 px-6 pb-6 border-b border-slate-100">
-            <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center text-white font-extrabold text-lg shadow-md shadow-primary/20">
-              T
-            </div>
-            <div>
-              <h2 className="text-sm font-extrabold tracking-tight text-slate-800">
-                Taqlima
-              </h2>
-              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block leading-none mt-0.5">
-                Pendataan Jamaah
-              </span>
-            </div>
+          <div className="flex items-center justify-center px-6 pb-6 border-b border-slate-100">
+            <img src="/logo-horizontal.png" alt="Taqlima Logo" className="h-10 w-auto object-contain" />
           </div>
 
           {/* Navigation Links */}
