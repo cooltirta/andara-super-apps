@@ -1078,9 +1078,12 @@ export default function PresensiPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-800 tracking-tight">
-            Kehadiran & Presensi Jamaah
+            Ngajiku
           </h1>
-          <p className="text-xs text-slate-400 font-bold mt-1">
+          <p className="text-xs text-slate-500 font-semibold mt-0.5">
+            Manajemen Sesi, Input Presensi, & Laporan
+          </p>
+          <p className="text-[10px] text-slate-400 font-bold mt-1">
             {user.monitor_all_desas && user.monitor_all_kelompoks
               ? 'Akses Terpantau: Seluruh Desa & Kelompok'
               : `Akses Terpantau: ` +

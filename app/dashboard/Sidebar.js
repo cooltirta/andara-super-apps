@@ -159,7 +159,7 @@ export default function Sidebar({ user }) {
                 }`}
               >
                 <ClipboardCheck size={18} />
-                <span>Daftar Kehadiran</span>
+                <span>Ngajiku</span>
               </Link>
             )}
 
