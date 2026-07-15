@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
-import { Users, Home, UserPlus, Search, Edit2, Trash2, X, Plus, AlertTriangle, CheckCircle, Info, Download, Upload, ChevronDown, FileText } from 'lucide-react';
+import { Users, Home, UserPlus, Search, Edit2, Trash2, X, Plus, AlertTriangle, CheckCircle, Info, Download, Upload, ChevronDown, ChevronUp, FileText } from 'lucide-react';
 
 export default function DatabasePage() {
   const router = useRouter();
@@ -58,6 +58,7 @@ export default function DatabasePage() {
   }, [loadedCount, printList]);
 
   // Filters
+  const [showFilters, setShowFilters] = useState(true);
   const [searchName, setSearchName] = useState('');
   const [filterDesas, setFilterDesas] = useState([]);
   const [filterKelompoks, setFilterKelompoks] = useState([]);
@@ -1478,115 +1479,139 @@ export default function DatabasePage() {
       {/* Filters Area (Only on Jamaah Tab) */}
       {activeTab === 'jamaah' && (
         <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-5 flex flex-col gap-5 mb-6" id="search-filter-section">
-          {/* Top Row: Search input and Desa & Kelompok filters */}
-          <div className="flex flex-wrap items-end gap-4">
-            {/* Search Bar */}
-            <div className="relative flex-1 min-w-[280px] flex flex-col gap-1.5 text-left">
-              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Cari Nama</span>
-              <div className="relative">
-                <Search className="absolute left-3 top-3 text-slate-400 w-4 h-4" />
-                <input 
-                  type="text" 
-                  id="search-jamaah-name" 
-                  className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-slate-200 focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all outline-none bg-white text-slate-700 text-xs font-semibold" 
-                  placeholder="Cari nama jamaah..."
-                  value={searchName}
-                  onChange={(e) => setSearchName(e.target.value)}
-                />
+          {/* Header & Collapsible Toggle */}
+          <div className="flex flex-wrap items-center justify-between gap-5 pb-1">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setShowFilters(!showFilters)}
+                className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-500 cursor-pointer transition-all flex items-center justify-center"
+                title={showFilters ? "Sembunyikan Saringan" : "Tampilkan Saringan"}
+              >
+                {showFilters ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </button>
+              <div className="flex flex-col text-left">
+                <span className="text-xs font-black text-slate-800 uppercase tracking-wider">Kriteria & Saringan Jamaah</span>
+                <span className="text-[10px] text-slate-450 font-bold mt-0.5">
+                  {showFilters ? "Saring berdasarkan nama, desa, kelompok, gender, status pernikahan, kategori, gol. darah, atau pendidikan" : "Saringan disembunyikan. Gunakan tombol di sebelah kiri untuk melihat/mengubah"}
+                </span>
               </div>
             </div>
-
-            {/* Desa Dropdown */}
-            <div className="min-w-[200px]">
-              <MultiSelectDropdown
-                label="Desa"
-                options={
-                  user.monitor_all_desas 
-                    ? locations.map(d => d.nama_desa)
-                    : locations.filter(d => (user.desas_pantau || []).includes(d.nama_desa)).map(d => d.nama_desa)
-                }
-                selected={filterDesas}
-                onChange={setFilterDesas}
-                placeholder="Pilih Desa..."
-                allLabel="Semua Desa"
-                badgeCountLabel="Desa Terpilih"
-              />
-            </div>
-
-            {/* Kelompok Dropdown */}
-            <div className="min-w-[220px]">
-              <GroupedMultiSelectDropdown
-                label="Kelompok"
-                groupedOptions={
-                  (user.monitor_all_desas 
-                    ? locations 
-                    : locations.filter(d => (user.desas_pantau || []).includes(d.nama_desa))
-                  ).map(d => ({
-                    desa: d.nama_desa,
-                    kelompoks: d.kelompoks
-                      .filter(k => user.monitor_all_kelompoks || (user.kelompoks_pantau || []).includes(k.nama_kelompok))
-                      .map(k => k.nama_kelompok)
-                  }))
-                }
-                selected={filterKelompoks}
-                onChange={setFilterKelompoks}
-                placeholder="Pilih Kelompok..."
-              />
-            </div>
           </div>
 
-          {/* Bottom Row: 5 MultiSelectDropdowns */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 border-t border-slate-50 pt-4">
-            <MultiSelectDropdown
-              label="Jenis Kelamin"
-              options={['Laki-laki', 'Perempuan']}
-              selected={filterGenders}
-              onChange={setFilterGenders}
-              placeholder="Pilih Gender..."
-              allLabel="Semua Gender"
-              badgeCountLabel="Gender Terpilih"
-            />
+          {showFilters && (
+            <>
+              {/* Top Row: Search input and Desa & Kelompok filters */}
+              <div className="flex flex-wrap items-end gap-4">
+                {/* Search Bar */}
+                <div className="relative flex-1 min-w-[280px] flex flex-col gap-1.5 text-left">
+                  <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Cari Nama</span>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-3 text-slate-400 w-4 h-4" />
+                    <input 
+                      type="text" 
+                      id="search-jamaah-name" 
+                      className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-slate-200 focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all outline-none bg-white text-slate-700 text-xs font-semibold" 
+                      placeholder="Cari nama jamaah..."
+                      value={searchName}
+                      onChange={(e) => setSearchName(e.target.value)}
+                    />
+                  </div>
+                </div>
 
-            <MultiSelectDropdown
-              label="Status Pernikahan"
-              options={getAvailableMaritalStatuses(filterGenders, filterKategori)}
-              selected={filterMarital}
-              onChange={setFilterMarital}
-              placeholder="Pilih Status..."
-              allLabel="Semua Status"
-              badgeCountLabel="Status Terpilih"
-            />
+                {/* Desa Dropdown */}
+                <div className="min-w-[200px] w-full sm:w-auto">
+                  <MultiSelectDropdown
+                    label="Desa"
+                    options={
+                      user.monitor_all_desas 
+                        ? locations.map(d => d.nama_desa)
+                        : locations.filter(d => (user.desas_pantau || []).includes(d.nama_desa)).map(d => d.nama_desa)
+                    }
+                    selected={filterDesas}
+                    onChange={setFilterDesas}
+                    placeholder="Pilih Desa..."
+                    allLabel="Semua Desa"
+                    badgeCountLabel="Desa Terpilih"
+                  />
+                </div>
 
-            <MultiSelectDropdown
-              label="Kategori"
-              options={getAvailableKategoris(filterMarital)}
-              selected={filterKategori}
-              onChange={setFilterKategori}
-              placeholder="Pilih Kategori..."
-              allLabel="Semua Kategori"
-              badgeCountLabel="Kategori Terpilih"
-            />
+                {/* Kelompok Dropdown */}
+                <div className="min-w-[220px] w-full sm:w-auto">
+                  <GroupedMultiSelectDropdown
+                    label="Kelompok"
+                    groupedOptions={
+                      (user.monitor_all_desas 
+                        ? locations 
+                        : locations.filter(d => (user.desas_pantau || []).includes(d.nama_desa))
+                      ).map(d => ({
+                        desa: d.nama_desa,
+                        kelompoks: d.kelompoks
+                          .filter(k => user.monitor_all_kelompoks || (user.kelompoks_pantau || []).includes(k.nama_kelompok))
+                          .map(k => k.nama_kelompok)
+                      }))
+                    }
+                    selected={filterKelompoks}
+                    onChange={setFilterKelompoks}
+                    placeholder="Pilih Kelompok..."
+                  />
+                </div>
+              </div>
 
-            <MultiSelectDropdown
-              label="Golongan Darah"
-              options={['A', 'B', 'O', 'AB', 'Tidak Diketahui']}
-              selected={filterBlood}
-              onChange={setFilterBlood}
-              placeholder="Pilih Gol. Darah..."
-              allLabel="Semua Golongan"
-              badgeCountLabel="Golongan Terpilih"
-            />
+              {/* Bottom Row: 5 MultiSelectDropdowns */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 border-t border-slate-50 pt-4">
+                <MultiSelectDropdown
+                  label="Jenis Kelamin"
+                  options={['Laki-laki', 'Perempuan']}
+                  selected={filterGenders}
+                  onChange={setFilterGenders}
+                  placeholder="Pilih Gender..."
+                  allLabel="Semua Gender"
+                  badgeCountLabel="Gender Terpilih"
+                />
 
-            <MultiSelectDropdown
-              label="Pendidikan"
-              options={['Tidak Sekolah', 'SD', 'SMP', 'SMA', 'S1', 'S2', 'S3']}
-              selected={filterPendidikan}
-              onChange={setFilterPendidikan}
-              placeholder="Pilih Pendidikan..."
-              allLabel="Semua Pendidikan"
-              badgeCountLabel="Pendidikan Terpilih"
-            />
-          </div>
+                <MultiSelectDropdown
+                  label="Status Pernikahan"
+                  options={getAvailableMaritalStatuses(filterGenders, filterKategori)}
+                  selected={filterMarital}
+                  onChange={setFilterMarital}
+                  placeholder="Pilih Status..."
+                  allLabel="Semua Status"
+                  badgeCountLabel="Status Terpilih"
+                />
+
+                <MultiSelectDropdown
+                  label="Kategori"
+                  options={getAvailableKategoris(filterMarital)}
+                  selected={filterKategori}
+                  onChange={setFilterKategori}
+                  placeholder="Pilih Kategori..."
+                  allLabel="Semua Kategori"
+                  badgeCountLabel="Kategori Terpilih"
+                />
+
+                <MultiSelectDropdown
+                  label="Golongan Darah"
+                  options={['A', 'B', 'O', 'AB', 'Tidak Diketahui']}
+                  selected={filterBlood}
+                  onChange={setFilterBlood}
+                  placeholder="Pilih Gol. Darah..."
+                  allLabel="Semua Golongan"
+                  badgeCountLabel="Golongan Terpilih"
+                />
+
+                <MultiSelectDropdown
+                  label="Pendidikan"
+                  options={['Tidak Sekolah', 'SD', 'SMP', 'SMA', 'S1', 'S2', 'S3']}
+                  selected={filterPendidikan}
+                  onChange={setFilterPendidikan}
+                  placeholder="Pilih Pendidikan..."
+                  allLabel="Semua Pendidikan"
+                  badgeCountLabel="Pendidikan Terpilih"
+                />
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -1605,23 +1630,23 @@ export default function DatabasePage() {
           ) : (
             <div className="flex flex-col gap-4">
               {/* Table Action Bar */}
-              <div className="flex justify-between items-center bg-white border border-slate-100 shadow-sm rounded-xl p-4">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white border border-slate-100 shadow-sm rounded-xl p-4">
                 <span className="text-xs font-bold text-slate-500">
                   Menampilkan <strong>{filteredJamaah.length}</strong> jamaah sesuai kriteria filter
                 </span>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
                   {user.can_read_jamaah && filteredJamaah.length > 0 && (
                     <>
                       <button 
                         onClick={handleDownloadReportPdf} 
-                        className="flex items-center gap-2 py-1.5 px-3.5 font-bold text-xs bg-teal-700 hover:bg-teal-800 text-white rounded-lg shadow-md shadow-teal-700/10 transition-all cursor-pointer active:scale-95"
+                        className="flex-1 md:flex-initial flex items-center justify-center gap-2 py-1.5 px-3.5 font-bold text-xs bg-teal-700 hover:bg-teal-800 text-white rounded-lg shadow-md shadow-teal-700/10 transition-all cursor-pointer active:scale-95"
                       >
                         <FileText size={13} />
-                        <span>Download Laporan PDF</span>
+                        <span>Laporan PDF</span>
                       </button>
                       <button 
                         onClick={handleExportCsv} 
-                        className="flex items-center gap-2 py-1.5 px-3.5 font-bold text-xs bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg shadow-md shadow-emerald-700/10 transition-all cursor-pointer active:scale-95"
+                        className="flex-1 md:flex-initial flex items-center justify-center gap-2 py-1.5 px-3.5 font-bold text-xs bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg shadow-md shadow-emerald-700/10 transition-all cursor-pointer active:scale-95"
                       >
                         <Download size={13} />
                         <span>Export CSV</span>
@@ -1629,7 +1654,7 @@ export default function DatabasePage() {
                       <button 
                         id="btn-print-filtered" 
                         onClick={() => setPrintList(filteredJamaah)} 
-                        className="flex items-center gap-2 py-1.5 px-3.5 font-bold text-xs bg-slate-800 hover:bg-slate-900 text-white rounded-lg shadow-md shadow-slate-800/10 transition-all cursor-pointer active:scale-95"
+                        className="w-full md:w-auto flex items-center justify-center gap-2 py-1.5 px-3.5 font-bold text-xs bg-slate-800 hover:bg-slate-900 text-white rounded-lg shadow-md shadow-slate-800/10 transition-all cursor-pointer active:scale-95"
                       >
                         <Download size={13} />
                         <span>Cetak Semua Kartu ({filteredJamaah.length})</span>
