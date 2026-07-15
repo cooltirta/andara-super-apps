@@ -11,20 +11,36 @@ export default function DatabasePage() {
   const formatJamaahName = (name) => {
     if (!name) return "";
     let words = name.trim().split(/\s+/);
-    if (words.length > 0) {
-      const firstWordLower = words[0].toLowerCase();
-      if (firstWordLower === 'muhammad' || firstWordLower === 'muhamad') {
-        words[0] = 'M.';
-      } else if (firstWordLower === 'mohammad' || firstWordLower === 'mohamad') {
-        words[0] = 'MOH.';
+    
+    // 1. First pass: Apply standard abbreviation replacement for Muhammad/Muhamad and Mohammad/Mohamad (case-insensitive)
+    words = words.map(w => {
+      const lower = w.toLowerCase();
+      const cleanLower = lower.replace(/\./g, '');
+      if (cleanLower === 'muhammad' || cleanLower === 'muhamad') {
+        return 'M.';
       }
-    }
-    if (words.length <= 3) {
-      return words.join(" ").toUpperCase();
-    }
-    const firstThree = words.slice(0, 3);
-    const remaining = words.slice(3).map(w => w ? `${w[0]}.` : '');
-    return [...firstThree, ...remaining].join(" ").toUpperCase();
+      if (cleanLower === 'mohammad' || cleanLower === 'mohamad') {
+        return 'MOH.';
+      }
+      return w;
+    });
+
+    // 2. Second pass: Classify words and abbreviate after the 3rd full word
+    let fullWordCount = 0;
+    const processedWords = words.map(w => {
+      const isAbbrev = w.endsWith('.') || w.length <= 1 || w.toUpperCase() === 'M.' || w.toUpperCase() === 'MOH.';
+      if (isAbbrev) {
+        return w;
+      } else {
+        fullWordCount++;
+        if (fullWordCount > 3) {
+          return `${w[0].toUpperCase()}.`;
+        }
+        return w;
+      }
+    });
+
+    return processedWords.join(" ").toUpperCase();
   };
 
   const [user, setUser] = useState(null);
