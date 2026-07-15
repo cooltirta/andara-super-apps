@@ -1613,7 +1613,7 @@ export default function PresensiPage() {
                   setNewSesiDesas([]);
                   setNewSesiKelompoks([]);
                   setNewSesiGenders(['Laki-laki', 'Perempuan']);
-                  setNewSesiMarital(['Belum Menikah', 'Menikah', 'Duda', 'Janda']);
+                  setNewSesiMarital(['Belum Menikah', 'Menikah', 'Janda/Duda']);
                   setNewSesiKategoris(['Balita', 'CBR/PAUD', 'Pra Remaja', 'Remaja', 'Pra Nikah', 'Dewasa', 'Lansia']);
                   setShowCreateSesiModal(true);
                 }}

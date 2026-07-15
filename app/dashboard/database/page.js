@@ -1021,17 +1021,15 @@ export default function DatabasePage() {
         jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
       };
 
-      // Temporarily disable stylesheets to prevent html2canvas parsing crashes on modern CSS functions (like oklch/lab)
-      const disabledSheets = [];
-      const sheets = Array.from(document.styleSheets);
-      sheets.forEach(sheet => {
-        try {
-          if (!sheet.disabled) {
-            sheet.disabled = true;
-            disabledSheets.push(sheet);
-          }
-        } catch (e) {
-          // ignore CORS issues
+      // Temporarily remove all style/link elements from DOM to prevent html2canvas parsing errors on Tailwind 4 modern CSS color functions (oklch, lab)
+      const stylesToRestore = [];
+      const styleElements = document.querySelectorAll('style, link[rel="stylesheet"]');
+      styleElements.forEach(el => {
+        const parent = el.parentNode;
+        const nextSibling = el.nextSibling;
+        if (parent) {
+          parent.removeChild(el);
+          stylesToRestore.push({ el, parent, nextSibling });
         }
       });
 
@@ -1039,10 +1037,14 @@ export default function DatabasePage() {
         await html2pdf().from(element).set(opt).save();
         showToast("Laporan PDF berhasil diunduh!", "success");
       } finally {
-        // Always restore stylesheets
-        disabledSheets.forEach(sheet => {
+        // Always restore style/link elements to their exact positions in the DOM
+        stylesToRestore.forEach(({ el, parent, nextSibling }) => {
           try {
-            sheet.disabled = false;
+            if (nextSibling) {
+              parent.insertBefore(el, nextSibling);
+            } else {
+              parent.appendChild(el);
+            }
           } catch (e) {
             // ignore
           }
