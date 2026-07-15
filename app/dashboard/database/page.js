@@ -10,12 +10,15 @@ export default function DatabasePage() {
   
   const formatJamaahName = (name) => {
     if (!name) return "";
-    const words = name.trim().split(/\s+/);
+    let words = name.trim().split(/\s+/);
+    if (words.length > 0 && words[0].toLowerCase() === 'muhammad') {
+      words[0] = 'M.';
+    }
     if (words.length <= 3) {
-      return name.toUpperCase();
+      return words.join(" ").toUpperCase();
     }
     const firstThree = words.slice(0, 3);
-    const remaining = words.slice(3).map(w => `${w[0]}.`);
+    const remaining = words.slice(3).map(w => w ? `${w[0]}.` : '');
     return [...firstThree, ...remaining].join(" ").toUpperCase();
   };
 
