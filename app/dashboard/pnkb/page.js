@@ -52,8 +52,8 @@ export default function TimPnkbPage() {
       const currentUser = await authRes.json();
       setUser(currentUser);
 
-      if (!currentUser.can_read_jamaah) {
-        alert("Akses Ditolak: Anda tidak memiliki akses ke data jamaah");
+      if (!currentUser.can_read_pnkb) {
+        alert("Akses Ditolak: Anda tidak memiliki akses ke data PNKB");
         router.push('/dashboard');
         return;
       }

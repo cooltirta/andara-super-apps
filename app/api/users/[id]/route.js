@@ -87,6 +87,26 @@ export async function PUT(request, { params }) {
 
     const can_read_logs = !!data.can_read_logs;
 
+    const can_create_pnkb = !!data.can_create_pnkb;
+    const can_read_pnkb = !!data.can_read_pnkb;
+    const can_update_pnkb = !!data.can_update_pnkb;
+    const can_delete_pnkb = !!data.can_delete_pnkb;
+
+    const can_create_haji = !!data.can_create_haji;
+    const can_read_haji = !!data.can_read_haji;
+    const can_update_haji = !!data.can_update_haji;
+    const can_delete_haji = !!data.can_delete_haji;
+
+    const can_create_sabilillah = !!data.can_create_sabilillah;
+    const can_read_sabilillah = !!data.can_read_sabilillah;
+    const can_update_sabilillah = !!data.can_update_sabilillah;
+    const can_delete_sabilillah = !!data.can_delete_sabilillah;
+
+    const can_create_kalender = !!data.can_create_kalender;
+    const can_read_kalender = !!data.can_read_kalender;
+    const can_update_kalender = !!data.can_update_kalender;
+    const can_delete_kalender = !!data.can_delete_kalender;
+
     await db.query(`
       UPDATE user_profiles SET
         role = $1, kelompok = $2, desa = $3,
@@ -98,8 +118,12 @@ export async function PUT(request, { params }) {
         can_read_laporan = $20,
         can_create_user = $21, can_read_user = $22, can_update_user = $23, can_delete_user = $24,
         can_create_lokasi = $25, can_read_lokasi = $26, can_update_lokasi = $27, can_delete_lokasi = $28,
-        can_read_logs = $29
-      WHERE id = $30;
+        can_read_logs = $29,
+        can_create_pnkb = $30, can_read_pnkb = $31, can_update_pnkb = $32, can_delete_pnkb = $33,
+        can_create_haji = $34, can_read_haji = $35, can_update_haji = $36, can_delete_haji = $37,
+        can_create_sabilillah = $38, can_read_sabilillah = $39, can_update_sabilillah = $40, can_delete_sabilillah = $41,
+        can_create_kalender = $42, can_read_kalender = $43, can_update_kalender = $44, can_delete_kalender = $45
+      WHERE id = $46;
     `, [
       role, kelompok, desa,
       monitor_all_desas, desas_pantau,
@@ -111,6 +135,10 @@ export async function PUT(request, { params }) {
       can_create_user, can_read_user, can_update_user, can_delete_user,
       can_create_lokasi, can_read_lokasi, can_update_lokasi, can_delete_lokasi,
       can_read_logs,
+      can_create_pnkb, can_read_pnkb, can_update_pnkb, can_delete_pnkb,
+      can_create_haji, can_read_haji, can_update_haji, can_delete_haji,
+      can_create_sabilillah, can_read_sabilillah, can_update_sabilillah, can_delete_sabilillah,
+      can_create_kalender, can_read_kalender, can_update_kalender, can_delete_kalender,
       id
     ]);
 

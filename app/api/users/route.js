@@ -114,6 +114,26 @@ export async function POST(request) {
 
     const can_read_logs = !!data.can_read_logs;
 
+    const can_create_pnkb = !!data.can_create_pnkb;
+    const can_read_pnkb = !!data.can_read_pnkb;
+    const can_update_pnkb = !!data.can_update_pnkb;
+    const can_delete_pnkb = !!data.can_delete_pnkb;
+
+    const can_create_haji = !!data.can_create_haji;
+    const can_read_haji = !!data.can_read_haji;
+    const can_update_haji = !!data.can_update_haji;
+    const can_delete_haji = !!data.can_delete_haji;
+
+    const can_create_sabilillah = !!data.can_create_sabilillah;
+    const can_read_sabilillah = !!data.can_read_sabilillah;
+    const can_update_sabilillah = !!data.can_update_sabilillah;
+    const can_delete_sabilillah = !!data.can_delete_sabilillah;
+
+    const can_create_kalender = !!data.can_create_kalender;
+    const can_read_kalender = !!data.can_read_kalender;
+    const can_update_kalender = !!data.can_update_kalender;
+    const can_delete_kalender = !!data.can_delete_kalender;
+
     await db.query(`
       INSERT INTO user_profiles (
         id, email, role, kelompok, desa,
@@ -124,7 +144,11 @@ export async function POST(request) {
         can_read_laporan,
         can_create_user, can_read_user, can_update_user, can_delete_user,
         can_create_lokasi, can_read_lokasi, can_update_lokasi, can_delete_lokasi,
-        can_read_logs
+        can_read_logs,
+        can_create_pnkb, can_read_pnkb, can_update_pnkb, can_delete_pnkb,
+        can_create_haji, can_read_haji, can_update_haji, can_delete_haji,
+        can_create_sabilillah, can_read_sabilillah, can_update_sabilillah, can_delete_sabilillah,
+        can_create_kalender, can_read_kalender, can_update_kalender, can_delete_kalender
       ) VALUES (
         $1, $2, $3, $4, $5,
         $6, $7, $8, $9,
@@ -134,7 +158,11 @@ export async function POST(request) {
         $22,
         $23, $24, $25, $26,
         $27, $28, $29, $30,
-        $31
+        $31,
+        $32, $33, $34, $35,
+        $36, $37, $38, $39,
+        $40, $41, $42, $43,
+        $44, $45, $46, $47
       );
     `, [
       user_id, email, role, kelompok, desa,
@@ -145,7 +173,11 @@ export async function POST(request) {
       can_read_laporan,
       can_create_user, can_read_user, can_update_user, can_delete_user,
       can_create_lokasi, can_read_lokasi, can_update_lokasi, can_delete_lokasi,
-      can_read_logs
+      can_read_logs,
+      can_create_pnkb, can_read_pnkb, can_update_pnkb, can_delete_pnkb,
+      can_create_haji, can_read_haji, can_update_haji, can_delete_haji,
+      can_create_sabilillah, can_read_sabilillah, can_update_sabilillah, can_delete_sabilillah,
+      can_create_kalender, can_read_kalender, can_update_kalender, can_delete_kalender
     ]);
 
     await logActivity(user.email, 'ADD', 'USER', user_id, `Menambahkan user: ${email} (Role: ${role}, Desa: ${desa})`);

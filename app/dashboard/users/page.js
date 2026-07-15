@@ -55,6 +55,27 @@ export default function UserAccessPage() {
 
   const [canReadLogs, setCanReadLogs] = useState(false);
 
+  // PNKB, Haji, Sabilillah, Kalender permissions
+  const [canCreatePnkb, setCanCreatePnkb] = useState(false);
+  const [canReadPnkb, setCanReadPnkb] = useState(false);
+  const [canUpdatePnkb, setCanUpdatePnkb] = useState(false);
+  const [canDeletePnkb, setCanDeletePnkb] = useState(false);
+
+  const [canCreateHaji, setCanCreateHaji] = useState(false);
+  const [canReadHaji, setCanReadHaji] = useState(false);
+  const [canUpdateHaji, setCanUpdateHaji] = useState(false);
+  const [canDeleteHaji, setCanDeleteHaji] = useState(false);
+
+  const [canCreateSabilillah, setCanCreateSabilillah] = useState(false);
+  const [canReadSabilillah, setCanReadSabilillah] = useState(false);
+  const [canUpdateSabilillah, setCanUpdateSabilillah] = useState(false);
+  const [canDeleteSabilillah, setCanDeleteSabilillah] = useState(false);
+
+  const [canCreateKalender, setCanCreateKalender] = useState(false);
+  const [canReadKalender, setCanReadKalender] = useState(false);
+  const [canUpdateKalender, setCanUpdateKalender] = useState(false);
+  const [canDeleteKalender, setCanDeleteKalender] = useState(false);
+
   // Detail Modal States
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [detailUser, setDetailUser] = useState(null);
@@ -171,6 +192,11 @@ export default function UserAccessPage() {
       setCanCreateUser(true); setCanReadUser(true); setCanUpdateUser(true); setCanDeleteUser(true);
       setCanCreateLokasi(true); setCanReadLokasi(true); setCanUpdateLokasi(true); setCanDeleteLokasi(true);
       setCanReadLogs(true);
+
+      setCanCreatePnkb(true); setCanReadPnkb(true); setCanUpdatePnkb(true); setCanDeletePnkb(true);
+      setCanCreateHaji(true); setCanReadHaji(true); setCanUpdateHaji(true); setCanDeleteHaji(true);
+      setCanCreateSabilillah(true); setCanReadSabilillah(true); setCanUpdateSabilillah(true); setCanDeleteSabilillah(true);
+      setCanCreateKalender(true); setCanReadKalender(true); setCanUpdateKalender(true); setCanDeleteKalender(true);
     } else if (role === 'Admin') {
       setMonitorAllDesas(false);
       setDesasPantau([currentDesa]);
@@ -184,19 +210,11 @@ export default function UserAccessPage() {
       setCanCreateUser(true); setCanReadUser(true); setCanUpdateUser(true); setCanDeleteUser(true);
       setCanCreateLokasi(false); setCanReadLokasi(true); setCanUpdateLokasi(false); setCanDeleteLokasi(false);
       setCanReadLogs(false);
-    } else if (role === 'Moderator') {
-      setMonitorAllDesas(false);
-      setDesasPantau([currentDesa]);
-      setMonitorAllKelompoks(false);
-      setKelompoksPantau(currentGroup ? [currentGroup] : []);
 
-      setCanCreateJamaah(false); setCanReadJamaah(true); setCanUpdateJamaah(false); setCanDeleteJamaah(false);
-      setCanCreateKeluarga(false); setCanReadKeluarga(true); setCanUpdateKeluarga(false); setCanDeleteKeluarga(false);
-      setCanCreateKehadiran(true); setCanReadKehadiran(true); setCanUpdateKehadiran(true); setCanDeleteKehadiran(true);
-      setCanReadLaporan(true);
-      setCanCreateUser(false); setCanReadUser(false); setCanUpdateUser(false); setCanDeleteUser(false);
-      setCanCreateLokasi(false); setCanReadLokasi(true); setCanUpdateLokasi(false); setCanDeleteLokasi(false);
-      setCanReadLogs(false);
+      setCanCreatePnkb(true); setCanReadPnkb(true); setCanUpdatePnkb(true); setCanDeletePnkb(true);
+      setCanCreateHaji(true); setCanReadHaji(true); setCanUpdateHaji(true); setCanDeleteHaji(true);
+      setCanCreateSabilillah(true); setCanReadSabilillah(true); setCanUpdateSabilillah(true); setCanDeleteSabilillah(true);
+      setCanCreateKalender(true); setCanReadKalender(true); setCanUpdateKalender(true); setCanDeleteKalender(true);
     } else {
       // Member / Biasa
       setMonitorAllDesas(false);
@@ -211,6 +229,11 @@ export default function UserAccessPage() {
       setCanCreateUser(false); setCanReadUser(false); setCanUpdateUser(false); setCanDeleteUser(false);
       setCanCreateLokasi(false); setCanReadLokasi(false); setCanUpdateLokasi(false); setCanDeleteLokasi(false);
       setCanReadLogs(false);
+
+      setCanCreatePnkb(false); setCanReadPnkb(false); setCanUpdatePnkb(false); setCanDeletePnkb(false);
+      setCanCreateHaji(false); setCanReadHaji(false); setCanUpdateHaji(false); setCanDeleteHaji(false);
+      setCanCreateSabilillah(false); setCanReadSabilillah(false); setCanUpdateSabilillah(false); setCanDeleteSabilillah(false);
+      setCanCreateKalender(false); setCanReadKalender(false); setCanUpdateKalender(false); setCanDeleteKalender(false);
     }
   };
 
@@ -261,6 +284,26 @@ export default function UserAccessPage() {
 
         setCanReadLogs(!!u.can_read_logs);
 
+        setCanCreatePnkb(!!u.can_create_pnkb);
+        setCanReadPnkb(!!u.can_read_pnkb);
+        setCanUpdatePnkb(!!u.can_update_pnkb);
+        setCanDeletePnkb(!!u.can_delete_pnkb);
+
+        setCanCreateHaji(!!u.can_create_haji);
+        setCanReadHaji(!!u.can_read_haji);
+        setCanUpdateHaji(!!u.can_update_haji);
+        setCanDeleteHaji(!!u.can_delete_haji);
+
+        setCanCreateSabilillah(!!u.can_create_sabilillah);
+        setCanReadSabilillah(!!u.can_read_sabilillah);
+        setCanUpdateSabilillah(!!u.can_update_sabilillah);
+        setCanDeleteSabilillah(!!u.can_delete_sabilillah);
+
+        setCanCreateKalender(!!u.can_create_kalender);
+        setCanReadKalender(!!u.can_read_kalender);
+        setCanUpdateKalender(!!u.can_update_kalender);
+        setCanDeleteKalender(!!u.can_delete_kalender);
+
         setIsModalOpen(true);
       }
     } else {
@@ -273,8 +316,8 @@ export default function UserAccessPage() {
       setFormDesa(defaultDesa);
       setFormGroup('');
       
-      let initialRole = 'Moderator';
-      if (user.role === 'Moderator') {
+      let initialRole = 'Admin';
+      if (user.role === 'Admin') {
         initialRole = 'Member';
       }
       setFormRole(initialRole);
@@ -313,10 +356,18 @@ export default function UserAccessPage() {
     let computedRole = 'Member';
     if (canCreateUser || canUpdateUser || canReadLogs) {
       computedRole = 'Super Admin';
-    } else if (canCreateJamaah || canCreateKeluarga) {
+    } else if (
+      canCreateJamaah || canReadJamaah || canUpdateJamaah || canDeleteJamaah ||
+      canCreateKeluarga || canReadKeluarga || canUpdateKeluarga || canDeleteKeluarga ||
+      canCreateKehadiran || canReadKehadiran || canUpdateKehadiran || canDeleteKehadiran ||
+      canReadLaporan ||
+      canCreateLokasi || canReadLokasi || canUpdateLokasi || canDeleteLokasi ||
+      canCreatePnkb || canReadPnkb || canUpdatePnkb || canDeletePnkb ||
+      canCreateHaji || canReadHaji || canUpdateHaji || canDeleteHaji ||
+      canCreateSabilillah || canReadSabilillah || canUpdateSabilillah || canDeleteSabilillah ||
+      canCreateKalender || canReadKalender || canUpdateKalender || canDeleteKalender
+    ) {
       computedRole = 'Admin';
-    } else if (canCreateKehadiran) {
-      computedRole = 'Moderator';
     }
 
     const payload = {
@@ -356,7 +407,27 @@ export default function UserAccessPage() {
       can_update_lokasi: canUpdateLokasi,
       can_delete_lokasi: canDeleteLokasi,
 
-      can_read_logs: canReadLogs
+      can_read_logs: canReadLogs,
+
+      can_create_pnkb: canCreatePnkb,
+      can_read_pnkb: canReadPnkb,
+      can_update_pnkb: canUpdatePnkb,
+      can_delete_pnkb: canDeletePnkb,
+
+      can_create_haji: canCreateHaji,
+      can_read_haji: canReadHaji,
+      can_update_haji: canUpdateHaji,
+      can_delete_haji: canDeleteHaji,
+
+      can_create_sabilillah: canCreateSabilillah,
+      can_read_sabilillah: canReadSabilillah,
+      can_update_sabilillah: canUpdateSabilillah,
+      can_delete_sabilillah: canDeleteSabilillah,
+
+      can_create_kalender: canCreateKalender,
+      can_read_kalender: canReadKalender,
+      can_update_kalender: canUpdateKalender,
+      can_delete_kalender: canDeleteKalender
     };
 
     if (!isEdit) {
@@ -454,6 +525,42 @@ export default function UserAccessPage() {
         items: [
           { name: "Membaca rekam jejak aktivitas (Logs)", status: u.can_read_logs }
         ]
+      },
+      {
+        category: "Tim PNKB",
+        items: [
+          { name: "Melihat data taaruf PNKB", status: u.can_read_pnkb },
+          { name: "Menambah data taaruf PNKB", status: u.can_create_pnkb },
+          { name: "Mengubah data taaruf PNKB", status: u.can_update_pnkb },
+          { name: "Menghapus data taaruf PNKB", status: u.can_delete_pnkb }
+        ]
+      },
+      {
+        category: "Tim Haji",
+        items: [
+          { name: "Melihat data pendaftaran Haji", status: u.can_read_haji },
+          { name: "Menambah data pendaftaran Haji", status: u.can_create_haji },
+          { name: "Mengubah data pendaftaran Haji", status: u.can_update_haji },
+          { name: "Menghapus data pendaftaran Haji", status: u.can_delete_haji }
+        ]
+      },
+      {
+        category: "Benda Sabilillah",
+        items: [
+          { name: "Melihat data benda Sabilillah", status: u.can_read_sabilillah },
+          { name: "Menambah data benda Sabilillah", status: u.can_create_sabilillah },
+          { name: "Mengubah data benda Sabilillah", status: u.can_update_sabilillah },
+          { name: "Menghapus data benda Sabilillah", status: u.can_delete_sabilillah }
+        ]
+      },
+      {
+        category: "Kalender Sinkronisasi",
+        items: [
+          { name: "Melihat kalender sinkronisasi", status: u.can_read_kalender },
+          { name: "Menambah kegiatan kalender", status: u.can_create_kalender },
+          { name: "Mengubah kegiatan kalender", status: u.can_update_kalender },
+          { name: "Menghapus kegiatan kalender", status: u.can_delete_kalender }
+        ]
       }
     ];
   };
@@ -480,18 +587,14 @@ export default function UserAccessPage() {
 
   // Calculate available role options for modal based on logged in user's role
   let roleOptions = [];
-  if (user.role === 'Moderator') {
-    roleOptions = [<option key="Member" value="Member">Anggota Biasa (Tanpa Akses Khusus)</option>];
-  } else if (user.role === 'Admin') {
+  if (user.role === 'Admin') {
     roleOptions = [
-      <option key="Member" value="Member">Anggota Biasa (Tanpa Akses Khusus)</option>,
-      <option key="Moderator" value="Moderator">Akses Tingkat Kelompok (Input & Scan Presensi)</option>
+      <option key="Member" value="Member">Anggota Biasa (Tanpa Akses Khusus)</option>
     ];
   } else if (user.role === 'Super Admin') {
     roleOptions = [
       <option key="Member" value="Member">Anggota Biasa (Tanpa Akses Khusus)</option>,
-      <option key="Moderator" value="Moderator">Akses Tingkat Kelompok (Input & Scan Presensi)</option>,
-      <option key="Admin" value="Admin">Akses Tingkat Desa (Kelola Jamaah & Presensi Desa)</option>,
+      <option key="Admin" value="Admin">Akses Tingkat Wilayah (Kelola Sesi & Presensi Wilayah)</option>,
       <option key="Super Admin" value="Super Admin">Akses Penuh (Kelola Seluruh Sistem)</option>
     ];
   }
@@ -608,7 +711,7 @@ export default function UserAccessPage() {
                         </span>
                       </div>
                       <span className="inline-block px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-bold text-[9px] uppercase shrink-0">
-                        {u.role === 'Super Admin' ? 'Penuh' : u.role === 'Admin' ? 'Desa' : u.role === 'Moderator' ? 'Klpk' : 'Biasa'}
+                        {u.role === 'Super Admin' ? 'Penuh' : u.role === 'Admin' ? 'Admin' : 'Biasa'}
                       </span>
                     </div>
 
@@ -1010,6 +1113,98 @@ export default function UserAccessPage() {
                       <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none col-span-2">
                         <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer" checked={canReadLogs} onChange={(e) => setCanReadLogs(e.target.checked)} />
                         <span>Membaca (Read)</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* 8. Tim PNKB */}
+                  <div className="flex flex-col gap-2 text-left">
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">8. Tim PNKB</span>
+                    <div className="grid grid-cols-2 gap-2 bg-white p-2.5 rounded-lg border border-slate-200">
+                      <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none">
+                        <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer" checked={canReadPnkb} onChange={(e) => setCanReadPnkb(e.target.checked)} />
+                        <span>Membaca (Read)</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none">
+                        <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer" checked={canCreatePnkb} onChange={(e) => setCanCreatePnkb(e.target.checked)} />
+                        <span>Menambah (Create)</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none">
+                        <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer" checked={canUpdatePnkb} onChange={(e) => setCanUpdatePnkb(e.target.checked)} />
+                        <span>Mengubah (Update)</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none">
+                        <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer" checked={canDeletePnkb} onChange={(e) => setCanDeletePnkb(e.target.checked)} />
+                        <span>Menghapus (Delete)</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* 9. Tim Haji */}
+                  <div className="flex flex-col gap-2 text-left">
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">9. Tim Haji</span>
+                    <div className="grid grid-cols-2 gap-2 bg-white p-2.5 rounded-lg border border-slate-200">
+                      <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none">
+                        <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer" checked={canReadHaji} onChange={(e) => setCanReadHaji(e.target.checked)} />
+                        <span>Membaca (Read)</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none">
+                        <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer" checked={canCreateHaji} onChange={(e) => setCanCreateHaji(e.target.checked)} />
+                        <span>Menambah (Create)</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none">
+                        <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer" checked={canUpdateHaji} onChange={(e) => setCanUpdateHaji(e.target.checked)} />
+                        <span>Mengubah (Update)</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none">
+                        <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer" checked={canDeleteHaji} onChange={(e) => setCanDeleteHaji(e.target.checked)} />
+                        <span>Menghapus (Delete)</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* 10. Benda Sabilillah */}
+                  <div className="flex flex-col gap-2 text-left">
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">10. Benda Sabilillah</span>
+                    <div className="grid grid-cols-2 gap-2 bg-white p-2.5 rounded-lg border border-slate-200">
+                      <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none">
+                        <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer" checked={canReadSabilillah} onChange={(e) => setCanReadSabilillah(e.target.checked)} />
+                        <span>Membaca (Read)</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none">
+                        <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer" checked={canCreateSabilillah} onChange={(e) => setCanCreateSabilillah(e.target.checked)} />
+                        <span>Menambah (Create)</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none">
+                        <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer" checked={canUpdateSabilillah} onChange={(e) => setCanUpdateSabilillah(e.target.checked)} />
+                        <span>Mengubah (Update)</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none">
+                        <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer" checked={canDeleteSabilillah} onChange={(e) => setCanDeleteSabilillah(e.target.checked)} />
+                        <span>Menghapus (Delete)</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* 11. Kalender Sinkronisasi */}
+                  <div className="flex flex-col gap-2 text-left">
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">11. Kalender Sinkronisasi</span>
+                    <div className="grid grid-cols-2 gap-2 bg-white p-2.5 rounded-lg border border-slate-200">
+                      <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none">
+                        <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer" checked={canReadKalender} onChange={(e) => setCanReadKalender(e.target.checked)} />
+                        <span>Membaca (Read)</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none">
+                        <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer" checked={canCreateKalender} onChange={(e) => setCanCreateKalender(e.target.checked)} />
+                        <span>Menambah (Create)</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none">
+                        <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer" checked={canUpdateKalender} onChange={(e) => setCanUpdateKalender(e.target.checked)} />
+                        <span>Mengubah (Update)</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none">
+                        <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer" checked={canDeleteKalender} onChange={(e) => setCanDeleteKalender(e.target.checked)} />
+                        <span>Menghapus (Delete)</span>
                       </label>
                     </div>
                   </div>

@@ -1,11 +1,39 @@
 "use client";
 
-import { useState } from 'react';
-import { Calendar, Copy, Check, Info, ExternalLink } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { Calendar, Copy, Check, Info, ExternalLink, RefreshCw } from 'lucide-react';
 
 export default function KalenderPage() {
+  const router = useRouter();
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [copiedEmail, setCopiedEmail] = useState(false);
   const [copiedPassword, setCopiedPassword] = useState(false);
+
+  const fetchAuth = async () => {
+    try {
+      setLoading(true);
+      const authRes = await fetch('/api/auth/me');
+      if (!authRes.ok) throw new Error("Unauthenticated");
+      const currentUser = await authRes.json();
+      setUser(currentUser);
+
+      if (!currentUser.can_read_kalender) {
+        alert("Akses Ditolak: Anda tidak memiliki akses ke Kalender");
+        router.push('/dashboard');
+        return;
+      }
+      setLoading(false);
+    } catch (err) {
+      console.error(err);
+      router.push('/login?callbackUrl=/dashboard/kalender');
+    }
+  };
+
+  useEffect(() => {
+    fetchAuth();
+  }, []);
 
   const email = "js2@mail.com";
   const password = "har354";
@@ -31,6 +59,17 @@ export default function KalenderPage() {
       console.warn("Could not postMessage to iframe:", err);
     }
   };
+
+  if (loading && !user) {
+    return (
+      <div className="flex justify-center items-center h-[80vh]">
+        <div className="flex flex-col items-center gap-4">
+          <RefreshCw className="w-9 h-9 text-primary animate-spin" />
+          <h2 className="text-xs font-bold text-slate-400 tracking-wider">Memuat Kalender Sinkronisasi...</h2>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="font-sans text-slate-800">

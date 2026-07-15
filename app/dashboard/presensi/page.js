@@ -385,11 +385,6 @@ export default function PresensiPage() {
       if (!currentUser.monitor_all_kelompoks && currentUser.kelompoks_pantau && currentUser.kelompoks_pantau.length > 0) {
         setFilterKelompoks(currentUser.kelompoks_pantau);
         setReportKelompoks(currentUser.kelompoks_pantau);
-      } else if (currentUser.role === 'Moderator') {
-        setFilterDesas(currentUser.desa ? [currentUser.desa] : []);
-        setFilterKelompoks(currentUser.kelompok ? [currentUser.kelompok] : []);
-        setReportDesas(currentUser.desa ? [currentUser.desa] : []);
-        setReportKelompoks(currentUser.kelompok ? [currentUser.kelompok] : []);
       } else {
         setFilterKelompoks(locationsData.flatMap(d => d.kelompoks.map(k => k.nama_kelompok)));
         setReportKelompoks(locationsData.flatMap(d => d.kelompoks.map(k => k.nama_kelompok)));

@@ -59,8 +59,8 @@ export default function BendaSabilillahPage() {
       const currentUser = await authRes.json();
       setUser(currentUser);
 
-      if (currentUser.role === 'Member') {
-        alert("Akses Ditolak: Halaman ini hanya untuk pengurus SB");
+      if (!currentUser.can_read_sabilillah) {
+        alert("Akses Ditolak: Anda tidak memiliki akses ke data Benda Sabilillah");
         router.push('/dashboard');
         return;
       }

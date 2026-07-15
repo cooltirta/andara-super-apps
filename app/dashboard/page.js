@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { 
   Users, Home, Calendar, ClipboardCheck, AlertTriangle, 
   CheckCircle, Info, QrCode, BookOpen, ShieldCheck, 
-  RefreshCw, History, ArrowRight, Search, UserCheck, Trash2, Clock 
+  RefreshCw, History, ArrowRight, Search, UserCheck, Trash2, Clock, Radio 
 } from 'lucide-react';
 
 export default function DashboardHome() {
@@ -67,7 +67,7 @@ export default function DashboardHome() {
         }
       }
 
-      if (currentUser.role === 'Moderator' || currentUser.role === 'Member') {
+      if (currentUser.role === 'Member') {
         // Load sessions list
         try {
           const sessionsRes = await fetch('/api/sesi');
@@ -453,6 +453,20 @@ export default function DashboardHome() {
                 </div>
                 <ArrowRight size={13} className="text-slate-400" />
               </button>
+              <button onClick={() => router.push('/dashboard/presensi/rfid')} className="flex items-center justify-between p-3.5 border border-slate-100 hover:border-indigo-600/30 hover:bg-indigo-50/20 rounded-xl transition-all cursor-pointer w-full text-left">
+                <div className="flex items-center gap-3">
+                  <Radio size={16} className="text-indigo-700" />
+                  <span className="text-xs font-bold text-slate-700">Kiosk RFID Presensi</span>
+                </div>
+                <ArrowRight size={13} className="text-slate-400" />
+              </button>
+              <button onClick={() => router.push('/dashboard/presensi/scan')} className="flex items-center justify-between p-3.5 border border-slate-100 hover:border-indigo-600/30 hover:bg-indigo-50/20 rounded-xl transition-all cursor-pointer w-full text-left">
+                <div className="flex items-center gap-3">
+                  <QrCode size={16} className="text-indigo-700" />
+                  <span className="text-xs font-bold text-slate-700">Scan QR Presensi</span>
+                </div>
+                <ArrowRight size={13} className="text-slate-400" />
+              </button>
             </div>
           </div>
         </div>
@@ -460,140 +474,7 @@ export default function DashboardHome() {
     );
   }
 
-  // 3. MODERATOR HOME (SCANNER FOCUS)
-  if (user.role === 'Moderator') {
-    const todayStr = getTodayDateString();
-    const activeGroupSess = sessions.filter(s => s.tanggal === todayStr && s.kelompok === user.kelompok);
-    const hasSessionToday = activeGroupSess.length > 0;
 
-    return (
-      <div className="font-sans text-slate-750">
-        <div className="mb-6 flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Beranda Utama</h1>
-            <p className="text-xs text-slate-400 font-bold mt-1">Peran: Moderator Kelompok — Kelompok {user.kelompok || 'Semua'}</p>
-          </div>
-          <button onClick={fetchData} className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 text-slate-650 hover:bg-slate-50 rounded-lg text-xs font-bold transition-all cursor-pointer">
-            <RefreshCw size={12} />
-            <span>Segarkan</span>
-          </button>
-        </div>
-
-        {/* Dynamic Greeting Banner */}
-        <div className="bg-gradient-to-br from-amber-800 to-emerald-950 text-white rounded-2xl p-6 shadow-md border border-amber-700/30 relative overflow-hidden mb-8">
-          <div className="absolute -right-8 -top-8 w-32 h-32 rounded-full bg-white/5 pointer-events-none"></div>
-          <div className="absolute -left-8 -bottom-8 w-24 h-24 rounded-full bg-white/5 pointer-events-none"></div>
-          
-          <div className="z-10 relative">
-            <span className="text-[9px] font-extrabold uppercase tracking-widest text-amber-300 bg-white/10 px-2.5 py-1 rounded-full">
-              Pusat Absensi Lapangan
-            </span>
-            <h2 className="text-xl font-black tracking-tight mt-4 mb-1">
-              {getGreeting()}, {user.email.split('@')[0]}!
-            </h2>
-            <p className="text-xs text-amber-100 font-semibold opacity-90">Siap mencatat absensi harian kelompok {user.kelompok || 'Semua'}.</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Active Session Status */}
-          <div className="lg:col-span-2 bg-white border border-slate-100 shadow-sm rounded-2xl p-6 flex flex-col justify-between">
-            <div>
-              <div className="flex items-center gap-2 border-b border-slate-50 pb-3 mb-4">
-                <Clock size={16} className="text-amber-700 shrink-0" />
-                <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider">Jadwal Sesi Kelompok Hari Ini</h3>
-              </div>
-
-              {hasSessionToday ? (
-                activeGroupSess.map((sess, idx) => (
-                  <div key={idx} className="bg-slate-50 border border-slate-100 rounded-xl p-5 mb-4">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <span className="text-[9px] font-extrabold uppercase bg-teal-50 text-teal-700 px-2 py-0.5 rounded border border-teal-100/50">Sesi Aktif</span>
-                        <h4 className="text-sm font-extrabold text-slate-800 mt-2">{sess.nama_sesi}</h4>
-                        <p className="text-xs text-slate-500 font-semibold mt-1">Target: {sess.desa} • {sess.kategori_target}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xs font-extrabold text-slate-700">{sess.jam_mulai} - {sess.jam_selesai}</p>
-                        <p className="text-[10px] text-slate-400 font-bold mt-1">{sess.tanggal}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="bg-slate-50/50 border border-dashed border-slate-200 rounded-xl p-6 text-center text-slate-400 flex flex-col items-center justify-center">
-                  <AlertTriangle size={32} className="opacity-45 mb-2.5 text-amber-600" />
-                  <p className="font-extrabold text-xs text-slate-700">Tidak ada sesi pengajian terdaftar hari ini</p>
-                  <p className="text-[10px] text-slate-400 font-bold mt-1">Silakan buat sesi terlebih dahulu di menu Presensi.</p>
-                </div>
-              )}
-            </div>
-
-            <div className="border-t border-slate-50 pt-4 mt-6 grid grid-cols-2 gap-4">
-              <button 
-                onClick={() => router.push('/dashboard/presensi/scan')} 
-                className="flex items-center justify-center gap-2 py-2.5 px-4 font-bold text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-xl shadow-md shadow-amber-600/10 transition-all cursor-pointer active:scale-95 text-center"
-              >
-                <QrCode size={15} />
-                <span>Buka Scan QR</span>
-              </button>
-              <button 
-                onClick={() => router.push('/dashboard/presensi/rfid')} 
-                className="flex items-center justify-center gap-2 py-2.5 px-4 font-bold text-xs bg-slate-800 hover:bg-slate-900 text-white rounded-xl shadow-md shadow-slate-800/10 transition-all cursor-pointer active:scale-95 text-center"
-              >
-                <Users size={15} />
-                <span>Kiosk RFID</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Sesi Terakhir Stats */}
-          <div className="bg-white border border-slate-100 shadow-sm rounded-2xl p-6 flex flex-col justify-between">
-            <div>
-              <div className="flex items-center gap-2 border-b border-slate-50 pb-3 mb-4">
-                <Calendar size={16} className="text-amber-700 shrink-0" />
-                <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider">Presensi Kelompok Anda</h3>
-              </div>
-              <div className="flex flex-col gap-4">
-                <div className="flex justify-between items-center text-xs font-semibold text-slate-650">
-                  <span>Total Jamaah Kelompok:</span>
-                  <span className="font-extrabold text-slate-800">{stats.total_jamaah} orang</span>
-                </div>
-                {hasLastSession && (
-                  <>
-                    <div className="border-t border-slate-50 pt-3 flex flex-col gap-2">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Rekap Sesi Terakhir</p>
-                      <div className="grid grid-cols-3 gap-2 text-center text-[10px] font-bold">
-                        <div className="bg-emerald-50 text-emerald-700 p-2 rounded-lg">
-                          <p>Hadir</p>
-                          <p className="text-sm font-extrabold mt-0.5">{lastSessionStats?.hadir || 0}</p>
-                        </div>
-                        <div className="bg-amber-50 text-amber-700 p-2 rounded-lg">
-                          <p>Ijin</p>
-                          <p className="text-sm font-extrabold mt-0.5">{lastSessionStats?.ijin || 0}</p>
-                        </div>
-                        <div className="bg-red-50 text-red-700 p-2 rounded-lg">
-                          <p>Absen</p>
-                          <p className="text-sm font-extrabold mt-0.5">{lastSessionStats?.tidak_hadir || 0}</p>
-                        </div>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-            <button 
-              onClick={() => router.push('/dashboard/presensi')} 
-              className="mt-6 w-full text-center text-xs font-bold text-amber-700 hover:underline flex items-center justify-center gap-1.5 cursor-pointer"
-            >
-              <span>Manajemen Presensi Sesi</span>
-              <ArrowRight size={12} />
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   // 4. MEMBER HOME (PERSONAL DIGITAL ID CARD)
   if (user.role === 'Member') {

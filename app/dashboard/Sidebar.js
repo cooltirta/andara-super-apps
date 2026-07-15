@@ -242,7 +242,7 @@ export default function Sidebar({ user }) {
             </span>
 
             {/* Tim Haji Link */}
-            {user.can_read_jamaah && (
+            {user.can_read_haji && (
               <Link 
                 href="/dashboard/haji" 
                 onClick={() => setIsOpen(false)}
@@ -258,7 +258,7 @@ export default function Sidebar({ user }) {
             )}
 
             {/* Tim PNKB Link */}
-            {user.can_read_jamaah && (
+            {user.can_read_pnkb && (
               <Link 
                 href="/dashboard/pnkb" 
                 onClick={() => setIsOpen(false)}
@@ -274,7 +274,7 @@ export default function Sidebar({ user }) {
             )}
 
             {/* Benda Sabilillah Link */}
-            {user.role !== 'Member' && (
+            {user.can_read_sabilillah && (
               <Link 
                 href="/dashboard/sabilillah" 
                 onClick={() => setIsOpen(false)}
@@ -290,18 +290,20 @@ export default function Sidebar({ user }) {
             )}
 
             {/* Kalender Link */}
-            <Link 
-              href="/dashboard/kalender" 
-              onClick={() => setIsOpen(false)}
-              className={`flex items-center gap-3 px-4 py-2.5 rounded-3xl font-semibold text-sm transition-all duration-150 ${
-                pathname === '/dashboard/kalender' 
-                  ? 'bg-primary-light text-primary font-bold shadow-sm' 
-                  : 'text-slate-650 hover:text-primary hover:bg-slate-50'
-              }`}
-            >
-              <Calendar size={18} />
-              <span>Kalender</span>
-            </Link>
+            {user.can_read_kalender && (
+              <Link 
+                href="/dashboard/kalender" 
+                onClick={() => setIsOpen(false)}
+                className={`flex items-center gap-3 px-4 py-2.5 rounded-3xl font-semibold text-sm transition-all duration-150 ${
+                  pathname === '/dashboard/kalender' 
+                    ? 'bg-primary-light text-primary font-bold shadow-sm' 
+                    : 'text-slate-650 hover:text-primary hover:bg-slate-50'
+                }`}
+              >
+                <Calendar size={18} />
+                <span>Kalender</span>
+              </Link>
+            )}
           </nav>
         </div>
 
