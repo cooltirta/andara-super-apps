@@ -199,7 +199,7 @@ export default function LoginPage() {
           <img src="/logo-login.png" alt="Taqlima Logo" className="w-full h-auto object-contain" />
         </div>
         <h2 className="text-base font-extrabold text-slate-800 tracking-tight mb-2 leading-snug">
-          "Bersama Meramut Jamaah, Saling Menjaga Menuju Surga."
+          Bersama Meramut Jamaah<br />Saling Menjaga Menuju Surga
         </h2>
         <p className="text-xs text-slate-500 font-medium leading-relaxed mb-8">
           Selamat datang di Taqlima, sistem integrasi pelayanan jamaah terpadu. Mari satukan langkah untuk menjaga amanah secara seksama, berlandaskan ilmu, dan bermuara pada ketulusan ibadah.
