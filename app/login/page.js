@@ -196,9 +196,9 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-50 via-slate-50 to-emerald-100 p-4 font-sans">
       <div className="max-w-md w-full bg-white/95 backdrop-blur-md border border-grey-200/50 shadow-xl rounded-md p-8 text-center transition-all duration-300">
         <div className="w-16 h-16 rounded-md bg-gradient-to-tr from-primary to-secondary flex items-center justify-center text-white font-extrabold text-3xl mx-auto mb-6 shadow-lg shadow-primary/20">
-          A
+          T
         </div>
-        <h1 className="text-2xl font-extrabold text-grey-900 tracking-tight mb-2">Andara Super Apps</h1>
+        <h1 className="text-2xl font-extrabold text-grey-900 tracking-tight mb-2">Taqlima</h1>
         <p className="text-sm text-grey-500 font-medium mb-8">Pendataan & Kehadiran Jamaah Pengajian Desa Andara</p>
 
         {error && (

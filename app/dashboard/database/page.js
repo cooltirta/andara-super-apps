@@ -1037,7 +1037,7 @@ export default function DatabasePage() {
         </div>
 
         <div style="border-top: 1px solid #e2e8f0; padding-top: 10px; margin-top: 30px; text-align: center; font-size: 9px; color: #94a3b8;">
-          <p style="margin: 0;">Laporan ini dihasilkan secara otomatis oleh Sistem Andara Super Apps menggunakan data terbaru dari database.</p>
+          <p style="margin: 0;">Laporan ini dihasilkan secara otomatis oleh Sistem Taqlima menggunakan data terbaru dari database.</p>
         </div>
       `;
 

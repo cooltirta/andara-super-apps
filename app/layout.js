@@ -1,7 +1,7 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "Andara Super Apps",
+  title: "Taqlima",
   description: "Aplikasi Pendataan & Kehadiran Jamaah Pengajian Desa Andara",
 };
 

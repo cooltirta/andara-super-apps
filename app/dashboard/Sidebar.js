@@ -44,7 +44,7 @@ export default function Sidebar({ user }) {
             {isOpen ? <X size={22} /> : <Menu size={22} />}
           </button>
           <span className="text-slate-800 lg:hidden font-extrabold tracking-tight text-sm uppercase">
-            Andara Super Apps
+            Taqlima
           </span>
         </div>
 
@@ -109,11 +109,11 @@ export default function Sidebar({ user }) {
           {/* Logo Brand Header */}
           <div className="flex items-center gap-3 px-6 pb-6 border-b border-slate-100">
             <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center text-white font-extrabold text-lg shadow-md shadow-primary/20">
-              A
+              T
             </div>
             <div>
               <h2 className="text-sm font-extrabold tracking-tight text-slate-800">
-                Andara Super Apps
+                Taqlima
               </h2>
               <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block leading-none mt-0.5">
                 Pendataan Jamaah

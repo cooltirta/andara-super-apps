@@ -2744,7 +2744,7 @@ export default function PresensiPage() {
         <div className="print-area font-sans text-xs">
           <div className="text-center mb-6">
             <h1 className="text-lg font-bold uppercase tracking-wide">Laporan Rekapitulasi Kehadiran Jamaah</h1>
-            <p className="text-[10px] font-bold text-slate-500 uppercase mt-1">ANDARA SUPER APPS &bull; PLATFORM DATA KONSOLIDASI</p>
+            <p className="text-[10px] font-bold text-slate-500 uppercase mt-1">TAQLIMA &bull; PLATFORM DATA KONSOLIDASI</p>
             <div className="w-24 h-0.5 bg-slate-800 mx-auto mt-2"></div>
           </div>
           

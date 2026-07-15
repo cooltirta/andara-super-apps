@@ -231,7 +231,7 @@ export default function DashboardHome() {
           
           <div className="z-10 relative">
             <span className="text-[9px] font-extrabold uppercase tracking-widest text-teal-300 bg-white/10 px-2.5 py-1 rounded-full">
-              Sistem Informasi Andara
+              Sistem Informasi Taqlima
             </span>
             <h2 className="text-xl font-black tracking-tight mt-4 mb-1">
               {getGreeting()}, {user.email.split('@')[0]}!
@@ -377,7 +377,7 @@ export default function DashboardHome() {
           
           <div className="z-10 relative">
             <span className="text-[9px] font-extrabold uppercase tracking-widest text-indigo-300 bg-white/10 px-2.5 py-1 rounded-full">
-              Sistem Informasi Andara — Desa {user.desa}
+              Sistem Informasi Taqlima — Desa {user.desa}
             </span>
             <h2 className="text-xl font-black tracking-tight mt-4 mb-1">
               {getGreeting()}, {user.email.split('@')[0]}!
@@ -600,7 +600,7 @@ export default function DashboardHome() {
                 <div className="flex justify-between items-start z-10 relative">
                   <div>
                     <h3 className="text-xs font-black tracking-widest text-teal-300 uppercase">KARTU ANGGOTA DIGITAL</h3>
-                    <p className="text-[8px] font-bold tracking-tight opacity-75 mt-0.5">MASJID ANDARA SUPER APPS</p>
+                    <p className="text-[8px] font-bold tracking-tight opacity-75 mt-0.5">MASJID ANDARA - TAQLIMA</p>
                   </div>
                   <span className="text-[8px] font-extrabold uppercase bg-white/10 px-2 py-0.5 rounded border border-white/10">Active</span>
                 </div>

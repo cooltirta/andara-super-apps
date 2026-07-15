@@ -623,7 +623,7 @@ export default function TimPnkbPage() {
 
           {/* Footer Bar */}
           <div className="max-w-5xl w-full mx-auto border-t border-slate-800 pt-4 text-center text-slate-500 text-[10px] font-bold">
-            TIM PERNIKAHAN DAN KELUARGA BAHAGIA (PNKB) &bull; ANDARA SUPER APPS
+            TIM PERNIKAHAN DAN KELUARGA BAHAGIA (PNKB) &bull; TAQLIMA
           </div>
         </div>
       )}

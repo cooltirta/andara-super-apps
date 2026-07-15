@@ -1,12 +1,12 @@
-# Laporan Perbandingan Independen: Andara Super Apps vs Ngajiku
+# Laporan Perbandingan Independen: Taqlima vs Ngajiku
 
-Laporan ini menyajikan analisis komparatif menyeluruh antara **Andara Super Apps** dan **Ngajiku** sebagai dua platform manajemen jamaah yang berdiri sendiri (*independent standalone systems*). Analisis ini mencakup konsep dasar, target pengguna, fitur utama, antarmuka (UI/UX), arsitektur teknis, serta kelebihan dan kekurangan masing-masing.
+Laporan ini menyajikan analisis komparatif menyeluruh antara **Taqlima** dan **Ngajiku** sebagai dua platform manajemen jamaah yang berdiri sendiri (*independent standalone systems*). Analisis ini mencakup konsep dasar, target pengguna, fitur utama, antarmuka (UI/UX), arsitektur teknis, serta kelebihan dan kekurangan masing-masing.
 
 ---
 
 ## 1. Tabel Perbandingan Komprehensif
 
-| Dimensi | Andara Super Apps | Ngajiku |
+| Dimensi | Taqlima | Ngajiku |
 | :--- | :--- | :--- |
 | **Konsep Utama** | Platform pengelolaan operasional jamaah terpadu multi-fitur (Kehadiran, Aset Benda Sabilillah, Status Haji) dengan dukungan RFID harian. | System pencatatan kehadiran jamaah berbasis web cloud (*cloud-first*) untuk pemantauan kehadiran jarak jauh oleh pengurus pusat. |
 | **Fokus Pengguna** | - **Pengurus**: Mengelola kehadiran dan mendata aset organisasi.<br>- **Jamaah Umum**: Login mandiri via HP/Browser untuk memantau kehadiran pribadi secara transparan. | Pengurus wilayah/pusat untuk merekap dan memonitor data kehadiran jamaah dari berbagai kelompok. |
@@ -14,13 +14,13 @@ Laporan ini menyajikan analisis komparatif menyeluruh antara **Andara Super Apps
 | **UI (User Interface)** | Desain premium, modern, dan responsif (Next.js) dengan visualisasi *badge* status yang jelas dan mode kegelapan (*dark mode*). | Desain minimalis dan fungsional berbasis antarmuka administrasi web standar (*dashboard-style*). |
 | **UX (User Experience)** | Sangat cepat (optimasi Vercel region `sin1`), dirancang untuk operasional harian yang membutuhkan respons instan di lokasi. | Dirancang untuk pelaporan berkala pasca-kegiatan (*post-event*), namun memiliki batasan query (seperti pemotongan limit 100 baris). |
 | **Tech Stack** | - Frontend & Backend: Next.js (React)<br>- Database: Neon Serverless PostgreSQL<br>- Hosting: Vercel (Singapore Region `sin1`) | - Frontend: React Web App<br>- Database: Supabase (PostgreSQL)<br>- Hosting: Vercel |
-| **Penyimpanan Data** | Disimpan secara terpusat di database mandiri milik Andara (Neon PostgreSQL) via browser HP/Laptop/PC. | Disimpan secara terpusat di database cloud milik Ngajiku (Supabase). |
+| **Penyimpanan Data** | Disimpan secara terpusat di database mandiri milik Taqlima (Neon PostgreSQL) via browser HP/Laptop/PC. | Disimpan secara terpusat di database cloud milik Ngajiku (Supabase). |
 
 ---
 
 ## 2. Analisis Keunggulan & Kekurangan
 
-### Andara Super Apps
+### Taqlima
 > [!TIP]
 > **Keunggulan (Pros):**
 > * **Hardware Integration**: Sangat praktis dengan pemindaian kartu RFID fisik untuk absensi harian jamaah secara instan.
@@ -51,13 +51,13 @@ Laporan ini menyajikan analisis komparatif menyeluruh antara **Andara Super Apps
 
 ## 3. Rancangan Konsolidasi: Menyatukan Kedua Aplikasi Menjadi Satu "Super Apps"
 
-Konsolidasi ini bertujuan untuk menyatukan kekuatan **Ngajiku** (pelaporan lintas kelompok/wilayah) dan **Andara Super Apps** (operasional harian, manajemen aset Benda Sabilillah, status haji, layanan taaruf PNKB, kalender kegiatan, lokasi, dan akses jamaah) ke dalam satu platform tunggal yang holistik.
+Konsolidasi ini bertujuan untuk menyatukan kekuatan **Ngajiku** (pelaporan lintas kelompok/wilayah) dan **Taqlima** (operasional harian, manajemen aset Benda Sabilillah, status haji, layanan taaruf PNKB, kalender kegiatan, lokasi, dan akses jamaah) ke dalam satu platform tunggal yang holistik.
 
 ### A. Arsitektur Konsolidasian (Unified System Design)
 
 ```mermaid
 graph TD
-    App[Andara Super Apps - Consolidated Version] --> NextJS[Next.js Unified Frontend & Backend]
+    App[Taqlima - Consolidated Version] --> NextJS[Next.js Unified Frontend & Backend]
     NextJS --> Auth[SSO / Multi-Role Authentication]
     NextJS --> DB[Central PostgreSQL Database]
 
@@ -99,7 +99,7 @@ graph TD
 
 ## 4. Rancangan Modul Baru: ZIS (Zakat, Infaq, Shadaqah) & Qurban Terkonsolidasi
 
-Modul baru ini akan memperluas fungsionalitas Andara Super Apps sebagai platform holistik. Integrasi ini sangat diuntungkan oleh penyatuan data dari **Andara Super Apps** dan **Ngajiku** karena data dasar jamaah yang telah terkonsolidasi menjadi pondasi utamanya.
+Modul baru ini akan memperluas fungsionalitas Taqlima sebagai platform holistik. Integrasi ini sangat diuntungkan oleh penyatuan data dari **Taqlima** dan **Ngajiku** karena data dasar jamaah yang telah terkonsolidasi menjadi pondasi utamanya.
 
 ### A. Modul ZIS (Zakat, Infaq, Shadaqah) Terpadu
 
@@ -123,12 +123,12 @@ Mengotomatisasi pencatatan program qurban tahunan kelompok.
 2. **Pengelolaan Hewan Qurban**:
    * Pendataan jenis hewan (sapi/kambing), harga beli, status kepemilikan kelompok (misal: patungan 7 orang untuk sapi), serta status kesehatan hewan.
 
-### C. Sinergi Fitur Konsolidasi (Andara + Ngajiku)
+### C. Sinergi Fitur Konsolidasi (Taqlima + Ngajiku)
 
-Penyatuan database dan fitur Andara + Ngajiku memberikan keuntungan operasional yang luar biasa:
+Penyatuan database dan fitur Taqlima + Ngajiku memberikan keuntungan operasional yang luar biasa:
 
 1. **Verifikasi Penerimaan Paket dengan RFID (Anti-Double)**:
-   * Saat pembagian zakat fitrah atau daging qurban di lokasi, pengurus cukup **men-tap kartu RFID mustahik** (fitur Andara). Sistem akan memverifikasi identitas mereka dan mencatat status "Sudah Menerima".
+   * Saat pembagian zakat fitrah atau daging qurban di lokasi, pengurus cukup **men-tap kartu RFID mustahik** (fitur Taqlima). Sistem akan verifikasi identitas mereka dan mencatat status "Sudah Menerima".
    * Jika mustahik tersebut mencoba mengantre kembali, sistem akan berbunyi dan menolak tap berikutnya. Ini menjamin distribusi qurban dan zakat 100% adil dan tepat sasaran.
 2. **Pelaporan Konsolidasi Wilayah (Ngajiku reporting)**:
    * Total pengumpulan zakat fitrah, zakat maal, infaq, dan jumlah hewan qurban dari seluruh kelompok di bawah naungan desa/daerah akan langsung terkapitulasi secara otomatis di dashboard wilayah/pusat (fitur Ngajiku).

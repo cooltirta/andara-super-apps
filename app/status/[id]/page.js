@@ -130,9 +130,9 @@ export default async function JamaahStatusPage({ params, searchParams }) {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-teal-600 flex items-center justify-center font-black text-white text-sm">
-              A
+              T
             </div>
-            <span className="text-xs font-black tracking-widest text-slate-800 uppercase">ANDARA APPS</span>
+            <span className="text-xs font-black tracking-widest text-slate-800 uppercase">TAQLIMA</span>
           </div>
           <span className="text-[10px] font-extrabold px-3 py-1 rounded-full bg-teal-50 border border-teal-100 text-teal-700 tracking-wider">
             STATUS CHECK
