@@ -117,6 +117,7 @@ export default function DatabasePage() {
   const [formKategori, setFormKategori] = useState('Dewasa');
   const [formBirthDate, setFormBirthDate] = useState('');
   const [formStatusPernikahan, setFormStatusPernikahan] = useState('Belum Menikah');
+  const [formTanggalPernikahan, setFormTanggalPernikahan] = useState('');
 
   const [isKeluargaModalOpen, setIsKeluargaModalOpen] = useState(false);
   const [selectedKkId, setSelectedKkId] = useState('');
@@ -147,14 +148,28 @@ export default function DatabasePage() {
   const [csvParsedRows, setCsvParsedRows] = useState([]);
   const [importingCsv, setImportingCsv] = useState(false);
 
-  // Pagination state
+  // Pagination & Collapsible state
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(25);
+  const [expandedKeluarga, setExpandedKeluarga] = useState({});
+  const [currentKeluargaPage, setCurrentKeluargaPage] = useState(1);
+  const [keluargaRowsPerPage, setKeluargaRowsPerPage] = useState(12);
+
+  const toggleKeluarga = (id) => {
+    setExpandedKeluarga(prev => ({
+      ...prev,
+      [id]: !prev[id]
+    }));
+  };
 
   // Reset pagination to page 1 on filter changes
   useEffect(() => {
     setCurrentPage(1);
   }, [searchName, filterDesas, filterKelompoks, filterGenders, filterBlood, filterMarital, filterKategori, filterPendidikan, rowsPerPage]);
+
+  useEffect(() => {
+    setCurrentKeluargaPage(1);
+  }, [searchKeluarga, filterKeluargaDesa, filterKeluargaKelompok, keluargaRowsPerPage]);
 
   // Focus RFID input capture when scan mode is activated
   useEffect(() => {
@@ -352,6 +367,7 @@ export default function DatabasePage() {
         setFormKategori(j.kategori || 'Dewasa');
         setFormBirthDate(j.tanggal_lahir || '');
         setFormStatusPernikahan(j.status_pernikahan || 'Belum Menikah');
+        setFormTanggalPernikahan(j.tanggal_pernikahan || '');
         setIsJamaahModalOpen(true);
       }
     } else {
@@ -375,6 +391,7 @@ export default function DatabasePage() {
       setFormKategori('Dewasa');
       setFormBirthDate('');
       setFormStatusPernikahan('Belum Menikah');
+      setFormTanggalPernikahan('');
       setIsJamaahModalOpen(true);
     }
   };
@@ -625,7 +642,8 @@ export default function DatabasePage() {
       desa: formDesa,
       kategori: formKategori,
       tanggal_lahir: formBirthDate || null,
-      status_pernikahan: formStatusPernikahan
+      status_pernikahan: formStatusPernikahan,
+      tanggal_pernikahan: formStatusPernikahan === 'Menikah' ? (formTanggalPernikahan || null) : null
     };
 
     try {
@@ -889,6 +907,13 @@ export default function DatabasePage() {
     return matchesSearch && matchesDesa && matchesKelompok;
   });
 
+  const totalKeluargaRows = filteredKeluarga.length;
+  const totalKeluargaPages = keluargaRowsPerPage === 'Semua' ? 1 : Math.ceil(totalKeluargaRows / keluargaRowsPerPage);
+  const displayKeluargaPage = Math.min(currentKeluargaPage, totalKeluargaPages || 1);
+  const paginatedKeluarga = keluargaRowsPerPage === 'Semua' 
+    ? filteredKeluarga 
+    : filteredKeluarga.slice((displayKeluargaPage - 1) * keluargaRowsPerPage, displayKeluargaPage * keluargaRowsPerPage);
+
   const handleDownloadReportPdf = async () => {
     showToast("Sedang menyiapkan file PDF...", "info");
 
@@ -1136,15 +1161,27 @@ export default function DatabasePage() {
       };
 
       const headers = [
-        "No Induk",
-        "Nama",
+        "No Induk (ID)",
+        "Nama Lengkap",
         "Gender",
-        "Kelas",
-        "Sambung",
+        "Tempat Lahir",
+        "Tanggal Lahir",
+        "Umur",
+        "Status Kehidupan",
+        "Golongan Darah",
+        "Desa",
         "Kelompok",
+        "Kategori",
         "Status Pernikahan",
-        "Status Dapukan",
-        "Kepala Keluarga",
+        "Tanggal Pernikahan",
+        "Pendidikan Terakhir",
+        "Tanggal Lulus",
+        "Status Haji",
+        "Tanggal Keberangkatan Haji",
+        "Suku",
+        "Preferensi Pasangan",
+        "Nama Unit Keluarga",
+        "Hubungan Keluarga",
         "Kode RFID"
       ];
 
@@ -1153,28 +1190,30 @@ export default function DatabasePage() {
       filteredJamaah.forEach(j => {
         const noInduk = getNoInduk(j.id);
         const nama = toTitleCase(j.nama_lengkap);
-        const gender = j.jenis_kelamin === 'Laki-laki' ? 'L' : 'P';
-        
-        let kelas = j.kategori;
-        if (j.kategori === 'CBR/PAUD') {
-          const age = calculateAge(j.tanggal_lahir);
-          if (age >= 5 && age <= 6) {
-            kelas = 'AUD';
-          } else {
-            kelas = 'Cabe Rawit';
-          }
-        }
-
-        const sambung = "Ngaji Klp, Hasda Klp, 5 Unsur, Ibu2 Klp, Musy Klp, Musy KBM, Asad Lk, Asad Pr, Hasda Org, Hasda PPG, Ngaji Desa";
+        const gender = j.jenis_kelamin || '';
+        const tempatLahir = j.tempat_lahir || '';
+        const tanggalLahir = j.tanggal_lahir || '';
+        const umur = calculateAge(j.tanggal_lahir);
+        const statusKehidupan = j.status_kehidupan || 'Hidup';
+        const golDarah = j.golongan_darah || 'Tidak Diketahui';
+        const desa = j.desa || '';
         const kelompok = j.kelompok || '';
+        const kategori = j.kategori || '';
         
         let statusPernikahan = j.status_pernikahan || 'Belum Menikah';
         if (statusPernikahan === 'Janda/Duda') {
           statusPernikahan = j.jenis_kelamin === 'Laki-laki' ? 'Duda' : 'Janda';
         }
-
-        const statusDapukan = "";
-        const kepalaKeluarga = j.jenis_anggota === 'Kepala Keluarga' ? 'Ya' : 'Tidak';
+        
+        const tanggalPernikahan = j.tanggal_pernikahan || '';
+        const pendidikanTerakhir = j.pendidikan_terakhir || 'Tidak Sekolah';
+        const tanggalLulus = j.tanggal_lulus_pendidikan_terakhir || '';
+        const statusHaji = j.status_haji || 'Belum Haji';
+        const tglHaji = j.tanggal_keberangkatan_haji || '';
+        const suku = j.suku || '';
+        const prefPasangan = j.preferensi_pasangan || '';
+        const namaKeluarga = j.nama_keluarga || '';
+        const jenisAnggota = j.jenis_anggota || '';
         const kodeRfid = j.rfid || '';
 
         const sanitize = (val) => {
@@ -1190,12 +1229,24 @@ export default function DatabasePage() {
           sanitize(noInduk),
           sanitize(nama),
           sanitize(gender),
-          sanitize(kelas),
-          sanitize(sambung),
+          sanitize(tempatLahir),
+          sanitize(tanggalLahir),
+          sanitize(umur),
+          sanitize(statusKehidupan),
+          sanitize(golDarah),
+          sanitize(desa),
           sanitize(kelompok),
+          sanitize(kategori),
           sanitize(statusPernikahan),
-          sanitize(statusDapukan),
-          sanitize(kepalaKeluarga),
+          sanitize(tanggalPernikahan),
+          sanitize(pendidikanTerakhir),
+          sanitize(tanggalLulus),
+          sanitize(statusHaji),
+          sanitize(tglHaji),
+          sanitize(suku),
+          sanitize(prefPasangan),
+          sanitize(namaKeluarga),
+          sanitize(jenisAnggota),
           sanitize(kodeRfid)
         ];
 
@@ -2006,14 +2057,28 @@ export default function DatabasePage() {
                   </span>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {filteredKeluarga.map(f => {
+                  {paginatedKeluarga.map(f => {
+                    const isExpanded = !!expandedKeluarga[f.id];
                     return (
-                      <div key={f.id} className="bg-white border border-slate-100 shadow-sm rounded-xl p-5 flex flex-col justify-between min-h-[260px] hover:shadow-md transition-all duration-200">
+                      <div key={f.id} className="bg-white border border-slate-100 shadow-sm rounded-xl p-5 flex flex-col justify-between hover:shadow-md transition-all duration-200">
                         <div>
                           {/* Family card Header */}
-                          <div className="flex justify-between items-start mb-4 border-b border-slate-100 pb-3">
-                            <h4 className="font-bold text-slate-800 text-sm leading-tight">{f.nama_keluarga}</h4>
-                            <div className="flex items-center gap-1 shrink-0">
+                          <div 
+                            className="flex justify-between items-start cursor-pointer select-none pb-2"
+                            onClick={() => toggleKeluarga(f.id)}
+                          >
+                            <div className="flex-1 pr-2">
+                              <h4 className="font-bold text-slate-800 text-sm leading-tight flex items-center gap-1.5">
+                                <span className="text-slate-400 shrink-0">
+                                  {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                </span>
+                                {f.nama_keluarga}
+                              </h4>
+                              <span className="text-[10px] text-slate-450 font-bold mt-1 block pl-5">
+                                {f.anggota.length} Anggota Keluarga
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
                               {user.can_update_keluarga && (
                                 <button className="text-slate-400 hover:text-primary p-1.5 rounded-lg hover:bg-slate-50 transition-all cursor-pointer" onClick={() => openEditKeluargaModal(f)} title="Edit Nama Keluarga">
                                   <Edit2 size={13} />
@@ -2027,63 +2092,110 @@ export default function DatabasePage() {
                             </div>
                           </div>
                         
-                        {/* Members list */}
-                        <div className="mb-6">
-                          {f.anggota.length === 0 ? (
-                            <p className="text-xs text-slate-400 font-bold italic py-2">Keluarga tidak memiliki anggota aktif</p>
-                          ) : (
-                            <table className="w-full text-left text-[11px] font-semibold">
-                              <thead>
-                                <tr className="border-b border-slate-100 text-slate-400 font-bold">
-                                  <th className="py-1.5">Nama Anggota</th>
-                                  <th className="py-1.5">Kelompok</th>
-                                  <th className="py-1.5">Hubungan</th>
-                                  <th className="py-1.5 text-right">Aksi</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-slate-50">
-                                {f.anggota.map(m => {
-                                  const isWafat = m.status_kehidupan === 'Meninggal';
-                                  return (
-                                    <tr key={m.anggota_id} className="text-slate-600 hover:bg-slate-50/50">
-                                      <td className="py-2 font-bold text-slate-800">
-                                        {m.nama_lengkap}
-                                        {isWafat && <span className="text-[8px] font-extrabold text-red-500 bg-red-50 px-1.5 py-0.5 rounded-full ml-1.5 uppercase tracking-wider">Wafat</span>}
-                                      </td>
-                                      <td className="py-2 text-primary font-bold text-[10px] uppercase">{m.kelompok}</td>
-                                      <td className="py-2 text-slate-400 text-[10px] font-bold">{m.jenis_anggota}</td>
-                                      <td className="py-2 text-right">
-                                        {user.can_update_keluarga && (
-                                          <button className="text-red-500 hover:text-red-700 font-extrabold text-[10px] cursor-pointer" onClick={() => handleRemoveMember(m.anggota_id)} title="Keluarkan dari keluarga">
-                                            Hapus
-                                          </button>
-                                        )}
-                                      </td>
-                                    </tr>
-                                  );
-                                })}
-                              </tbody>
-                            </table>
+                          {/* Expanded Content */}
+                          {isExpanded && (
+                            <div className="mt-4 border-t border-slate-100 pt-4 animate-fadeIn">
+                              {/* Members list */}
+                              <div className="mb-6">
+                                {f.anggota.length === 0 ? (
+                                  <p className="text-xs text-slate-400 font-bold italic py-2">Keluarga tidak memiliki anggota aktif</p>
+                                ) : (
+                                  <table className="w-full text-left text-[11px] font-semibold">
+                                    <thead>
+                                      <tr className="border-b border-slate-100 text-slate-400 font-bold">
+                                        <th className="py-1.5">Nama Anggota</th>
+                                        <th className="py-1.5">Kelompok</th>
+                                        <th className="py-1.5">Hubungan</th>
+                                        <th className="py-1.5 text-right">Aksi</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-50">
+                                      {f.anggota.map(m => {
+                                        const isWafat = m.status_kehidupan === 'Meninggal';
+                                        return (
+                                          <tr key={m.anggota_id} className="text-slate-600 hover:bg-slate-50/50">
+                                            <td className="py-2 font-bold text-slate-800">
+                                              {m.nama_lengkap}
+                                              {isWafat && <span className="text-[8px] font-extrabold text-red-500 bg-red-50 px-1.5 py-0.5 rounded-full ml-1.5 uppercase tracking-wider">Wafat</span>}
+                                            </td>
+                                            <td className="py-2 text-primary font-bold text-[10px] uppercase">{m.kelompok}</td>
+                                            <td className="py-2 text-slate-400 text-[10px] font-bold">{m.jenis_anggota}</td>
+                                            <td className="py-2 text-right">
+                                              {user.can_update_keluarga && (
+                                                <button className="text-red-500 hover:text-red-700 font-extrabold text-[10px] cursor-pointer" onClick={() => handleRemoveMember(m.anggota_id)} title="Keluarkan dari keluarga">
+                                                  Hapus
+                                                </button>
+                                              )}
+                                            </td>
+                                          </tr>
+                                        );
+                                      })}
+                                    </tbody>
+                                  </table>
+                                )}
+                              </div>
+                              
+                              {/* Actions button */}
+                              {user.can_update_keluarga && (
+                                <div>
+                                  <button className="flex items-center justify-center gap-1.5 w-full py-2 px-3 font-bold text-[10px] bg-slate-50 hover:bg-primary-light text-slate-650 hover:text-primary rounded-lg transition-all border border-slate-100 cursor-pointer" onClick={() => openAddMemberModal(f.id)}>
+                                    <Plus size={12} />
+                                    <span>Tambah Anggota Keluarga</span>
+                                  </button>
+                                </div>
+                              )}
+                            </div>
                           )}
                         </div>
                       </div>
+                    );
+                  })}
+                </div>
+
+                {/* Keluarga Pagination Controls */}
+                <div className="flex flex-wrap justify-between items-center bg-white border border-slate-100 shadow-sm rounded-xl p-4 mt-4 text-xs text-slate-500 font-bold select-none">
+                  <div className="flex items-center gap-2">
+                    <span>Tampilkan</span>
+                    <select 
+                      value={keluargaRowsPerPage}
+                      onChange={(e) => setKeluargaRowsPerPage(e.target.value === 'Semua' ? 'Semua' : parseInt(e.target.value))}
+                      className="bg-white border border-slate-200 text-slate-700 px-2 py-1.5 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary text-xs cursor-pointer"
+                    >
+                      <option value={12}>12</option>
+                      <option value={24}>24</option>
+                      <option value={48}>48</option>
+                      <option value="Semua">Semua</option>
+                    </select>
+                    <span>keluarga dari {totalKeluargaRows} keluarga</span>
+                  </div>
+
+                  {keluargaRowsPerPage !== 'Semua' && totalKeluargaPages > 1 && (
+                    <div className="flex items-center gap-1">
+                      <button 
+                        onClick={() => setCurrentKeluargaPage(prev => Math.max(1, prev - 1))}
+                        disabled={displayKeluargaPage === 1}
+                        className="px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-650 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
+                      >
+                        Sebelumnya
+                      </button>
                       
-                      {/* Actions button */}
-                      {user.can_update_keluarga && (
-                        <div>
-                          <button className="flex items-center justify-center gap-1.5 w-full py-2 px-3 font-bold text-[10px] bg-slate-50 hover:bg-primary-light text-slate-650 hover:text-primary rounded-lg transition-all border border-slate-100 cursor-pointer" onClick={() => openAddMemberModal(f.id)}>
-                            <Plus size={12} />
-                            <span>Tambah Anggota Keluarga</span>
-                          </button>
-                        </div>
-                      )}
+                      <span className="px-3 text-slate-500 font-bold">
+                        Halaman {displayKeluargaPage} dari {totalKeluargaPages}
+                      </span>
+
+                      <button 
+                        onClick={() => setCurrentKeluargaPage(prev => Math.min(totalKeluargaPages, prev + 1))}
+                        disabled={displayKeluargaPage === totalKeluargaPages}
+                        className="px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-650 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
+                      >
+                        Selanjutnya
+                      </button>
                     </div>
-                  );
-                })}
+                  )}
+                </div>
               </div>
-            </div>
-          )}
-        </>
+            )}
+          </>
       ) : (
             <div className="flex flex-col gap-6 animate-fadeIn">
               {/* Baseline calculation info badge */}
@@ -2400,6 +2512,20 @@ export default function DatabasePage() {
                     </select>
                   </div>
                 </div>
+
+                {formStatusPernikahan === 'Menikah' && (
+                  <div className="flex flex-col gap-1.5 animate-fadeIn">
+                    <label htmlFor="form-weddingdate" className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Tanggal Pernikahan</label>
+                    <input 
+                      type="date" 
+                      id="form-weddingdate" 
+                      className="w-full px-3.5 py-2 rounded-lg border border-slate-200 focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all outline-none bg-white text-slate-700 text-xs font-semibold cursor-pointer" 
+                      value={formTanggalPernikahan}
+                      onChange={(e) => setFormTanggalPernikahan(e.target.value)}
+                      required={formStatusPernikahan === 'Menikah'}
+                    />
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1.5">

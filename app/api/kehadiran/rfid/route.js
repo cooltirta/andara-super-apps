@@ -97,25 +97,20 @@ async function processRfidPresence(rfidValue, user) {
   const lastHadirEntry = existingPresences.find(p => p.status === 'Hadir' && p.waktu_presensi);
 
   if (lastHadirEntry) {
-    const lastTimeStr = lastHadirEntry.waktu_presensi.replace(' ', 'T');
-    const lastTapTime = new Date(lastTimeStr);
-    
-    const diffMs = Math.abs(dateObj.getTime() - lastTapTime.getTime());
-    const diffMin = diffMs / 60000;
-
-    if (diffMin < 30) {
-      return {
-        success: true,
-        alreadyLogged: true,
-        message: `Sudah tap kehadiran baru-baru ini (${Math.round(diffMin)} menit yang lalu). Menunggu cooldown 30 menit selesai.`,
-        jamaah: {
-          nama_lengkap: jamaah.nama_lengkap,
-          desa: jamaah.desa,
-          kelompok: jamaah.kelompok
-        },
-        waktu_presensi: lastHadirEntry.waktu_presensi
-      };
-    }
+    const formattedTime = lastHadirEntry.waktu_presensi.split(' ')[1] || lastHadirEntry.waktu_presensi;
+    return {
+      success: true,
+      alreadyLogged: true,
+      message: activeSession 
+        ? `Sudah mencatat kehadiran untuk Sesi ${activeSession.jenis_pengajian} ${jamaah.kelompok} (pada pukul ${formattedTime}).`
+        : `Sudah mencatat kehadiran hari ini (pada pukul ${formattedTime}).`,
+      jamaah: {
+        nama_lengkap: jamaah.nama_lengkap,
+        desa: jamaah.desa,
+        kelompok: jamaah.kelompok
+      },
+      waktu_presensi: lastHadirEntry.waktu_presensi
+    };
   }
 
   // 6. Simpan Kehadiran

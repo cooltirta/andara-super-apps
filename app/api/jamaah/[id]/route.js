@@ -41,8 +41,8 @@ export async function PUT(request, { params }) {
     let tanggal_lulus = null;
     let desa = data.desa || "Andara";
     let kategori = data.kategori || "Dewasa";
-    let tanggal_lahir = data.tanggal_lahir || null;
     let status_pernikahan = data.status_pernikahan || "Belum Menikah";
+    let tanggal_pernikahan = data.tanggal_pernikahan !== undefined ? data.tanggal_pernikahan : (orig.tanggal_pernikahan || null);
 
     // New Fields (with fallback to original if undefined in payload)
     let status_haji = data.status_haji !== undefined ? data.status_haji : (orig.status_haji || "Belum Haji");
@@ -80,9 +80,9 @@ export async function PUT(request, { params }) {
       // 1. Update the jamaah record
       await db.query(`
         UPDATE jamaah 
-        SET nama_lengkap = $1, jenis_kelamin = $2, tempat_lahir = $3, status_kehidupan = $4, golongan_darah = $5, kelompok = $6, pendidikan_terakhir = $7, tanggal_lulus_pendidikan_terakhir = $8, desa = $9, kategori = $10, tanggal_lahir = $11, status_pernikahan = $12, status_haji = $13, tanggal_keberangkatan_haji = $14, suku = $15, preferensi_pasangan = $16, foto_url = $17
-        WHERE id = $18;
-      `, [nama_lengkap, jenis_kelamin, tempat_lahir, status_kehidupan, golongan_darah, kelompok, pendidikan_terakhir, tanggal_lulus, desa, kategori, tanggal_lahir, status_pernikahan, status_haji, tanggal_keberangkatan_haji, suku, preferensi_pasangan, foto_url, id]);
+        SET nama_lengkap = $1, jenis_kelamin = $2, tempat_lahir = $3, status_kehidupan = $4, golongan_darah = $5, kelompok = $6, pendidikan_terakhir = $7, tanggal_lulus_pendidikan_terakhir = $8, desa = $9, kategori = $10, tanggal_lahir = $11, status_pernikahan = $12, status_haji = $13, tanggal_keberangkatan_haji = $14, suku = $15, preferensi_pasangan = $16, foto_url = $17, tanggal_pernikahan = $18
+        WHERE id = $19;
+      `, [nama_lengkap, jenis_kelamin, tempat_lahir, status_kehidupan, golongan_darah, kelompok, pendidikan_terakhir, tanggal_lulus, desa, kategori, tanggal_lahir, status_pernikahan, status_haji, tanggal_keberangkatan_haji, suku, preferensi_pasangan, foto_url, tanggal_pernikahan, id]);
 
       // 2. Business logic: transition wives to 'Janda' or husband to 'Duda' if status_kehidupan becomes 'Meninggal'
       if (status_kehidupan === 'Meninggal' && orig.status_kehidupan !== 'Meninggal') {

@@ -25,7 +25,7 @@ export async function GET(request) {
       j.id, j.nama_lengkap, j.jenis_kelamin, j.tempat_lahir, j.status_kehidupan, 
       j.golongan_darah, j.kelompok, j.pendidikan_terakhir, j.tanggal_lulus_pendidikan_terakhir, 
       j.desa, j.kategori, j.tanggal_lahir, j.status_pernikahan, j.rfid, 
-      j.status_haji, j.tanggal_keberangkatan_haji, j.suku, j.preferensi_pasangan
+      j.status_haji, j.tanggal_keberangkatan_haji, j.suku, j.preferensi_pasangan, j.tanggal_pernikahan
     `;
     
     if (includePhoto) {
@@ -96,6 +96,7 @@ export async function POST(request) {
     let kategori = data.kategori || "Dewasa";
     let tanggal_lahir = data.tanggal_lahir || null;
     let status_pernikahan = data.status_pernikahan || "Belum Menikah";
+    let tanggal_pernikahan = data.tanggal_pernikahan || null;
     let rfid = data.rfid ? data.rfid.trim() : null;
 
     // Validate monitored locations
@@ -132,9 +133,9 @@ export async function POST(request) {
     try {
       // 1. Insert Jamaah
       await db.query(`
-        INSERT INTO jamaah (id, nama_lengkap, jenis_kelamin, tempat_lahir, status_kehidupan, golongan_darah, kelompok, pendidikan_terakhir, tanggal_lulus_pendidikan_terakhir, desa, kategori, tanggal_lahir, status_pernikahan, rfid)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14);
-      `, [jamaah_id, nama_lengkap, jenis_kelamin, tempat_lahir, status_kehidupan, golongan_darah, kelompok, pendidikan_terakhir, tanggal_lulus, desa, kategori, tanggal_lahir, status_pernikahan, rfid]);
+        INSERT INTO jamaah (id, nama_lengkap, jenis_kelamin, tempat_lahir, status_kehidupan, golongan_darah, kelompok, pendidikan_terakhir, tanggal_lulus_pendidikan_terakhir, desa, kategori, tanggal_lahir, status_pernikahan, rfid, tanggal_pernikahan)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15);
+      `, [jamaah_id, nama_lengkap, jenis_kelamin, tempat_lahir, status_kehidupan, golongan_darah, kelompok, pendidikan_terakhir, tanggal_lulus, desa, kategori, tanggal_lahir, status_pernikahan, rfid, tanggal_pernikahan]);
 
       // 2. Fetch distinct dates from kehadiran to sync this new jamaah with past dates
       const { rows: datesRows } = await db.query("SELECT DISTINCT tanggal, recorded_by FROM kehadiran WHERE tanggal IS NOT NULL;");
