@@ -915,6 +915,10 @@ export default function DatabasePage() {
       const timeString = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
 
       const element = document.createElement('div');
+      element.style.position = 'absolute';
+      element.style.left = '-9999px';
+      element.style.top = '0';
+      element.style.width = '794px';
       element.style.padding = '40px';
       element.style.fontFamily = "'Inter', Arial, sans-serif";
       element.style.color = '#334155';
@@ -942,7 +946,7 @@ export default function DatabasePage() {
 
         <div style="display: flex; gap: 15px; margin-bottom: 25px;">
           <div style="flex: 1; background: linear-gradient(135deg, #0f766e, #115e59); color: white; padding: 15px; border-radius: 10px;">
-            <p style="margin: 0; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.9;">Total Jamaah Terfilter</p>
+            <p style="margin: 0; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.9;">Total Jamaah</p>
             <h2 style="margin: 5px 0; font-size: 28px; font-weight: 800; line-height: 1;">${totalJamaah} <span style="font-size: 14px; font-weight: 500;">Orang</span></h2>
             <div style="display: flex; gap: 12px; font-size: 11px; border-top: 1px solid rgba(255,255,255,0.2); margin-top: 8px; padding-top: 6px;">
               <span><strong>Laki-laki:</strong> ${totalLaki}</span>
@@ -1013,11 +1017,14 @@ export default function DatabasePage() {
         </div>
       `;
 
+      // Temporarily append the element to the document body so html2canvas can calculate dimensions correctly
+      document.body.appendChild(element);
+
       const opt = {
         margin:       15,
         filename:     `Laporan_Agregat_Jamaah_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true, letterRendering: true },
+        html2canvas:  { scale: 2, useCORS: true, letterRendering: true, scrollX: 0, scrollY: 0 },
         jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
       };
 
@@ -1037,6 +1044,10 @@ export default function DatabasePage() {
         await html2pdf().from(element).set(opt).save();
         showToast("Laporan PDF berhasil diunduh!", "success");
       } finally {
+        // Clean up the temporary element from document body
+        if (element.parentNode) {
+          element.parentNode.removeChild(element);
+        }
         // Always restore style/link elements to their exact positions in the DOM
         stylesToRestore.forEach(({ el, parent, nextSibling }) => {
           try {
