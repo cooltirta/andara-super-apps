@@ -12,7 +12,7 @@ export async function GET(request, { params }) {
     }
 
     const { id } = await params;
-    const { rows } = await db.query("SELECT * FROM sesi WHERE id = $1;", [id]);
+    const { rows } = await db.query("SELECT * FROM sesi WHERE id = $1 AND deleted_at IS NULL;", [id]);
     const session = rows[0];
 
     if (!session) {
@@ -80,7 +80,7 @@ export async function PUT(request, { params }) {
         genders = $7,
         marital_statuses = $8,
         kategoris = $9
-      WHERE id = $10;
+      WHERE id = $10 AND deleted_at IS NULL;
     `, [
       tanggal, 
       waktu_mulai, 
@@ -134,13 +134,13 @@ export async function DELETE(request, { params }) {
     }
 
     // Get session info for logging
-    const { rows: sessionRows } = await db.query("SELECT tanggal, jenis_pengajian FROM sesi WHERE id = $1;", [id]);
+    const { rows: sessionRows } = await db.query("SELECT tanggal, jenis_pengajian FROM sesi WHERE id = $1 AND deleted_at IS NULL;", [id]);
     const session = sessionRows[0];
     if (!session) {
       return NextResponse.json({ error: "Sesi tidak ditemukan" }, { status: 404 });
     }
 
-    await db.query("DELETE FROM sesi WHERE id = $1;", [id]);
+    await db.query("UPDATE sesi SET deleted_at = NOW() WHERE id = $1;", [id]);
 
     await logActivity(
       email, 

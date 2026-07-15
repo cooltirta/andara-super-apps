@@ -1790,19 +1790,6 @@ export default function PresensiPage() {
                                 Hadir: {s.attendancePercentage}%
                               </span>
                             )}
-                            <button
-                              onClick={() => handleCopySesiStatus(s)}
-                              className="flex items-center gap-1 py-0.5 px-2 rounded-full text-[9px] font-black uppercase tracking-wider bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/50 transition-colors cursor-pointer"
-                              title="Salin Rekap Absensi"
-                              disabled={copyingSessionId === s.id}
-                            >
-                              {copyingSessionId === s.id ? (
-                                <div className="w-2.5 h-2.5 border-2 border-indigo-650 border-t-transparent rounded-full animate-spin" />
-                              ) : (
-                                <Copy size={10} />
-                              )}
-                              <span>{copyingSessionId === s.id ? "Copying..." : "Copy Rekap Absen"}</span>
-                            </button>
                           </div>
                         </div>
                       </div>
@@ -1863,15 +1850,6 @@ export default function PresensiPage() {
                           <span>Edit</span>
                         </button>
 
-                        <button
-                          onClick={() => handleOpenSyncModal(s)}
-                          className="flex items-center gap-1 py-1 px-2 rounded text-[11px] font-bold text-teal-650 hover:bg-teal-50 transition-colors cursor-pointer"
-                          title="Sync ke Ngajiku"
-                        >
-                          <RefreshCw size={12} />
-                          <span>Sync</span>
-                        </button>
-
                         {user.can_delete_kehadiran && (
                           <button
                             onClick={() => handleDeleteSesi(s.id, `${s.jenis_pengajian} (${s.tanggal})`)}
@@ -1882,6 +1860,20 @@ export default function PresensiPage() {
                             <span>Hapus</span>
                           </button>
                         )}
+
+                        <button
+                          onClick={() => handleCopySesiStatus(s)}
+                          className="flex items-center gap-1 py-1 px-2 rounded text-[11px] font-bold text-indigo-700 hover:bg-indigo-50 transition-colors cursor-pointer"
+                          title="Salin Rekap Absensi"
+                          disabled={copyingSessionId === s.id}
+                        >
+                          {copyingSessionId === s.id ? (
+                            <div className="w-3 h-3 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin shrink-0" />
+                          ) : (
+                            <Copy size={12} className="shrink-0" />
+                          )}
+                          <span>Copy Rekap Absen</span>
+                        </button>
                       </div>
 
                       <button

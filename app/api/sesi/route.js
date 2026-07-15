@@ -25,7 +25,7 @@ export async function GET(request) {
 
     // Fetch all sessions
     const { rows: sessions } = await db.query(
-      "SELECT * FROM sesi ORDER BY tanggal DESC, waktu_mulai DESC;"
+      "SELECT * FROM sesi WHERE deleted_at IS NULL ORDER BY tanggal DESC, waktu_mulai DESC;"
     );
 
     // Filter sessions based on authorization scope
