@@ -2923,7 +2923,7 @@ export default function DatabasePage() {
  
               {/* Instructions (Hidden on Print) */}
               <p className="text-[11px] text-slate-500 font-semibold leading-relaxed text-center px-4 print:hidden">
-                Gunakan tombol cetak di bawah untuk mencetak kartu anggota. Cetak kartu ini di atas kertas tebal (Art Paper atau PVC) agar dapat dipindai oleh Moderator saat pengajian berlangsung.
+                Gunakan tombol cetak di bawah untuk mencetak kartu anggota. Cetak kartu ini di atas kertas tebal (Art Paper atau PVC). Kode QR digunakan oleh jamaah untuk memeriksa riwayat kehadiran secara mandiri.
               </p>
  
               {/* Actions (Hidden on Print) */}

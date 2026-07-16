@@ -508,16 +508,16 @@ export default function UserAccessPage() {
         ]
       },
       {
-        category: "Manajemen User & Lokasi",
+        category: "Manajemen User, Dapukan & Wilayah",
         items: [
           { name: "Melihat daftar user akses", status: u.can_read_user },
           { name: "Menambah user akses baru", status: u.can_create_user },
           { name: "Mengubah hak akses user", status: u.can_update_user },
           { name: "Menghapus user akses", status: u.can_delete_user },
-          { name: "Membaca data lokasi desa/kelompok", status: u.can_read_lokasi },
-          { name: "Menambah lokasi desa/kelompok", status: u.can_create_lokasi },
-          { name: "Mengubah lokasi desa/kelompok", status: u.can_update_lokasi },
-          { name: "Menghapus lokasi desa/kelompok", status: u.can_delete_lokasi },
+          { name: "Membaca data Dapukan & Wilayah", status: u.can_read_lokasi },
+          { name: "Menambah Dapukan & Wilayah", status: u.can_create_lokasi },
+          { name: "Mengubah Dapukan & Wilayah", status: u.can_update_lokasi },
+          { name: "Menghapus Dapukan & Wilayah", status: u.can_delete_lokasi },
         ]
       },
       {
@@ -1083,9 +1083,9 @@ export default function UserAccessPage() {
                     </div>
                   </div>
 
-                  {/* 6. Manajemen Lokasi */}
+                  {/* 6. Manajemen Dapukan & Wilayah */}
                   <div className="flex flex-col gap-2 text-left">
-                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">6. Manajemen Lokasi</span>
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">6. Dapukan & Wilayah</span>
                     <div className="grid grid-cols-2 gap-2 bg-white p-2.5 rounded-lg border border-slate-200">
                       <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none">
                         <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer" checked={canReadLokasi} onChange={(e) => setCanReadLokasi(e.target.checked)} />
