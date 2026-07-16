@@ -196,7 +196,7 @@ export default function Sidebar({ user }) {
             )}
 
             {/* 5. Dapukan & Wilayah */}
-            {user.can_read_lokasi && (
+            {(user.can_read_lokasi || user.can_read_struktur || user.can_read_wilayah || user.can_read_dapukan) && (
               <Link 
                 href="/dashboard/lokasi" 
                 onClick={() => setIsOpen(false)}

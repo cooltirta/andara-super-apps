@@ -85,6 +85,21 @@ export async function PUT(request, { params }) {
     const can_update_lokasi = !!data.can_update_lokasi;
     const can_delete_lokasi = !!data.can_delete_lokasi;
 
+    const can_create_struktur = !!data.can_create_struktur;
+    const can_read_struktur = !!data.can_read_struktur;
+    const can_update_struktur = !!data.can_update_struktur;
+    const can_delete_struktur = !!data.can_delete_struktur;
+
+    const can_create_wilayah = !!data.can_create_wilayah;
+    const can_read_wilayah = !!data.can_read_wilayah;
+    const can_update_wilayah = !!data.can_update_wilayah;
+    const can_delete_wilayah = !!data.can_delete_wilayah;
+
+    const can_create_dapukan = !!data.can_create_dapukan;
+    const can_read_dapukan = !!data.can_read_dapukan;
+    const can_update_dapukan = !!data.can_update_dapukan;
+    const can_delete_dapukan = !!data.can_delete_dapukan;
+
     const can_read_logs = !!data.can_read_logs;
 
     const can_create_pnkb = !!data.can_create_pnkb;
@@ -118,12 +133,15 @@ export async function PUT(request, { params }) {
         can_read_laporan = $20,
         can_create_user = $21, can_read_user = $22, can_update_user = $23, can_delete_user = $24,
         can_create_lokasi = $25, can_read_lokasi = $26, can_update_lokasi = $27, can_delete_lokasi = $28,
-        can_read_logs = $29,
-        can_create_pnkb = $30, can_read_pnkb = $31, can_update_pnkb = $32, can_delete_pnkb = $33,
-        can_create_haji = $34, can_read_haji = $35, can_update_haji = $36, can_delete_haji = $37,
-        can_create_sabilillah = $38, can_read_sabilillah = $39, can_update_sabilillah = $40, can_delete_sabilillah = $41,
-        can_create_kalender = $42, can_read_kalender = $43, can_update_kalender = $44, can_delete_kalender = $45
-      WHERE id = $46;
+        can_create_struktur = $29, can_read_struktur = $30, can_update_struktur = $31, can_delete_struktur = $32,
+        can_create_wilayah = $33, can_read_wilayah = $34, can_update_wilayah = $35, can_delete_wilayah = $36,
+        can_create_dapukan = $37, can_read_dapukan = $38, can_update_dapukan = $39, can_delete_dapukan = $40,
+        can_read_logs = $41,
+        can_create_pnkb = $42, can_read_pnkb = $43, can_update_pnkb = $44, can_delete_pnkb = $45,
+        can_create_haji = $46, can_read_haji = $47, can_update_haji = $48, can_delete_haji = $49,
+        can_create_sabilillah = $50, can_read_sabilillah = $51, can_update_sabilillah = $52, can_delete_sabilillah = $53,
+        can_create_kalender = $54, can_read_kalender = $55, can_update_kalender = $56, can_delete_kalender = $57
+      WHERE id = $58;
     `, [
       role, kelompok, desa,
       monitor_all_desas, desas_pantau,
@@ -134,6 +152,9 @@ export async function PUT(request, { params }) {
       can_read_laporan,
       can_create_user, can_read_user, can_update_user, can_delete_user,
       can_create_lokasi, can_read_lokasi, can_update_lokasi, can_delete_lokasi,
+      can_create_struktur, can_read_struktur, can_update_struktur, can_delete_struktur,
+      can_create_wilayah, can_read_wilayah, can_update_wilayah, can_delete_wilayah,
+      can_create_dapukan, can_read_dapukan, can_update_dapukan, can_delete_dapukan,
       can_read_logs,
       can_create_pnkb, can_read_pnkb, can_update_pnkb, can_delete_pnkb,
       can_create_haji, can_read_haji, can_update_haji, can_delete_haji,

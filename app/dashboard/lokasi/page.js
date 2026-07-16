@@ -63,10 +63,19 @@ export default function LokasiManagementPage() {
       const currentUser = await userRes.json();
       setUser(currentUser);
 
-      if (!currentUser.can_read_lokasi) {
+      if (!currentUser.can_read_lokasi && !currentUser.can_read_struktur && !currentUser.can_read_wilayah && !currentUser.can_read_dapukan) {
         showToast("Akses Ditolak: Anda tidak memiliki akses ke halaman ini", "error");
         setTimeout(() => router.push('/dashboard'), 1500);
         return;
+      }
+
+      // Automatically select first authorized tab
+      if (currentUser.can_read_struktur || currentUser.can_read_lokasi) {
+        setActiveTab('struktur');
+      } else if (currentUser.can_read_wilayah) {
+        setActiveTab('wilayah');
+      } else if (currentUser.can_read_dapukan) {
+        setActiveTab('dapukan');
       }
 
       await fetchLocations();
@@ -146,12 +155,15 @@ export default function LokasiManagementPage() {
   }, []);
 
   useEffect(() => {
-    if (user && user.can_read_lokasi) {
+    if (user && (user.can_read_lokasi || user.can_read_struktur)) {
       fetchAssignments();
     }
   }, [levelFilter, selectedDesaId, selectedKelompokId, user]);
 
   const isSuperAdmin = !!(user?.can_create_lokasi && user?.can_update_lokasi && user?.can_delete_lokasi);
+  const canManageStruktur = !!(user?.can_update_struktur || user?.can_create_struktur || isSuperAdmin);
+  const canManageWilayah = !!(user?.can_update_wilayah || user?.can_create_wilayah || isSuperAdmin);
+  const canManageDapukan = !!(user?.can_update_dapukan || user?.can_create_dapukan || isSuperAdmin);
 
   const handleDesaChange = (desaId) => {
     setSelectedDesaId(desaId);
@@ -181,7 +193,7 @@ export default function LokasiManagementPage() {
 
   const handleAssignSubmit = async (e) => {
     e.preventDefault();
-    if (!isSuperAdmin || !assigningDapukanDef) return;
+    if (!canManageStruktur || !assigningDapukanDef) return;
 
     const payload = {
       jamaah_id: selectedAssignJamaahId,
@@ -213,7 +225,7 @@ export default function LokasiManagementPage() {
   };
 
   const handleRemoveAssignment = async (id) => {
-    if (!isSuperAdmin) return;
+    if (!canManageStruktur) return;
     if (!confirm("Cabut penugasan jamaah ini dari dapukan?")) return;
 
     try {
@@ -234,7 +246,7 @@ export default function LokasiManagementPage() {
 
   // Tab 2: Desa CRUD
   const openDesaModal = (desa = null) => {
-    if (!isSuperAdmin) return;
+    if (!canManageWilayah) return;
     if (desa) {
       setSelectedDesa(desa);
       setFormDesaName(desa.nama_desa);
@@ -253,7 +265,7 @@ export default function LokasiManagementPage() {
 
   const handleDesaSubmit = async (e) => {
     e.preventDefault();
-    if (!isSuperAdmin) return;
+    if (!canManageWilayah) return;
 
     const name = formDesaName.trim();
     if (!name) return;
@@ -285,7 +297,7 @@ export default function LokasiManagementPage() {
   };
 
   const handleDeleteDesa = async (desa) => {
-    if (!isSuperAdmin) return;
+    if (!canManageWilayah) return;
     if (!confirm(`Hapus wilayah Desa ${desa.nama_desa}? Seluruh kelompok di bawah desa ini juga akan terhapus jika tidak terikat jamaah/user.`)) {
       return;
     }
@@ -308,7 +320,7 @@ export default function LokasiManagementPage() {
 
   // Tab 2: Kelompok CRUD
   const openKelompokModal = (kelompok = null, parentDesa = null) => {
-    if (!isSuperAdmin) return;
+    if (!canManageWilayah) return;
     if (kelompok) {
       setSelectedKelompok(kelompok);
       setFormKelompokName(kelompok.nama_kelompok);
@@ -330,7 +342,7 @@ export default function LokasiManagementPage() {
 
   const handleKelompokSubmit = async (e) => {
     e.preventDefault();
-    if (!isSuperAdmin) return;
+    if (!canManageWilayah) return;
 
     const name = formKelompokName.trim();
     if (!name) return;
@@ -362,7 +374,7 @@ export default function LokasiManagementPage() {
   };
 
   const handleDeleteKelompok = async (kelompok) => {
-    if (!isSuperAdmin) return;
+    if (!canManageWilayah) return;
     if (!confirm(`Hapus kelompok ${kelompok.nama_kelompok}?`)) {
       return;
     }
@@ -385,7 +397,7 @@ export default function LokasiManagementPage() {
 
   // Tab 3: Dapukan CRUD
   const openDapukanModal = (dapukan = null) => {
-    if (!isSuperAdmin) return;
+    if (!canManageDapukan) return;
     if (dapukan) {
       setSelectedDapukan(dapukan);
       setFormDapukanName(dapukan.nama_dapukan);
@@ -406,7 +418,7 @@ export default function LokasiManagementPage() {
 
   const handleDapukanSubmit = async (e) => {
     e.preventDefault();
-    if (!isSuperAdmin) return;
+    if (!canManageDapukan) return;
 
     const name = formDapukanName.trim();
     if (!name) return;
@@ -438,7 +450,7 @@ export default function LokasiManagementPage() {
   };
 
   const handleDeleteDapukan = async (id) => {
-    if (!isSuperAdmin) return;
+    if (!canManageDapukan) return;
     if (!confirm("Hapus master dapukan ini? Seluruh riwayat penugasan jamaah untuk dapukan ini akan otomatis terhapus.")) return;
 
     try {
@@ -457,7 +469,7 @@ export default function LokasiManagementPage() {
     }
   };
 
-  if (!user || !user.can_read_lokasi) {
+  if (!user || (!user.can_read_lokasi && !user.can_read_struktur && !user.can_read_wilayah && !user.can_read_dapukan)) {
     return (
       <div className="flex justify-center items-center h-[80vh]">
         <div className="spinner"></div>
@@ -505,51 +517,56 @@ export default function LokasiManagementPage() {
         </div>
       </div>
 
-      {/* Role Notice */}
-      {!isSuperAdmin && (
+      {!canManageStruktur && !canManageWilayah && !canManageDapukan && (
         <div className="bg-amber-50 border border-amber-100 p-4 rounded-xl text-left text-xs font-bold text-amber-700 flex items-center gap-2.5 mb-6">
           <Info size={18} className="text-amber-600 shrink-0" />
-          <span>Anda berada dalam mode Read-Only. Hanya Super Admin yang memiliki hak akses penuh untuk mengubah lokasi dan mengalokasikan dapukan pengurus.</span>
+          <span>Anda berada dalam mode Read-Only. Hanya admin/pengurus yang memiliki hak akses modifikasi yang dapat mengubah data di halaman ini.</span>
         </div>
       )}
 
       {/* TABS SELECTOR */}
       <div className="flex border-b border-slate-100 mb-6 gap-6 text-sm font-bold select-none">
-        <button 
-          onClick={() => setActiveTab('struktur')}
-          className={`pb-3 flex items-center gap-2 border-b-2 transition-all cursor-pointer ${
-            activeTab === 'struktur' 
-              ? 'border-primary text-primary font-black' 
-              : 'border-transparent text-slate-400 hover:text-slate-650'
-          }`}
-        >
-          <Users size={16} />
-          <span>Struktur Pengurus</span>
-        </button>
+        {(user.can_read_lokasi || user.can_read_struktur) && (
+          <button 
+            onClick={() => setActiveTab('struktur')}
+            className={`pb-3 flex items-center gap-2 border-b-2 transition-all cursor-pointer ${
+              activeTab === 'struktur' 
+                ? 'border-primary text-primary font-black' 
+                : 'border-transparent text-slate-400 hover:text-slate-650'
+            }`}
+          >
+            <Users size={16} />
+            <span>Struktur Pengurus</span>
+          </button>
+        )}
 
-        <button 
-          onClick={() => setActiveTab('wilayah')}
-          className={`pb-3 flex items-center gap-2 border-b-2 transition-all cursor-pointer ${
-            activeTab === 'wilayah' 
-              ? 'border-primary text-primary font-black' 
-              : 'border-transparent text-slate-400 hover:text-slate-650'
-          }`}
-        >
-          <MapPin size={16} />
-          <span>Manajemen Wilayah</span>
-        </button>
+        {(user.can_read_lokasi || user.can_read_wilayah) && (
+          <button 
+            onClick={() => setActiveTab('wilayah')}
+            className={`pb-3 flex items-center gap-2 border-b-2 transition-all cursor-pointer ${
+              activeTab === 'wilayah' 
+                ? 'border-primary text-primary font-black' 
+                : 'border-transparent text-slate-400 hover:text-slate-650'
+            }`}
+          >
+            <MapPin size={16} />
+            <span>Manajemen Wilayah</span>
+          </button>
+        )}
 
-        <button 
-          onClick={() => setActiveTab('dapukan')}
-          className={`pb-3 flex items-center gap-2 border-b-2 transition-all cursor-pointer ${
-            activeTab === 'dapukan' 
-              ? 'border-primary text-primary font-black' 
-              : 'border-transparent text-slate-400 hover:text-slate-650'
-          }`}
-        >
-          <Settings size={16} />
-          <span>Manajemen Dapukan</span>
-        </button>
+        {(user.can_read_lokasi || user.can_read_dapukan) && (
+          <button 
+            onClick={() => setActiveTab('dapukan')}
+            className={`pb-3 flex items-center gap-2 border-b-2 transition-all cursor-pointer ${
+              activeTab === 'dapukan' 
+                ? 'border-primary text-primary font-black' 
+                : 'border-transparent text-slate-400 hover:text-slate-650'
+            }`}
+          >
+            <Settings size={16} />
+            <span>Manajemen Dapukan</span>
+          </button>
+        )}
       </div>
 
       {loading ? (
@@ -646,7 +663,7 @@ export default function LokasiManagementPage() {
                           <div>
                             <div className="flex justify-between items-start mb-2">
                               <h4 className="text-[10px] font-black text-slate-700 uppercase tracking-wider">{role.nama_dapukan}</h4>
-                              {isSuperAdmin && (
+                              {canManageStruktur && (
                                 <button 
                                   onClick={() => openAssignModal(role)}
                                   className="text-[9px] font-black text-primary hover:underline flex items-center gap-0.5 cursor-pointer"
@@ -664,7 +681,7 @@ export default function LokasiManagementPage() {
                                 getAssignedJamaah(role.id).map(a => (
                                   <div key={a.id} className="flex justify-between items-center py-1 px-2 bg-white border border-slate-100 rounded-lg text-xs font-bold text-slate-700">
                                     <span className="truncate max-w-[130px]" title={a.nama_jamaah}>{a.nama_jamaah}</span>
-                                    {isSuperAdmin && (
+                                    {canManageStruktur && (
                                       <button 
                                         onClick={() => handleRemoveAssignment(a.id)}
                                         className="text-red-500 hover:text-red-750 p-0.5 cursor-pointer ml-1"
@@ -699,7 +716,7 @@ export default function LokasiManagementPage() {
                           <div>
                             <div className="flex justify-between items-start mb-2">
                               <h4 className="text-[10px] font-black text-slate-700 uppercase tracking-wider">{role.nama_dapukan}</h4>
-                              {isSuperAdmin && (
+                              {canManageStruktur && (
                                 <button 
                                   onClick={() => openAssignModal(role)}
                                   className="text-[9px] font-black text-primary hover:underline flex items-center gap-0.5 cursor-pointer"
@@ -717,7 +734,7 @@ export default function LokasiManagementPage() {
                                 getAssignedJamaah(role.id).map(a => (
                                   <div key={a.id} className="flex justify-between items-center py-1 px-2 bg-white border border-slate-100 rounded-lg text-xs font-bold text-slate-700">
                                     <span className="truncate max-w-[130px]" title={a.nama_jamaah}>{a.nama_jamaah}</span>
-                                    {isSuperAdmin && (
+                                    {canManageStruktur && (
                                       <button 
                                         onClick={() => handleRemoveAssignment(a.id)}
                                         className="text-red-500 hover:text-red-750 p-0.5 cursor-pointer ml-1"
@@ -742,13 +759,13 @@ export default function LokasiManagementPage() {
           )}
 
           {/* TAB 2: MANAJEMEN WILAYAH */}
-          {activeTab === 'wilayah' && (
+          {activeTab === 'wilayah' && (user.can_read_lokasi || user.can_read_wilayah) && (
             <div className="flex flex-col gap-6 animate-fadeIn">
               <div className="flex justify-between items-center bg-white border border-slate-100 shadow-sm rounded-xl p-4">
                 <span className="text-xs font-bold text-slate-500 text-left">
                   Daftar wilayah administrasi jamaah
                 </span>
-                {isSuperAdmin && (
+                {canManageWilayah && (
                   <button 
                     onClick={() => openDesaModal()}
                     className="flex items-center gap-2 py-1.5 px-3 bg-primary hover:bg-primary-hover text-white rounded-lg font-bold text-xs shadow-md shadow-primary/10 transition-all cursor-pointer"
@@ -775,7 +792,7 @@ export default function LokasiManagementPage() {
                             <MapPin size={16} className="text-primary animate-pulse" />
                             <h3 className="font-bold text-slate-800 text-sm leading-tight">Desa {desa.nama_desa}</h3>
                           </div>
-                          {isSuperAdmin && (
+                          {canManageWilayah && (
                             <div className="flex items-center gap-1.5 shrink-0">
                               <button 
                                 className="text-slate-400 hover:text-primary p-1.5 rounded-lg hover:bg-slate-50 transition-all cursor-pointer"
@@ -807,7 +824,7 @@ export default function LokasiManagementPage() {
                                   className="flex items-center justify-between py-2 px-3 bg-slate-50/50 hover:bg-slate-50 border border-slate-100/60 rounded-xl transition-all"
                                 >
                                   <span className="text-xs font-bold text-slate-700">{kelompok.nama_kelompok}</span>
-                                  {isSuperAdmin && (
+                                  {canManageWilayah && (
                                     <div className="flex items-center gap-1">
                                       <button 
                                         className="text-slate-400 hover:text-primary p-1 rounded hover:bg-white/80 transition-all cursor-pointer"
@@ -833,7 +850,7 @@ export default function LokasiManagementPage() {
                       </div>
 
                       {/* Action Button: Add Kelompok */}
-                      {isSuperAdmin && (
+                      {canManageWilayah && (
                         <div>
                           <button 
                             onClick={() => openKelompokModal(null, desa)}
@@ -852,13 +869,13 @@ export default function LokasiManagementPage() {
           )}
 
           {/* TAB 3: MANAJEMEN DAPUKAN */}
-          {activeTab === 'dapukan' && (
+          {activeTab === 'dapukan' && (user.can_read_lokasi || user.can_read_dapukan) && (
             <div className="flex flex-col gap-6 animate-fadeIn">
               <div className="flex justify-between items-center bg-white border border-slate-100 shadow-sm rounded-xl p-4">
                 <span className="text-xs font-bold text-slate-500 text-left">
                   Kelola master nama jabatan dapukan pengurus yang tersedia di aplikasi
                 </span>
-                {isSuperAdmin && (
+                {canManageDapukan && (
                   <button 
                     onClick={() => openDapukanModal()}
                     className="flex items-center gap-2 py-1.5 px-3 bg-primary hover:bg-primary-hover text-white rounded-lg font-bold text-xs shadow-md shadow-primary/10 transition-all cursor-pointer"
@@ -881,7 +898,7 @@ export default function LokasiManagementPage() {
                       <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest">
                         <th className="py-3 px-6">Nama Dapukan</th>
                         <th className="py-3 px-6">Tipe Struktur</th>
-                        {isSuperAdmin && <th className="py-3 px-6 text-right">Aksi</th>}
+                        {canManageDapukan && <th className="py-3 px-6 text-right">Aksi</th>}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50 text-xs font-bold text-slate-700">
@@ -895,7 +912,7 @@ export default function LokasiManagementPage() {
                               {d.tipe}
                             </span>
                           </td>
-                          {isSuperAdmin && (
+                          {canManageDapukan && (
                             <td className="py-3.5 px-6 text-right">
                               <div className="flex items-center justify-end gap-2">
                                 <button 
@@ -929,11 +946,11 @@ export default function LokasiManagementPage() {
       {/* ========================================== MODALS ========================================== */}
 
       {/* 1. Assignment Modal (Tambah Pengurus) */}
-      {isAssignModalOpen && isSuperAdmin && assigningDapukanDef && (
+      {isAssignModalOpen && canManageStruktur && assigningDapukanDef && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-sm p-4 animate-fadeIn">
           <div className="bg-white rounded-xl border border-slate-100 shadow-xl max-w-md w-full animate-scaleIn">
             <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100">
-              <h2 className="text-base font-bold text-slate-850 tracking-tight">
+              <h2 className="text-base font-bold text-slate-855 tracking-tight">
                 Tugaskan Pengurus: {assigningDapukanDef.nama_dapukan}
               </h2>
               <button className="p-1 rounded-lg text-slate-400 hover:bg-slate-50 hover:text-slate-700 transition-colors" onClick={closeAssignModal}>
@@ -984,7 +1001,7 @@ export default function LokasiManagementPage() {
       )}
 
       {/* 2. Desa Modal */}
-      {isDesaModalOpen && isSuperAdmin && (
+      {isDesaModalOpen && canManageWilayah && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-sm p-4 animate-fadeIn">
           <div className="bg-white rounded-xl border border-slate-100 shadow-xl max-w-md w-full animate-scaleIn">
             <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100">
@@ -1010,7 +1027,7 @@ export default function LokasiManagementPage() {
                   />
                 </div>
                 <div className="flex justify-end gap-2.5 border-t border-slate-100 pt-5 mt-2">
-                  <button type="button" className="py-2 px-4 font-bold text-xs bg-white border border-slate-200 hover:bg-slate-50 text-slate-650 rounded-lg transition-all" onClick={closeDesaModal}>Batal</button>
+                  <button type="button" className="py-2 px-4 font-bold text-xs bg-white border border-slate-200 hover:bg-slate-50 text-slate-655 rounded-lg transition-all" onClick={closeDesaModal}>Batal</button>
                   <button type="submit" className="py-2 px-4 font-bold text-xs bg-primary hover:bg-primary-hover text-white rounded-lg shadow-md shadow-primary/10 transition-all">Simpan</button>
                 </div>
               </form>
@@ -1020,7 +1037,7 @@ export default function LokasiManagementPage() {
       )}
 
       {/* 3. Kelompok Modal */}
-      {isKelompokModalOpen && isSuperAdmin && (
+      {isKelompokModalOpen && canManageWilayah && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-sm p-4 animate-fadeIn">
           <div className="bg-white rounded-xl border border-slate-100 shadow-xl max-w-md w-full animate-scaleIn">
             <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100">
@@ -1046,7 +1063,7 @@ export default function LokasiManagementPage() {
                   />
                 </div>
                 <div className="flex justify-end gap-2.5 border-t border-slate-100 pt-5 mt-2">
-                  <button type="button" className="py-2 px-4 font-bold text-xs bg-white border border-slate-200 hover:bg-slate-50 text-slate-650 rounded-lg transition-all" onClick={closeKelompokModal}>Batal</button>
+                  <button type="button" className="py-2 px-4 font-bold text-xs bg-white border border-slate-200 hover:bg-slate-50 text-slate-655 rounded-lg transition-all" onClick={closeKelompokModal}>Batal</button>
                   <button type="submit" className="py-2 px-4 font-bold text-xs bg-primary hover:bg-primary-hover text-white rounded-lg shadow-md shadow-primary/10 transition-all">Simpan</button>
                 </div>
               </form>
@@ -1056,7 +1073,7 @@ export default function LokasiManagementPage() {
       )}
 
       {/* 4. Dapukan Definition Modal */}
-      {isDapukanModalOpen && isSuperAdmin && (
+      {isDapukanModalOpen && canManageDapukan && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-sm p-4 animate-fadeIn">
           <div className="bg-white rounded-xl border border-slate-100 shadow-xl max-w-md w-full animate-scaleIn">
             <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100">

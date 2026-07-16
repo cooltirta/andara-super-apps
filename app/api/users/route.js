@@ -112,6 +112,21 @@ export async function POST(request) {
     const can_update_lokasi = !!data.can_update_lokasi;
     const can_delete_lokasi = !!data.can_delete_lokasi;
 
+    const can_create_struktur = !!data.can_create_struktur;
+    const can_read_struktur = !!data.can_read_struktur;
+    const can_update_struktur = !!data.can_update_struktur;
+    const can_delete_struktur = !!data.can_delete_struktur;
+
+    const can_create_wilayah = !!data.can_create_wilayah;
+    const can_read_wilayah = !!data.can_read_wilayah;
+    const can_update_wilayah = !!data.can_update_wilayah;
+    const can_delete_wilayah = !!data.can_delete_wilayah;
+
+    const can_create_dapukan = !!data.can_create_dapukan;
+    const can_read_dapukan = !!data.can_read_dapukan;
+    const can_update_dapukan = !!data.can_update_dapukan;
+    const can_delete_dapukan = !!data.can_delete_dapukan;
+
     const can_read_logs = !!data.can_read_logs;
 
     const can_create_pnkb = !!data.can_create_pnkb;
@@ -144,6 +159,9 @@ export async function POST(request) {
         can_read_laporan,
         can_create_user, can_read_user, can_update_user, can_delete_user,
         can_create_lokasi, can_read_lokasi, can_update_lokasi, can_delete_lokasi,
+        can_create_struktur, can_read_struktur, can_update_struktur, can_delete_struktur,
+        can_create_wilayah, can_read_wilayah, can_update_wilayah, can_delete_wilayah,
+        can_create_dapukan, can_read_dapukan, can_update_dapukan, can_delete_dapukan,
         can_read_logs,
         can_create_pnkb, can_read_pnkb, can_update_pnkb, can_delete_pnkb,
         can_create_haji, can_read_haji, can_update_haji, can_delete_haji,
@@ -158,11 +176,14 @@ export async function POST(request) {
         $22,
         $23, $24, $25, $26,
         $27, $28, $29, $30,
-        $31,
-        $32, $33, $34, $35,
-        $36, $37, $38, $39,
-        $40, $41, $42, $43,
-        $44, $45, $46, $47
+        $31, $32, $33, $34,
+        $35, $36, $37, $38,
+        $39, $40, $41, $42,
+        $43,
+        $44, $45, $46, $47,
+        $48, $49, $50, $51,
+        $52, $53, $54, $55,
+        $56, $57, $58, $59
       );
     `, [
       user_id, email, role, kelompok, desa,
@@ -173,6 +194,9 @@ export async function POST(request) {
       can_read_laporan,
       can_create_user, can_read_user, can_update_user, can_delete_user,
       can_create_lokasi, can_read_lokasi, can_update_lokasi, can_delete_lokasi,
+      can_create_struktur, can_read_struktur, can_update_struktur, can_delete_struktur,
+      can_create_wilayah, can_read_wilayah, can_update_wilayah, can_delete_wilayah,
+      can_create_dapukan, can_read_dapukan, can_update_dapukan, can_delete_dapukan,
       can_read_logs,
       can_create_pnkb, can_read_pnkb, can_update_pnkb, can_delete_pnkb,
       can_create_haji, can_read_haji, can_update_haji, can_delete_haji,
