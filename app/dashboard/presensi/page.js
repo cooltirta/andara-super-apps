@@ -1647,113 +1647,108 @@ export default function PresensiPage() {
                 <span>+ Buat Sesi Baru</span>
               </button>
             )}
-          </div>
-
-          {/* Filters Panel */}
-          <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-5 flex flex-col gap-5 text-left text-xs font-bold text-slate-700">
-            {/* Header & Collapsible Toggle */}
-            <div className="flex flex-wrap items-center justify-between gap-5 pb-1">
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowSesiFilters(!showSesiFilters)}
-                  className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-500 cursor-pointer transition-all flex items-center justify-center"
-                  title={showSesiFilters ? "Sembunyikan Kriteria" : "Tampilkan Kriteria"}
-                >
-                  {showSesiFilters ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                </button>
-                <div className="flex flex-col">
-                  <span className="text-xs font-black text-slate-800 uppercase tracking-wider">Kriteria & Saringan Sesi</span>
-                  <span className="text-[10px] text-slate-450 font-bold mt-0.5">
-                    {showSesiFilters ? "Saring sesi berdasarkan bulan, wilayah (desa/kelompok), atau jenis pengajian" : "Kriteria disembunyikan. Gunakan tombol di sebelah kiri untuk melihat/mengubah"}
-                  </span>
-                </div>
-              </div>
-            </div>
+               {/* Collapsible Filters Toggle */}
+          <div className="flex flex-col gap-2 mb-6">
+            <button 
+              type="button" 
+              onClick={() => setShowSesiFilters(!showSesiFilters)} 
+              className="w-full flex items-center justify-between py-2.5 px-4 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-xl shadow-sm transition-all cursor-pointer"
+            >
+              <span className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+                <span>Kriteria & Saringan Sesi</span>
+              </span>
+              {showSesiFilters ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            </button>
 
             {showSesiFilters && (
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 border-t border-slate-50 pt-4">
-                {/* Month Picker */}
-                <SesiMonthPicker 
-                  selectedYear={filterSesiYear} 
-                  selectedMonth={filterSesiMonth} 
-                  onChange={(year, month) => {
-                    setFilterSesiYear(year);
-                    setFilterSesiMonth(month);
-                  }} 
-                  sessions={sessions}
-                />
-                
-                {/* Desa Filter */}
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Filter Desa</span>
-                  <select
-                    value={filterSesiDesa}
-                    onChange={(e) => {
-                      setFilterSesiDesa(e.target.value);
-                      setFilterSesiKelompok(''); // Reset kelompok when desa changes
-                    }}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-750 font-bold text-xs hover:border-primary transition-all shadow-sm outline-none min-h-[34px] cursor-pointer"
-                  >
-                    <option value="">Semua Desa</option>
-                    {locations.map(d => (
-                      <option key={d.nama_desa} value={d.nama_desa}>{d.nama_desa}</option>
-                    ))}
-                  </select>
+              <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-5 flex flex-col gap-5 text-left text-xs font-bold text-slate-700 animate-fadeIn">
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                  {/* Month Picker */}
+                  <SesiMonthPicker 
+                    selectedYear={filterSesiYear} 
+                    selectedMonth={filterSesiMonth} 
+                    onChange={(year, month) => {
+                      setFilterSesiYear(year);
+                      setFilterSesiMonth(month);
+                    }} 
+                    sessions={sessions}
+                  />
+                  
+                  {/* Desa Filter */}
+                  <div className="flex flex-col gap-1.5">
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Filter Desa</span>
+                    <select
+                      value={filterSesiDesa}
+                      onChange={(e) => {
+                        setFilterSesiDesa(e.target.value);
+                        setFilterSesiKelompok('');
+                      }}
+                      className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-750 font-bold text-xs hover:border-primary transition-all shadow-sm outline-none min-h-[34px] cursor-pointer"
+                    >
+                      <option value="">Semua Desa</option>
+                      {(user.monitor_all_desas 
+                        ? locations 
+                        : locations.filter(d => (user.desas_pantau || []).includes(d.nama_desa))
+                      ).map(d => (
+                        <option key={d.nama_desa} value={d.nama_desa}>{d.nama_desa}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Kelompok Filter */}
+                  <div className="flex flex-col gap-1.5">
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Filter Kelompok</span>
+                    <select
+                      value={filterSesiKelompok}
+                      onChange={(e) => setFilterSesiKelompok(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-750 font-bold text-xs hover:border-primary transition-all shadow-sm outline-none min-h-[34px] cursor-pointer"
+                    >
+                      <option value="">Semua Kelompok</option>
+                      {(filterSesiDesa 
+                        ? locations.find(d => d.nama_desa === filterSesiDesa)?.kelompoks.map(k => k.nama_kelompok) || []
+                        : locations.flatMap(d => d.kelompoks.map(k => k.nama_kelompok))
+                      ).map(kName => (
+                        <option key={kName} value={kName}>{kName}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Jenis Pengajian Filter */}
+                  <div className="flex flex-col gap-1.5">
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Jenis Pengajian</span>
+                    <select
+                      value={filterSesiJenis}
+                      onChange={(e) => setFilterSesiJenis(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-750 font-bold text-xs hover:border-primary transition-all shadow-sm outline-none min-h-[34px] cursor-pointer"
+                    >
+                      <option value="">Semua Jenis</option>
+                      <option value="Kelompok">Kelompok</option>
+                      <option value="Desa">Desa</option>
+                      <option value="Daerah">Daerah</option>
+                    </select>
+                  </div>
                 </div>
 
-                {/* Kelompok Filter */}
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Filter Kelompok</span>
-                  <select
-                    value={filterSesiKelompok}
-                    onChange={(e) => setFilterSesiKelompok(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-750 font-bold text-xs hover:border-primary transition-all shadow-sm outline-none min-h-[34px] cursor-pointer"
-                  >
-                    <option value="">Semua Kelompok</option>
-                    {(filterSesiDesa 
-                      ? locations.find(d => d.nama_desa === filterSesiDesa)?.kelompoks.map(k => k.nama_kelompok) || []
-                      : locations.flatMap(d => d.kelompoks.map(k => k.nama_kelompok))
-                    ).map(kName => (
-                      <option key={kName} value={kName}>{kName}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Jenis Pengajian Filter */}
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Jenis Pengajian</span>
-                  <select
-                    value={filterSesiJenis}
-                    onChange={(e) => setFilterSesiJenis(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-750 font-bold text-xs hover:border-primary transition-all shadow-sm outline-none min-h-[34px] cursor-pointer"
-                  >
-                    <option value="">Semua Jenis</option>
-                    <option value="Kelompok">Kelompok</option>
-                    <option value="Desa">Desa</option>
-                    <option value="Daerah">Daerah</option>
-                  </select>
-                </div>
+                {(filterSesiYear !== new Date().getFullYear().toString() || filterSesiMonth !== (new Date().getMonth() + 1).toString() || filterSesiDesa !== '' || filterSesiKelompok !== '' || filterSesiJenis !== '') && (
+                  <div className="flex justify-end border-t border-slate-50 pt-3">
+                    <button
+                      onClick={() => {
+                        setFilterSesiYear(new Date().getFullYear().toString());
+                        setFilterSesiMonth((new Date().getMonth() + 1).toString());
+                        setFilterSesiDesa('');
+                        setFilterSesiKelompok('');
+                        setFilterSesiJenis('');
+                      }}
+                      className="text-xs font-bold text-red-500 hover:text-red-655 transition-colors py-1.5 px-3 rounded-lg hover:bg-red-50 cursor-pointer"
+                    >
+                      Reset Filter
+                    </button>
+                  </div>
+                )}
               </div>
             )}
-            
-            {showSesiFilters && (filterSesiYear !== new Date().getFullYear().toString() || filterSesiMonth !== (new Date().getMonth() + 1).toString() || filterSesiDesa !== '' || filterSesiKelompok !== '' || filterSesiJenis !== '') && (
-              <div className="flex justify-end border-t border-slate-50 pt-3">
-                <button
-                  onClick={() => {
-                    setFilterSesiYear(new Date().getFullYear().toString());
-                    setFilterSesiMonth((new Date().getMonth() + 1).toString());
-                    setFilterSesiDesa('');
-                    setFilterSesiKelompok('');
-                    setFilterSesiJenis('');
-                  }}
-                  className="text-xs font-bold text-red-500 hover:text-red-655 transition-colors py-1.5 px-3 rounded-lg hover:bg-red-50 cursor-pointer"
-                >
-                  Reset Filter
-                </button>
-              </div>
-            )}
-          </div>
+          </div>         </div>
 
           {/* Sesi List Grid */}
           {(() => {
@@ -2257,41 +2252,35 @@ export default function PresensiPage() {
           </div>
 
           {/* Laporan Filter Bar */}
-          <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-5 flex flex-col gap-5 text-left text-xs font-bold text-slate-700">
-            {/* Header & Collapsible Toggle */}
-            <div className="flex flex-wrap items-center justify-between gap-5 pb-1">
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowReportFilters(!showReportFilters)}
-                  className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-500 cursor-pointer transition-all flex items-center justify-center"
-                  title={showReportFilters ? "Sembunyikan Kriteria" : "Tampilkan Kriteria"}
-                >
-                  {showReportFilters ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                </button>
-                <div className="flex flex-col">
-                  <span className="text-xs font-black text-slate-800 uppercase tracking-wider">Kriteria & Saringan Laporan</span>
-                  <span className="text-[10px] text-slate-450 font-bold mt-0.5">
-                    {showReportFilters ? "Pilih kriteria demografis jamaah dan tentukan sesi pengajian yang dianalisis" : "Kriteria disembunyikan. Gunakan tombol di sebelah kiri untuk melihat/mengubah"}
-                  </span>
-                </div>
-              </div>
+          <div className="flex flex-col gap-2 mb-6">
+            <div className="flex flex-wrap items-center justify-between gap-4 bg-white border border-slate-200 p-2.5 rounded-xl shadow-sm">
+              <button 
+                type="button" 
+                onClick={() => setShowReportFilters(!showReportFilters)} 
+                className="flex-1 flex items-center justify-between py-1.5 px-3 hover:bg-slate-50 text-slate-700 font-bold text-xs transition-all cursor-pointer rounded-lg text-left"
+              >
+                <span className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+                  <span>Kriteria & Saringan Laporan</span>
+                </span>
+                {showReportFilters ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </button>
 
-              <div className="flex items-center gap-3.5 ml-auto">
-                <div className="flex items-center gap-2 bg-slate-50 px-3.5 py-2 rounded-xl border border-slate-200/60 font-bold text-slate-650">
-                  <span className="uppercase tracking-wider text-slate-450 text-[10px] font-extrabold">Rentang Terpilih:</span>
-                  <span className="text-slate-800 font-black text-xs">
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200/60 font-bold text-slate-650">
+                  <span className="uppercase tracking-wider text-slate-450 text-[9px] font-extrabold">Rentang Terpilih:</span>
+                  <span className="text-slate-800 font-black text-[11px]">
                     {reportStartDate ? new Date(reportStartDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
                   </span>
                   <span className="text-slate-450 font-normal">&rarr;</span>
-                  <span className="text-slate-800 font-black text-xs">
+                  <span className="text-slate-800 font-black text-[11px]">
                     {reportEndDate ? new Date(reportEndDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
                   </span>
                 </div>
 
                 <button 
                   onClick={loadReport} 
-                  className="py-2.5 px-5 font-bold text-xs bg-primary hover:bg-primary-hover text-white rounded-lg transition-all shadow-md shadow-primary/10 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  className="py-1.5 px-4 font-bold text-xs bg-primary hover:bg-primary-hover text-white rounded-lg transition-all shadow-md shadow-primary/10 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                   disabled={loadingReport || !reportStartDate || !reportEndDate || selectedReportSessionIds.length === 0}
                 >
                   {loadingReport ? "Memuat..." : "Tampilkan Laporan"}
@@ -2300,7 +2289,7 @@ export default function PresensiPage() {
             </div>
 
             {showReportFilters && (
-              <>
+              <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-5 flex flex-col gap-5 text-left text-xs font-bold text-slate-700 animate-fadeIn">
                 {/* Dropdowns Row */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-slate-50 pt-4">
                   <MultiSelectDropdown
@@ -2426,7 +2415,7 @@ export default function PresensiPage() {
                     })()}
                   </div>
                 )}
-              </>
+              </div>
             )}
           </div>
 
