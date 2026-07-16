@@ -1235,22 +1235,30 @@ export default function PresensiPage() {
             </div>
           ) : (
             <>
-              {/* Collapsible Filters Toggle */}
-              <div className="flex flex-col gap-2">
-                <button 
-                  type="button" 
-                  onClick={() => setShowPresensiFilters(!showPresensiFilters)} 
-                  className="w-full flex items-center justify-between py-2.5 px-4 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-xl shadow-sm transition-all cursor-pointer"
-                >
-                  <span className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
-                    <span>Saringan Wilayah & Demografi (Desa, Kelompok, Gender, dll.)</span>
-                  </span>
-                  {showPresensiFilters ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                </button>
+              {/* Filters Panel */}
+              <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-5 flex flex-col gap-5 text-left text-xs font-bold text-slate-700 mb-6" id="presensi-filter-section">
+                {/* Header & Collapsible Toggle */}
+                <div className="flex flex-wrap items-center justify-between gap-5 pb-1">
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setShowPresensiFilters(!showPresensiFilters)}
+                      className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-500 cursor-pointer transition-all flex items-center justify-center"
+                      title={showPresensiFilters ? "Sembunyikan Saringan" : "Tampilkan Saringan"}
+                    >
+                      {showPresensiFilters ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    </button>
+                    <div className="flex flex-col text-left">
+                      <span className="text-xs font-black text-slate-800 uppercase tracking-wider">Kriteria & Saringan Jamaah</span>
+                      <span className="text-[10px] text-slate-450 font-bold mt-0.5">
+                        {showPresensiFilters ? "Saring jamaah berdasarkan desa, kelompok, gender, status pernikahan, kategori, atau status kehadiran" : "Saringan disembunyikan. Gunakan tombol di sebelah kiri untuk melihat/mengubah"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
 
                 {showPresensiFilters && (
-                  <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-4 mt-2 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 animate-fadeIn text-left">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 border-t border-slate-50 pt-4 animate-fadeIn text-left">
                     {/* 1. Desa */}
                     <MultiSelectDropdown
                       label="Desa"
@@ -1647,23 +1655,33 @@ export default function PresensiPage() {
                 <span>+ Buat Sesi Baru</span>
               </button>
             )}
-               {/* Collapsible Filters Toggle */}
-          <div className="flex flex-col gap-2 mb-6">
-            <button 
-              type="button" 
-              onClick={() => setShowSesiFilters(!showSesiFilters)} 
-              className="w-full flex items-center justify-between py-2.5 px-4 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-xl shadow-sm transition-all cursor-pointer"
-            >
-              <span className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
-                <span>Kriteria & Saringan Sesi</span>
-              </span>
-              {showSesiFilters ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-            </button>
+          </div>
+
+          {/* Filters Panel */}
+          <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-5 flex flex-col gap-5 text-left text-xs font-bold text-slate-700 mb-6">
+            {/* Header & Collapsible Toggle */}
+            <div className="flex flex-wrap items-center justify-between gap-5 pb-1">
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowSesiFilters(!showSesiFilters)}
+                  className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-500 cursor-pointer transition-all flex items-center justify-center"
+                  title={showSesiFilters ? "Sembunyikan Kriteria" : "Tampilkan Kriteria"}
+                >
+                  {showSesiFilters ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                </button>
+                <div className="flex flex-col">
+                  <span className="text-xs font-black text-slate-800 uppercase tracking-wider">Kriteria & Saringan Sesi</span>
+                  <span className="text-[10px] text-slate-450 font-bold mt-0.5">
+                    {showSesiFilters ? "Saring sesi berdasarkan bulan, wilayah (desa/kelompok), atau jenis pengajian" : "Kriteria disembunyikan. Gunakan tombol di sebelah kiri untuk melihat/mengubah"}
+                  </span>
+                </div>
+              </div>
+            </div>
 
             {showSesiFilters && (
-              <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-5 flex flex-col gap-5 text-left text-xs font-bold text-slate-700 animate-fadeIn">
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 border-t border-slate-50 pt-4">
                   {/* Month Picker */}
                   <SesiMonthPicker 
                     selectedYear={filterSesiYear} 
@@ -1746,9 +1764,9 @@ export default function PresensiPage() {
                     </button>
                   </div>
                 )}
-              </div>
+              </>
             )}
-          </div>         </div>
+          </div>
 
           {/* Sesi List Grid */}
           {(() => {
@@ -2250,37 +2268,42 @@ export default function PresensiPage() {
               </div>
             </div>
           </div>
+               {/* Laporan Filter Bar */}
+          <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-5 flex flex-col gap-5 text-left text-xs font-bold text-slate-700 mb-6">
+            {/* Header & Collapsible Toggle */}
+            <div className="flex flex-wrap items-center justify-between gap-5 pb-1">
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowReportFilters(!showReportFilters)}
+                  className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-500 cursor-pointer transition-all flex items-center justify-center"
+                  title={showReportFilters ? "Sembunyikan Kriteria" : "Tampilkan Kriteria"}
+                >
+                  {showReportFilters ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                </button>
+                <div className="flex flex-col">
+                  <span className="text-xs font-black text-slate-800 uppercase tracking-wider">Kriteria & Saringan Laporan</span>
+                  <span className="text-[10px] text-slate-450 font-bold mt-0.5">
+                    {showReportFilters ? "Pilih kriteria demografis jamaah dan tentukan sesi pengajian yang dianalisis" : "Kriteria disembunyikan. Gunakan tombol di sebelah kiri untuk melihat/mengubah"}
+                  </span>
+                </div>
+              </div>
 
-          {/* Laporan Filter Bar */}
-          <div className="flex flex-col gap-2 mb-6">
-            <div className="flex flex-wrap items-center justify-between gap-4 bg-white border border-slate-200 p-2.5 rounded-xl shadow-sm">
-              <button 
-                type="button" 
-                onClick={() => setShowReportFilters(!showReportFilters)} 
-                className="flex-1 flex items-center justify-between py-1.5 px-3 hover:bg-slate-50 text-slate-700 font-bold text-xs transition-all cursor-pointer rounded-lg text-left"
-              >
-                <span className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
-                  <span>Kriteria & Saringan Laporan</span>
-                </span>
-                {showReportFilters ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-              </button>
-
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200/60 font-bold text-slate-650">
-                  <span className="uppercase tracking-wider text-slate-450 text-[9px] font-extrabold">Rentang Terpilih:</span>
-                  <span className="text-slate-800 font-black text-[11px]">
+              <div className="flex items-center gap-3.5 ml-auto">
+                <div className="flex items-center gap-2 bg-slate-50 px-3.5 py-2 rounded-xl border border-slate-200/60 font-bold text-slate-650">
+                  <span className="uppercase tracking-wider text-slate-450 text-[10px] font-extrabold">Rentang Terpilih:</span>
+                  <span className="text-slate-800 font-black text-xs">
                     {reportStartDate ? new Date(reportStartDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
                   </span>
                   <span className="text-slate-450 font-normal">&rarr;</span>
-                  <span className="text-slate-800 font-black text-[11px]">
+                  <span className="text-slate-800 font-black text-xs">
                     {reportEndDate ? new Date(reportEndDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
                   </span>
                 </div>
 
                 <button 
                   onClick={loadReport} 
-                  className="py-1.5 px-4 font-bold text-xs bg-primary hover:bg-primary-hover text-white rounded-lg transition-all shadow-md shadow-primary/10 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  className="py-2.5 px-5 font-bold text-xs bg-primary hover:bg-primary-hover text-white rounded-lg transition-all shadow-md shadow-primary/10 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                   disabled={loadingReport || !reportStartDate || !reportEndDate || selectedReportSessionIds.length === 0}
                 >
                   {loadingReport ? "Memuat..." : "Tampilkan Laporan"}
@@ -2289,7 +2312,7 @@ export default function PresensiPage() {
             </div>
 
             {showReportFilters && (
-              <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-5 flex flex-col gap-5 text-left text-xs font-bold text-slate-700 animate-fadeIn">
+              <>
                 {/* Dropdowns Row */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-slate-50 pt-4">
                   <MultiSelectDropdown
@@ -2331,14 +2354,17 @@ export default function PresensiPage() {
                         return matchesDesa && matchesKelompok && matchesGender && matchesMarital && matchesKategori;
                       });
 
+                      const allSelected = matchingSessionsInRange.length > 0 && 
+                        matchingSessionsInRange.every(s => selectedReportSessionIds.includes(s.id));
+
                       return (
                         <>
-                          <div className="flex justify-between items-center">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                              Review Sesi Pengajian ({matchingSessionsInRange.length} Sesi Cocok)
+                          <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-lg border border-slate-100 mt-1">
+                            <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">
+                              Daftar Sesi Pengajian ({matchingSessionsInRange.length} Sesi Cocok)
                             </span>
                             {matchingSessionsInRange.length > 0 && (
-                              <button
+                              <button 
                                 type="button"
                                 onClick={() => {
                                   const matchIds = matchingSessionsInRange.map(s => s.id);
@@ -2415,7 +2441,7 @@ export default function PresensiPage() {
                     })()}
                   </div>
                 )}
-              </div>
+              </>
             )}
           </div>
 

@@ -1589,21 +1589,29 @@ export default function DatabasePage() {
 
       {/* Filters Area (Only on Jamaah Tab) */}
       {activeTab === 'jamaah' && (
-        <div className="flex flex-col gap-2 mb-6" id="search-filter-section">
-          <button 
-            type="button" 
-            onClick={() => setShowFilters(!showFilters)} 
-            className="w-full flex items-center justify-between py-2.5 px-4 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-xl shadow-sm transition-all cursor-pointer"
-          >
-            <span className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
-              <span>Kriteria & Saringan Jamaah</span>
-            </span>
-            {showFilters ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-          </button>
+        <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-5 flex flex-col gap-5 mb-6" id="search-filter-section">
+          {/* Header & Collapsible Toggle */}
+          <div className="flex flex-wrap items-center justify-between gap-5 pb-1">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setShowFilters(!showFilters)}
+                className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-500 cursor-pointer transition-all flex items-center justify-center"
+                title={showFilters ? "Sembunyikan Saringan" : "Tampilkan Saringan"}
+              >
+                {showFilters ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </button>
+              <div className="flex flex-col text-left">
+                <span className="text-xs font-black text-slate-800 uppercase tracking-wider">Kriteria & Saringan Jamaah</span>
+                <span className="text-[10px] text-slate-450 font-bold mt-0.5">
+                  {showFilters ? "Saring berdasarkan nama, desa, kelompok, gender, status pernikahan, kategori, gol. darah, atau pendidikan" : "Saringan disembunyikan. Gunakan tombol di sebelah kiri untuk melihat/mengubah"}
+                </span>
+              </div>
+            </div>
+          </div>
 
           {showFilters && (
-            <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-5 flex flex-col gap-5 animate-fadeIn">
+            <>
               {/* Top Row: Search input and Desa & Kelompok filters */}
               <div className="flex flex-wrap items-end gap-4">
                 {/* Search Bar */}
@@ -1713,7 +1721,7 @@ export default function DatabasePage() {
                   badgeCountLabel="Pendidikan Terpilih"
                 />
               </div>
-            </div>
+            </>
           )}
         </div>
       )}
