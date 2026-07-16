@@ -497,7 +497,7 @@ export default function LokasiManagementPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-800 tracking-tight">
-            Struktur & Wilayah
+            Dapukan & Wilayah
           </h1>
           <p className="text-xs text-slate-400 font-bold mt-1">
             Kelola struktur pengurus (4S & Tim) serta administrasi data wilayah Desa dan Kelompok
@@ -628,8 +628,20 @@ export default function LokasiManagementPage() {
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {dapukanDefs.filter(d => d.tipe === '4S').map(role => {
-                      return (
+                    {(() => {
+                      const order4S = ['Imam', 'Wakil Imam', 'Mubaligh Tugasan', 'KU', 'Aghniya', 'Penerobos'];
+                      const sorted4S = [...dapukanDefs]
+                        .filter(d => d.tipe === '4S')
+                        .sort((a, b) => {
+                          const idxA = order4S.indexOf(a.nama_dapukan);
+                          const idxB = order4S.indexOf(b.nama_dapukan);
+                          if (idxA === -1 && idxB === -1) return a.nama_dapukan.localeCompare(b.nama_dapukan);
+                          if (idxA === -1) return 1;
+                          if (idxB === -1) return -1;
+                          return idxA - idxB;
+                        });
+                      return sorted4S.map(role => {
+                        return (
                         <div key={role.id} className="border border-slate-100 rounded-xl p-4 bg-slate-50/20 hover:shadow-sm transition-all duration-150 flex flex-col justify-between min-h-[105px]">
                           <div>
                             <div className="flex justify-between items-start mb-2">
@@ -667,8 +679,9 @@ export default function LokasiManagementPage() {
                             </div>
                           </div>
                         </div>
-                      );
-                    })}
+                        );
+                      });
+                    })()}
                   </div>
                 </div>
 

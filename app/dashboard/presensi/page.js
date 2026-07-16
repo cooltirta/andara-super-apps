@@ -62,6 +62,7 @@ export default function PresensiPage() {
   const [filterPresenceStatus, setFilterPresenceStatus] = useState('');
   const [filterKategori, setFilterKategori] = useState(['Balita', 'CBR/PAUD', 'Pra Remaja', 'Remaja', 'Pra Nikah', 'Dewasa', 'Lansia']);
   const [inputStatusPernikahan, setInputStatusPernikahan] = useState(['Belum Menikah', 'Menikah', 'Janda/Duda']);
+  const [showPresensiFilters, setShowPresensiFilters] = useState(false);
 
   // Laporan Tab States
   const [reportStartDate, setReportStartDate] = useState('');
@@ -862,11 +863,11 @@ export default function PresensiPage() {
       return;
     }
     if (newSesiDesas.length === 0 || newSesiKelompoks.length === 0) {
-      showToast("Gagal: Sesi harus memiliki minimal 1 Desa dan 1 Kelompok target", "error");
+      showToast("Gagal: Sesi harus memiliki minimal 1 Desa dan 1 Kelompok", "error");
       return;
     }
     if (newSesiGenders.length === 0 || newSesiMarital.length === 0 || newSesiKategoris.length === 0) {
-      showToast("Gagal: Sesi harus memiliki minimal 1 target Gender, Status Pernikahan, dan Kategori Peserta", "error");
+      showToast("Gagal: Sesi harus memiliki minimal 1 Gender, Status Pernikahan, dan Kategori Peserta", "error");
       return;
     }
 
@@ -1201,8 +1202,8 @@ export default function PresensiPage() {
                 if (!s) return null;
                 return (
                   <div className="text-[11px] text-slate-500 bg-slate-50 p-3 rounded-lg border border-slate-100/50 font-semibold leading-relaxed grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 pt-3 border-t border-slate-100/70">
-                    <div>Desa Target: <span className="font-bold text-slate-700">{s.desas.join(', ')}</span></div>
-                    <div>Kelompok Target: <span className="font-bold text-slate-700">{s.kelompoks.join(', ')}</span></div>
+                    <div>Desa: <span className="font-bold text-slate-700">{s.desas.join(', ')}</span></div>
+                    <div>Kelompok: <span className="font-bold text-slate-700">{s.kelompoks.join(', ')}</span></div>
                     <div>Filter Peserta: <span className="font-bold text-slate-700">{s.genders.join(', ')} &bull; {s.marital_statuses.join(', ')} &bull; {s.kategoris.join(', ')}</span></div>
                   </div>
                 );
@@ -1234,100 +1235,121 @@ export default function PresensiPage() {
             </div>
           ) : (
             <>
-              {/* Saringan Pencarian & Filter */}
-              <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-5 flex flex-col gap-5">
-                <div className="flex flex-wrap items-center gap-4">
-                  {/* Search Bar */}
-                  <div className="relative flex-1 min-w-[280px]">
-                    <Search className="absolute left-3 top-3 text-slate-400 w-4 h-4" />
-                    <input 
-                      type="text" 
-                      className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-slate-200 focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all outline-none bg-white text-slate-700 text-xs font-semibold" 
-                      placeholder="Cari nama jamaah..."
-                      value={searchName}
-                      onChange={(e) => setSearchName(e.target.value)}
+              {/* Collapsible Filters Toggle */}
+              <div className="flex flex-col gap-2">
+                <button 
+                  type="button" 
+                  onClick={() => setShowPresensiFilters(!showPresensiFilters)} 
+                  className="w-full flex items-center justify-between py-2.5 px-4 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-xl shadow-sm transition-all cursor-pointer"
+                >
+                  <span className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+                    <span>Saringan Wilayah & Demografi (Desa, Kelompok, Gender, dll.)</span>
+                  </span>
+                  {showPresensiFilters ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                </button>
+
+                {showPresensiFilters && (
+                  <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-4 mt-2 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 animate-fadeIn text-left">
+                    {/* 1. Desa */}
+                    <MultiSelectDropdown
+                      label="Desa"
+                      options={
+                        user.monitor_all_desas 
+                          ? locations.map(d => d.nama_desa)
+                          : locations.filter(d => (user.desas_pantau || []).includes(d.nama_desa)).map(d => d.nama_desa)
+                      }
+                      selected={filterDesas}
+                      onChange={setFilterDesas}
+                      placeholder="Pilih Desa..."
+                      allLabel="Semua Desa"
+                      badgeCountLabel="Desa Terpilih"
                     />
-                  </div>
 
-                  {/* Presence Status Selector */}
-                  <div className="flex flex-col gap-1.5 min-w-[140px]">
-                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest text-left">Status Kehadiran</span>
-                    <select 
-                      className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-750 font-bold text-xs cursor-pointer outline-none hover:border-primary focus:border-primary min-h-[34px]"
-                      value={filterPresenceStatus}
-                      onChange={(e) => setFilterPresenceStatus(e.target.value)}
-                    >
-                      <option value="">Semua Kehadiran</option>
-                      <option value="Hadir">Hadir</option>
-                      <option value="Ijin">Ijin</option>
-                      <option value="Absen">Absen</option>
-                    </select>
+                    {/* 2. Kelompok */}
+                    <GroupedMultiSelectDropdown
+                      label="Kelompok"
+                      groupedOptions={
+                        (user.monitor_all_desas 
+                          ? locations 
+                          : locations.filter(d => (user.desas_pantau || []).includes(d.nama_desa))
+                        ).map(d => ({
+                          desa: d.nama_desa,
+                          kelompoks: d.kelompoks
+                            .filter(k => user.monitor_all_kelompoks || (user.kelompoks_pantau || []).includes(k.nama_kelompok))
+                            .map(k => k.nama_kelompok)
+                        }))
+                      }
+                      selected={filterKelompoks}
+                      onChange={setFilterKelompoks}
+                      placeholder="Pilih Kelompok..."
+                    />
+
+                    {/* 3. Jenis Kelamin */}
+                    <MultiSelectDropdown
+                      label="Jenis Kelamin"
+                      options={['Laki-laki', 'Perempuan']}
+                      selected={filterGenders}
+                      onChange={setFilterGenders}
+                      placeholder="Pilih Gender..."
+                      allLabel="Semua Gender"
+                      badgeCountLabel="Gender Terpilih"
+                    />
+
+                    {/* 4. Status Pernikahan */}
+                    <MultiSelectDropdown
+                      label="Status Pernikahan"
+                      options={getAvailableMaritalStatuses(filterGenders, filterKategori)}
+                      selected={inputStatusPernikahan}
+                      onChange={setInputStatusPernikahan}
+                      placeholder="Pilih Status..."
+                      allLabel="Semua Status"
+                      badgeCountLabel="Status Terpilih"
+                    />
+
+                    {/* 5. Kategori */}
+                    <MultiSelectDropdown
+                      label="Kategori"
+                      options={getAvailableKategoris(inputStatusPernikahan)}
+                      selected={filterKategori}
+                      onChange={setFilterKategori}
+                      placeholder="Pilih Kategori..."
+                      allLabel="Semua Kategori"
+                      badgeCountLabel="Kategori Terpilih"
+                    />
+
+                    {/* 6. Status Kehadiran */}
+                    <div className="flex flex-col gap-1.5">
+                      <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest text-left">Status Kehadiran</span>
+                      <select 
+                        className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-750 font-bold text-xs cursor-pointer outline-none hover:border-primary focus:border-primary min-h-[34px]"
+                        value={filterPresenceStatus}
+                        onChange={(e) => setFilterPresenceStatus(e.target.value)}
+                      >
+                        <option value="">Semua Kehadiran</option>
+                        <option value="Hadir">Hadir</option>
+                        <option value="Ijin">Ijin</option>
+                        <option value="Absen">Absen</option>
+                      </select>
+                    </div>
                   </div>
+                )}
+              </div>
+
+              {/* Search Bar Container */}
+              <div className="bg-white border border-slate-100 shadow-sm rounded-xl p-4 flex flex-col gap-2 mt-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 text-slate-400 w-4 h-4" />
+                  <input 
+                    type="text" 
+                    className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-slate-200 focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all outline-none bg-white text-slate-700 text-xs font-semibold" 
+                    placeholder="Cari nama jamaah..."
+                    value={searchName}
+                    onChange={(e) => setSearchName(e.target.value)}
+                  />
                 </div>
-
-                {/* Dropdowns Row */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 border-t border-slate-50 pt-4">
-                  <MultiSelectDropdown
-                    label="Target Desa"
-                    options={
-                      user.monitor_all_desas 
-                        ? locations.map(d => d.nama_desa)
-                        : locations.filter(d => (user.desas_pantau || []).includes(d.nama_desa)).map(d => d.nama_desa)
-                    }
-                    selected={filterDesas}
-                    onChange={setFilterDesas}
-                    placeholder="Pilih Desa..."
-                    allLabel="Semua Desa"
-                    badgeCountLabel="Desa Terpilih"
-                  />
-
-                  <GroupedMultiSelectDropdown
-                    label="Target Kelompok"
-                    groupedOptions={
-                      (user.monitor_all_desas 
-                        ? locations 
-                        : locations.filter(d => (user.desas_pantau || []).includes(d.nama_desa))
-                      ).map(d => ({
-                        desa: d.nama_desa,
-                        kelompoks: d.kelompoks
-                          .filter(k => user.monitor_all_kelompoks || (user.kelompoks_pantau || []).includes(k.nama_kelompok))
-                          .map(k => k.nama_kelompok)
-                      }))
-                    }
-                    selected={filterKelompoks}
-                    onChange={setFilterKelompoks}
-                    placeholder="Pilih Kelompok..."
-                  />
-
-                  <MultiSelectDropdown
-                    label="Jenis Kelamin"
-                    options={['Laki-laki', 'Perempuan']}
-                    selected={filterGenders}
-                    onChange={setFilterGenders}
-                    placeholder="Pilih Gender..."
-                    allLabel="Semua Gender"
-                    badgeCountLabel="Gender Terpilih"
-                  />
-
-                  <MultiSelectDropdown
-                    label="Status Pernikahan"
-                    options={getAvailableMaritalStatuses(filterGenders, filterKategori)}
-                    selected={inputStatusPernikahan}
-                    onChange={setInputStatusPernikahan}
-                    placeholder="Pilih Status..."
-                    allLabel="Semua Status"
-                    badgeCountLabel="Status Terpilih"
-                  />
-
-                  <MultiSelectDropdown
-                    label="Kategori Jamaah"
-                    options={getAvailableKategoris(inputStatusPernikahan)}
-                    selected={filterKategori}
-                    onChange={setFilterKategori}
-                    placeholder="Pilih Kategori..."
-                    allLabel="Semua Kategori"
-                    badgeCountLabel="Kategori Terpilih"
-                  />
+                <div className="text-[11px] font-bold text-slate-500 pl-1 text-left">
+                  Menampilkan <strong>{filteredInputList.length}</strong> jamaah sesuai kriteria filter
                 </div>
               </div>
 
@@ -1800,11 +1822,11 @@ export default function PresensiPage() {
                       {/* Criteria Details */}
                       <div className="border-t border-slate-50 pt-3 flex flex-col gap-2 text-xs font-bold text-slate-600">
                         <div>
-                          <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block">Desa Target</span>
+                          <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block">Desa</span>
                           <span className="text-slate-700 font-semibold">{s.desas.join(', ')}</span>
                         </div>
                         <div>
-                          <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block">Kelompok Target</span>
+                          <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block">Kelompok</span>
                           <span className="text-slate-700 font-semibold">{s.kelompoks.join(', ')}</span>
                         </div>
                         <div className="grid grid-cols-2 gap-2">
@@ -1917,7 +1939,7 @@ export default function PresensiPage() {
             {syncingSession && (
               <div className="text-xs font-bold text-slate-500 flex flex-col gap-1.5">
                 <div>
-                  <span className="text-[10px] text-slate-400 block uppercase">Sesi Target</span>
+                  <span className="text-[10px] text-slate-400 block uppercase">Sesi</span>
                   <span className="text-slate-700 font-semibold">{syncingSession.jenis_pengajian} ({syncingSession.tanggal})</span>
                 </div>
                 <div>
@@ -2391,7 +2413,7 @@ export default function PresensiPage() {
                                         </span>
                                       </div>
                                       <div className="text-[10px] text-slate-400 font-semibold truncate leading-tight">
-                                        Target: {s.kelompoks.join(', ')} ({s.kategoris.join(', ')})
+                                        Kelompok: {s.kelompoks.join(', ')} ({s.kategoris.join(', ')})
                                       </div>
                                     </div>
                                   </label>
@@ -2753,13 +2775,13 @@ export default function PresensiPage() {
               </p>
             </div>
             <div>
-              <p className="font-bold text-[10px] text-slate-400 uppercase">Wilayah Target</p>
+              <p className="font-bold text-[10px] text-slate-400 uppercase">Wilayah</p>
               <p className="font-semibold text-slate-700 mt-0.5 truncate">
                 Desa: {reportDesas.join(', ') || 'Semua Desa'} &bull; Kelompok: {reportKelompoks.join(', ') || 'Semua Kelompok'}
               </p>
             </div>
             <div>
-              <p className="font-bold text-[10px] text-slate-400 uppercase">Demografi Target</p>
+              <p className="font-bold text-[10px] text-slate-400 uppercase">Demografi</p>
               <p className="font-semibold text-slate-700 mt-0.5">
                 Gender: {reportGenders.join(', ') || 'Semua'} &bull; Status Nikah: {reportStatusPernikahan.join(', ') || 'Semua'}
               </p>

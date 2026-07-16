@@ -952,18 +952,18 @@ export default function DatabasePage() {
         document.body.appendChild(script);
       });
 
-      const totalJamaah = filteredJamaah.length;
-      const totalLaki = filteredJamaah.filter(j => j.jenis_kelamin === 'Laki-laki').length;
-      const totalPerempuan = filteredJamaah.filter(j => j.jenis_kelamin === 'Perempuan').length;
+      const totalJamaah = statsActiveJamaah.length;
+      const totalLaki = statsActiveJamaah.filter(j => j.jenis_kelamin === 'Laki-laki').length;
+      const totalPerempuan = statsActiveJamaah.filter(j => j.jenis_kelamin === 'Perempuan').length;
 
       const familiesInFilter = keluargaList.filter(k => 
-        k.anggota.some(m => filteredJamaah.some(fj => fj.id === m.jamaah_id))
+        k.anggota.some(m => statsActiveJamaah.some(fj => fj.id === m.jamaah_id))
       );
       const totalKeluarga = familiesInFilter.length;
 
       const categories = ['Balita', 'CBR/PAUD', 'Pra Remaja', 'Remaja', 'Pra Nikah', 'Dewasa', 'Lansia'];
       const catData = categories.map(cat => {
-        const list = filteredJamaah.filter(j => j.kategori === cat);
+        const list = statsActiveJamaah.filter(j => j.kategori === cat);
         const l = list.filter(j => j.jenis_kelamin === 'Laki-laki').length;
         const p = list.filter(j => j.jenis_kelamin === 'Perempuan').length;
         return { name: cat, l, p, total: list.length };
@@ -971,24 +971,25 @@ export default function DatabasePage() {
 
       const maritalStatuses = ['Belum Menikah', 'Menikah', 'Janda', 'Duda'];
       const maritalData = maritalStatuses.map(status => {
-        const list = filteredJamaah.filter(j => j.status_pernikahan === status || (status === 'Belum Menikah' && !j.status_pernikahan));
+        const list = statsActiveJamaah.filter(j => j.status_pernikahan === status || (status === 'Belum Menikah' && !j.status_pernikahan));
         const l = list.filter(j => j.jenis_kelamin === 'Laki-laki').length;
         const p = list.filter(j => j.jenis_kelamin === 'Perempuan').length;
         return { name: status, l, p, total: list.length };
       });
 
-      const activeDesas = filterDesas.length > 0 ? filterDesas.join(', ') : 'Semua Desa';
-      const activeKelompoks = filterKelompoks.length > 0 ? filterKelompoks.join(', ') : 'Semua Kelompok';
-      const activeKategoris = filterKategori.join(', ');
+      const activeDesas = filterStatsDesa ? `Desa ${filterStatsDesa}` : 'Semua Desa Terpantau';
+      const activeKelompoks = filterStatsKelompok ? filterStatsKelompok : 'Semua Kelompok Terpantau';
       
       const now = new Date();
       const dateString = now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
       const timeString = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
 
       const element = document.createElement('div');
-      element.style.position = 'absolute';
-      element.style.left = '-9999px';
+      element.style.position = 'fixed';
+      element.style.left = '0';
       element.style.top = '0';
+      element.style.zIndex = '-9999';
+      element.style.opacity = '1';
       element.style.width = '794px';
       element.style.padding = '40px';
       element.style.fontFamily = "'Inter', Arial, sans-serif";
@@ -1748,13 +1749,6 @@ export default function DatabasePage() {
                   {user.can_read_jamaah && filteredJamaah.length > 0 && (
                     <>
                       <button 
-                        onClick={handleDownloadReportPdf} 
-                        className="flex-1 md:flex-initial flex items-center justify-center gap-2 py-1.5 px-3.5 font-bold text-xs bg-teal-700 hover:bg-teal-800 text-white rounded-lg shadow-md shadow-teal-700/10 transition-all cursor-pointer active:scale-95"
-                      >
-                        <FileText size={13} />
-                        <span>Laporan PDF</span>
-                      </button>
-                      <button 
                         onClick={handleExportCsv} 
                         className="flex-1 md:flex-initial flex items-center justify-center gap-2 py-1.5 px-3.5 font-bold text-xs bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg shadow-md shadow-emerald-700/10 transition-all cursor-pointer active:scale-95"
                       >
@@ -2268,6 +2262,14 @@ export default function DatabasePage() {
                       <option key={kelompokName} value={kelompokName}>{kelompokName}</option>
                     ))}
                   </select>
+                  <button 
+                    onClick={handleDownloadReportPdf} 
+                    className="flex items-center justify-center gap-2 py-1.5 px-3 bg-teal-700 hover:bg-teal-800 text-white rounded-lg font-bold text-xs shadow-md shadow-teal-700/10 transition-all cursor-pointer active:scale-95"
+                    title="Unduh Laporan Statistik PDF"
+                  >
+                    <FileText size={13} />
+                    <span>Laporan PDF</span>
+                  </button>
                 </div>
               </div>
               {/* Cards Grid */}

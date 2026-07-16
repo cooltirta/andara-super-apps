@@ -117,7 +117,7 @@ export default function Sidebar({ user }) {
               Menu Utama
             </span>
 
-            {/* Dashboard Link */}
+            {/* 1. Beranda */}
             <Link 
               href="/dashboard" 
               onClick={() => setIsOpen(false)}
@@ -131,7 +131,7 @@ export default function Sidebar({ user }) {
               <span>Beranda</span>
             </Link>
 
-            {/* Database Link */}
+            {/* 2. Database Jamaah */}
             {(user.can_read_jamaah || user.can_read_keluarga) && (
               <Link 
                 href="/dashboard/database" 
@@ -139,7 +139,7 @@ export default function Sidebar({ user }) {
                 className={`flex items-center gap-3 px-4 py-2.5 rounded-3xl font-semibold text-sm transition-all duration-150 ${
                   pathname === '/dashboard/database' 
                     ? 'bg-primary-light text-primary font-bold shadow-sm' 
-                    : 'text-slate-600 hover:text-primary hover:bg-slate-50'
+                    : 'text-slate-650 hover:text-primary hover:bg-slate-50'
                 }`}
               >
                 <Users size={18} />
@@ -147,7 +147,7 @@ export default function Sidebar({ user }) {
               </Link>
             )}
 
-            {/* Attendance Link */}
+            {/* 3. Ngajiku */}
             {(user.can_read_kehadiran || user.can_create_kehadiran || user.can_update_kehadiran || user.can_delete_kehadiran || user.can_read_laporan) && (
               <Link 
                 href="/dashboard/presensi" 
@@ -155,7 +155,7 @@ export default function Sidebar({ user }) {
                 className={`flex items-center gap-3 px-4 py-2.5 rounded-3xl font-semibold text-sm transition-all duration-150 ${
                   pathname === '/dashboard/presensi' 
                     ? 'bg-primary-light text-primary font-bold shadow-sm' 
-                    : 'text-slate-600 hover:text-primary hover:bg-slate-50'
+                    : 'text-slate-650 hover:text-primary hover:bg-slate-50'
                 }`}
               >
                 <ClipboardCheck size={18} />
@@ -163,7 +163,7 @@ export default function Sidebar({ user }) {
               </Link>
             )}
 
-            {/* Kiosk RFID Link */}
+            {/* Kiosk RFID */}
             {(user.can_read_kehadiran || user.can_create_kehadiran || user.can_update_kehadiran) && (
               <Link 
                 href="/dashboard/presensi/rfid" 
@@ -171,7 +171,7 @@ export default function Sidebar({ user }) {
                 className={`flex items-center gap-3 px-4 py-2.5 rounded-3xl font-semibold text-sm transition-all duration-150 ${
                   pathname === '/dashboard/presensi/rfid' 
                     ? 'bg-primary-light text-primary font-bold shadow-sm' 
-                    : 'text-slate-600 hover:text-primary hover:bg-slate-50'
+                    : 'text-slate-650 hover:text-primary hover:bg-slate-50'
                 }`}
               >
                 <Radio size={18} />
@@ -179,23 +179,23 @@ export default function Sidebar({ user }) {
               </Link>
             )}
 
-            {/* User Access Link */}
-            {user.can_read_user && (
+            {/* 4. Kalender */}
+            {user.can_read_kalender && (
               <Link 
-                href="/dashboard/users" 
+                href="/dashboard/kalender" 
                 onClick={() => setIsOpen(false)}
                 className={`flex items-center gap-3 px-4 py-2.5 rounded-3xl font-semibold text-sm transition-all duration-150 ${
-                  pathname === '/dashboard/users' 
+                  pathname === '/dashboard/kalender' 
                     ? 'bg-primary-light text-primary font-bold shadow-sm' 
-                    : 'text-slate-600 hover:text-primary hover:bg-slate-50'
+                    : 'text-slate-655 hover:text-primary hover:bg-slate-50'
                 }`}
               >
-                <ShieldCheck size={18} />
-                <span>User Access</span>
+                <Calendar size={18} />
+                <span>Kalender</span>
               </Link>
             )}
 
-            {/* Lokasi Link */}
+            {/* 5. Dapukan & Wilayah */}
             {user.can_read_lokasi && (
               <Link 
                 href="/dashboard/lokasi" 
@@ -203,15 +203,31 @@ export default function Sidebar({ user }) {
                 className={`flex items-center gap-3 px-4 py-2.5 rounded-3xl font-semibold text-sm transition-all duration-150 ${
                   pathname === '/dashboard/lokasi' 
                     ? 'bg-primary-light text-primary font-bold shadow-sm' 
-                    : 'text-slate-600 hover:text-primary hover:bg-slate-50'
+                    : 'text-slate-650 hover:text-primary hover:bg-slate-50'
                 }`}
               >
                 <MapPin size={18} />
-                <span>Struktur & Wilayah</span>
+                <span>Dapukan & Wilayah</span>
               </Link>
             )}
 
-            {/* Logs Link */}
+            {/* 6. User Access */}
+            {user.can_read_user && (
+              <Link 
+                href="/dashboard/users" 
+                onClick={() => setIsOpen(false)}
+                className={`flex items-center gap-3 px-4 py-2.5 rounded-3xl font-semibold text-sm transition-all duration-150 ${
+                  pathname === '/dashboard/users' 
+                    ? 'bg-primary-light text-primary font-bold shadow-sm' 
+                    : 'text-slate-650 hover:text-primary hover:bg-slate-50'
+                }`}
+              >
+                <ShieldCheck size={18} />
+                <span>User Access</span>
+              </Link>
+            )}
+
+            {/* 7. Rekam Jejak */}
             {user.can_read_logs && (
               <Link 
                 href="/dashboard/activity-logs" 
@@ -231,7 +247,7 @@ export default function Sidebar({ user }) {
               Tim & Layanan SB
             </span>
 
-            {/* Tim Haji Link */}
+            {/* 1. Tim Haji */}
             {user.can_read_haji && (
               <Link 
                 href="/dashboard/haji" 
@@ -247,7 +263,7 @@ export default function Sidebar({ user }) {
               </Link>
             )}
 
-            {/* Tim PNKB Link */}
+            {/* 2. Tim PNKB */}
             {user.can_read_pnkb && (
               <Link 
                 href="/dashboard/pnkb" 
@@ -263,7 +279,7 @@ export default function Sidebar({ user }) {
               </Link>
             )}
 
-            {/* Benda Sabilillah Link */}
+            {/* 3. Benda Sabilillah */}
             {user.can_read_sabilillah && (
               <Link 
                 href="/dashboard/sabilillah" 
@@ -276,22 +292,6 @@ export default function Sidebar({ user }) {
               >
                 <Package size={18} />
                 <span>Benda Sabilillah</span>
-              </Link>
-            )}
-
-            {/* Kalender Link */}
-            {user.can_read_kalender && (
-              <Link 
-                href="/dashboard/kalender" 
-                onClick={() => setIsOpen(false)}
-                className={`flex items-center gap-3 px-4 py-2.5 rounded-3xl font-semibold text-sm transition-all duration-150 ${
-                  pathname === '/dashboard/kalender' 
-                    ? 'bg-primary-light text-primary font-bold shadow-sm' 
-                    : 'text-slate-650 hover:text-primary hover:bg-slate-50'
-                }`}
-              >
-                <Calendar size={18} />
-                <span>Kalender</span>
               </Link>
             )}
           </nav>
