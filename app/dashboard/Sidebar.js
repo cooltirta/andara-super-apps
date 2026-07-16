@@ -207,7 +207,7 @@ export default function Sidebar({ user }) {
                 }`}
               >
                 <MapPin size={18} />
-                <span>Manajemen Lokasi</span>
+                <span>Struktur & Wilayah</span>
               </Link>
             )}
 
